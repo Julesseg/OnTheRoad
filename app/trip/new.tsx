@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import * as Crypto from 'expo-crypto';
 
 import { useTripStore } from '@/lib/store';
 import { Trip, Day } from '@/lib/schema';
@@ -24,7 +23,7 @@ function buildDays(startDate: string, endDate: string): Day[] {
   while (current <= end) {
     const dateStr = current.toISOString().slice(0, 10);
     days.push({
-      id: Crypto.randomUUID(),
+      id: crypto.randomUUID(),
       date: dateStr,
       items: [],
     });
@@ -66,7 +65,7 @@ export default function NewTripScreen() {
     try {
       const now = new Date().toISOString();
       const trip: Trip = {
-        id: Crypto.randomUUID(),
+        id: crypto.randomUUID(),
         schemaVersion: 1,
         title: title.trim(),
         startDate,
