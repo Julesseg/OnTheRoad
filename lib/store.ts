@@ -18,11 +18,11 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 function scheduleSave(trips: TripSummary[], activeTripId: string | null): void {
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(() => {
-    saveState({
-      activeTripId,
-      trips,
-      lastUpdated: new Date().toISOString(),
-    }).catch(console.error);
+    try {
+      saveState({ activeTripId, trips, lastUpdated: new Date().toISOString() });
+    } catch (e) {
+      console.error(e);
+    }
   }, 300);
 }
 
@@ -45,7 +45,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   },
 
   async addTrip(trip: Trip) {
-    await saveTrip(trip);
+    saveTrip(trip);
     const summary: TripSummary = {
       id: trip.id,
       title: trip.title,
@@ -68,7 +68,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
   async removeTrip(id: string) {
     const { deleteTrip } = await import('./storage');
-    await deleteTrip(id);
+    deleteTrip(id);
     const updatedTrips = get().trips.filter((t) => t.id !== id);
     const activeTrip = get().activeTrip?.id === id ? null : get().activeTrip;
     set({ trips: updatedTrips, activeTrip });
