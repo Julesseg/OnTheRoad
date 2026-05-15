@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { AppState, AppStateSchema, Trip, TripSchema } from './schema';
 
 const BASE_DIR = FileSystem.documentDirectory ?? '';
