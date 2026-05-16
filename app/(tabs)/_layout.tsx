@@ -18,14 +18,14 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
       }}>
       <Tabs.Screen
-        name="trip"
+        name="index"
         options={{
-          title: 'Next Trip',
+          title: 'Upcoming',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="map" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="index"
+        name="trips"
         options={{
           title: 'Trips',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="list.bullet" color={color} />,
