@@ -14,7 +14,7 @@ import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 
 export default function TripsScreen() {
-  const { trips, initialized, initialize, setActiveTrip } = useTripStore();
+  const { trips, activeTrip, initialized, initialize, setActiveTrip } = useTripStore();
 
   useEffect(() => {
     if (!initialized) initialize();
@@ -51,14 +51,28 @@ export default function TripsScreen() {
           data={trips}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => <TripRow item={item} onPress={() => setActiveTrip(item.id)} />}
+          renderItem={({ item }) => (
+            <TripRow
+              item={item}
+              isActive={activeTrip?.id === item.id}
+              onPress={() => setActiveTrip(item.id)}
+            />
+          )}
         />
       )}
     </SafeAreaView>
   );
 }
 
-function TripRow({ item, onPress }: { item: TripSummary; onPress: () => void }) {
+function TripRow({
+  item,
+  isActive,
+  onPress,
+}: {
+  item: TripSummary;
+  isActive: boolean;
+  onPress: () => void;
+}) {
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowContent}>
@@ -67,7 +81,7 @@ function TripRow({ item, onPress }: { item: TripSummary; onPress: () => void }) 
           {item.startDate} — {item.endDate}
         </Text>
       </View>
-      {item.isActive && (
+      {isActive && (
         <View style={styles.activeBadge}>
           <Text style={styles.activeBadgeText}>Active</Text>
         </View>

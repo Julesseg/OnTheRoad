@@ -12,7 +12,8 @@ import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function findNextTrip(trips: TripSummary[]): TripSummary | null {

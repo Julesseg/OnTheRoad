@@ -16,15 +16,18 @@ import { router } from 'expo-router';
 import { useTripStore } from '@/lib/store';
 import { Trip, Day } from '@/lib/schema';
 
+function formatLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function buildDays(startDate: string, endDate: string): Day[] {
   const days: Day[] = [];
   const current = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T00:00:00`);
   while (current <= end) {
-    const dateStr = current.toISOString().slice(0, 10);
     days.push({
       id: crypto.randomUUID(),
-      date: dateStr,
+      date: formatLocalDate(current),
       items: [],
     });
     current.setDate(current.getDate() + 1);
@@ -70,7 +73,6 @@ export default function NewTripScreen() {
         title: title.trim(),
         startDate,
         endDate,
-        isActive: true,
         days: buildDays(startDate, endDate),
         createdAt: now,
         updatedAt: now,

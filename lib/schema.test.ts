@@ -7,7 +7,6 @@ const VALID_TRIP = {
   title: 'Pacific Coast Highway',
   startDate: '2026-07-01',
   endDate: '2026-07-14',
-  isActive: true,
   days: [],
   createdAt: '2026-05-01T10:00:00.000Z',
   updatedAt: '2026-05-01T10:00:00.000Z',
@@ -28,6 +27,14 @@ describe('TripSchema', () => {
 
   it('rejects a trip with invalid date format', () => {
     expect(() => TripSchema.parse({ ...VALID_TRIP, startDate: '01/07/2026' })).toThrow();
+  });
+
+  it('rejects a trip with a calendar-invalid date (Feb 30)', () => {
+    expect(() => TripSchema.parse({ ...VALID_TRIP, startDate: '2026-02-30' })).toThrow();
+  });
+
+  it('rejects a trip with month 13', () => {
+    expect(() => TripSchema.parse({ ...VALID_TRIP, startDate: '2026-13-01' })).toThrow();
   });
 });
 
@@ -130,7 +137,6 @@ describe('AppStateSchema', () => {
           title: 'Pacific Coast Highway',
           startDate: '2026-07-01',
           endDate: '2026-07-14',
-          isActive: true,
         },
       ],
       lastUpdated: '2026-05-01T10:00:00.000Z',

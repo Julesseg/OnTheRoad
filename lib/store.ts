@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { Trip, TripSummary } from './schema';
-import { loadState, saveState, loadTrip, saveTrip } from './storage';
+import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage';
 
 interface TripStore {
   trips: TripSummary[];
   activeTrip: Trip | null;
   initialized: boolean;
+  initializing: boolean;
 
   initialize: () => Promise<void>;
   addTrip: (trip: Trip) => Promise<void>;
@@ -26,34 +27,49 @@ function scheduleSave(trips: TripSummary[], activeTripId: string | null): void {
   }, 300);
 }
 
+function toSummary(trip: Trip): TripSummary {
+  return {
+    id: trip.id,
+    title: trip.title,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+  };
+}
+
 export const useTripStore = create<TripStore>((set, get) => ({
   trips: [],
   activeTrip: null,
   initialized: false,
+  initializing: false,
 
   async initialize() {
-    const state = await loadState();
-    if (!state) {
-      set({ initialized: true });
-      return;
+    if (get().initializing || get().initialized) return;
+    set({ initializing: true });
+    try {
+      const state = await loadState();
+      if (!state) {
+        set({ initialized: true, initializing: false });
+        return;
+      }
+      let activeTrip: Trip | null = null;
+      if (state.activeTripId) {
+        try {
+          activeTrip = await loadTrip(state.activeTripId);
+        } catch {
+          activeTrip = null;
+        }
+      }
+      set({ trips: state.trips, activeTrip, initialized: true, initializing: false });
+    } catch {
+      // Corrupt or missing state — treat as fresh start so the UI unblocks.
+      set({ initialized: true, initializing: false });
     }
-    let activeTrip: Trip | null = null;
-    if (state.activeTripId) {
-      activeTrip = await loadTrip(state.activeTripId);
-    }
-    set({ trips: state.trips, activeTrip, initialized: true });
   },
 
   async addTrip(trip: Trip) {
     saveTrip(trip);
-    const summary: TripSummary = {
-      id: trip.id,
-      title: trip.title,
-      startDate: trip.startDate,
-      endDate: trip.endDate,
-      isActive: trip.isActive,
-    };
-    const updatedTrips = get().trips.map((t) => ({ ...t, isActive: false })).concat(summary);
+    const summary = toSummary(trip);
+    const updatedTrips = get().trips.concat(summary);
     set({ trips: updatedTrips, activeTrip: trip });
     scheduleSave(updatedTrips, trip.id);
   },
@@ -61,13 +77,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
   async setActiveTrip(id: string) {
     const trip = await loadTrip(id);
     if (!trip) return;
-    const updatedTrips = get().trips.map((t) => ({ ...t, isActive: t.id === id }));
-    set({ trips: updatedTrips, activeTrip: trip });
-    scheduleSave(updatedTrips, id);
+    set({ activeTrip: trip });
+    scheduleSave(get().trips, id);
   },
 
   async removeTrip(id: string) {
-    const { deleteTrip } = await import('./storage');
     deleteTrip(id);
     const updatedTrips = get().trips.filter((t) => t.id !== id);
     const activeTrip = get().activeTrip?.id === id ? null : get().activeTrip;
