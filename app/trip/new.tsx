@@ -76,7 +76,7 @@ export default function NewTripScreen() {
         updatedAt: now,
       };
       await addTrip(trip);
-      router.replace('/(tabs)/trips');
+      router.back();
     } catch (err) {
       Alert.alert('Error', 'Failed to save trip. Please try again.');
     } finally {
