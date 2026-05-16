@@ -1,98 +1,136 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useTripStore } from '@/lib/store';
+import { TripSummary } from '@/lib/schema';
 
-export default function HomeScreen() {
+function todayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function findNextTrip(trips: TripSummary[]): TripSummary | null {
+  const today = todayString();
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    trips
+      .filter((t) => t.endDate >= today)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))[0] ?? null
+  );
+}
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+function daysUntil(dateStr: string): number {
+  const today = new Date(todayString());
+  const target = new Date(dateStr);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+export default function NextTripScreen() {
+  const { trips, activeTrip, initialized, initialize } = useTripStore();
+
+  useEffect(() => {
+    if (!initialized) initialize();
+  }, [initialized]);
+
+  if (!initialized) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator style={styles.loader} size="large" />
+      </SafeAreaView>
+    );
+  }
+
+  const next = findNextTrip(trips);
+
+  if (!next) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>No upcoming trips</Text>
+          <Text style={styles.emptyHint}>Create a trip in the Trips tab to get started.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const today = todayString();
+  const isInProgress = next.startDate <= today && next.endDate >= today;
+  const delta = daysUntil(next.startDate);
+
+  // Resolve full trip data from store if it matches the active trip
+  const fullTrip = activeTrip?.id === next.id ? activeTrip : null;
+  const todayDay = fullTrip?.days.find((d) => d.date === today);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.header}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
+            </Text>
+          </View>
+          <Text style={styles.title}>{next.title}</Text>
+          <Text style={styles.dates}>
+            {next.startDate} — {next.endDate}
+          </Text>
+        </View>
+
+        {isInProgress && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Today</Text>
+            {todayDay && todayDay.items.length > 0 ? (
+              todayDay.items.map((item) => (
+                <View key={item.id} style={styles.item}>
+                  <Text style={styles.itemType}>{item.type}</Text>
+                  <Text style={styles.itemName}>
+                    {'name' in item ? item.name : item.text}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyDay}>Nothing scheduled for today.</Text>
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, backgroundColor: '#fff' },
+  loader: { flex: 1 },
+  scroll: { padding: 20 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
+  emptyHint: { marginTop: 8, color: '#888', textAlign: 'center' },
+  header: { marginBottom: 28 },
+  badge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 12,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  title: { fontSize: 28, fontWeight: '700', color: '#111' },
+  dates: { marginTop: 6, fontSize: 14, color: '#666' },
+  section: { marginTop: 4 },
+  sectionTitle: { fontSize: 17, fontWeight: '600', marginBottom: 12, color: '#333' },
+  item: {
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  itemType: { fontSize: 11, fontWeight: '600', color: '#888', textTransform: 'uppercase' },
+  itemName: { marginTop: 2, fontSize: 15, color: '#111' },
+  emptyDay: { color: '#888', fontSize: 14 },
 });
