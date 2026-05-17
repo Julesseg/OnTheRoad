@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { GlassContainer, GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-const glassAvailable = isLiquidGlassAvailable();
+const glassAvailable = isGlassEffectAPIAvailable();
 
 export default function TripsScreen() {
   const { trips, activeTrip, initialized, initialize, setActiveTrip } = useTripStore();
@@ -53,17 +53,40 @@ export default function TripsScreen() {
           <Text style={styles.emptyText}>No trips yet.</Text>
           <Text style={styles.emptyHint}>Tap + to create your first trip.</Text>
         </View>
+      ) : glassAvailable ? (
+        <GlassContainer style={styles.glassContainer}>
+          <FlatList
+            data={trips}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <GlassView glassEffectStyle="clear" style={styles.card}>
+                <TripCardContent
+                  item={item}
+                  isActive={activeTrip?.id === item.id}
+                  onPress={() => setActiveTrip(item.id)}
+                />
+              </GlassView>
+            )}
+          />
+        </GlassContainer>
       ) : (
         <FlatList
           data={trips}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <TripRow
-              item={item}
-              isActive={activeTrip?.id === item.id}
+            <TouchableOpacity
+              style={styles.card}
               onPress={() => setActiveTrip(item.id)}
-            />
+              activeOpacity={0.7}
+            >
+              <TripCardContent
+                item={item}
+                isActive={activeTrip?.id === item.id}
+                onPress={() => setActiveTrip(item.id)}
+              />
+            </TouchableOpacity>
           )}
         />
       )}
@@ -71,7 +94,7 @@ export default function TripsScreen() {
   );
 }
 
-function TripRow({
+function TripCardContent({
   item,
   isActive,
   onPress,
@@ -80,31 +103,17 @@ function TripRow({
   isActive: boolean;
   onPress: () => void;
 }) {
-  const inner = (
-    <>
-      <View style={styles.rowContent}>
-        <Text style={styles.rowTitle}>{item.title}</Text>
-        <Text style={styles.rowDates}>
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.cardInner}>
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.cardDates}>
           {item.startDate} — {item.endDate}
         </Text>
       </View>
       {isActive && (
         <View style={styles.activeBadge}>
           <Text style={styles.activeBadgeText}>Active</Text>
-        </View>
-      )}
-    </>
-  );
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.rowWrapper}>
-      {glassAvailable ? (
-        <GlassView glassEffectStyle="clear" style={styles.card}>
-          {inner}
-        </GlassView>
-      ) : (
-        <View style={styles.card}>
-          {inner}
         </View>
       )}
     </TouchableOpacity>
@@ -136,18 +145,21 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#333' },
   emptyHint: { marginTop: 8, color: '#888' },
+  glassContainer: { flex: 1 },
   list: { paddingVertical: 8, paddingHorizontal: 16, gap: 8 },
-  rowWrapper: {},
   card: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  cardInner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderRadius: 12,
   },
-  rowContent: { flex: 1 },
-  rowTitle: { fontSize: 16, fontWeight: '600' },
-  rowDates: { marginTop: 2, fontSize: 13, color: '#666' },
+  cardContent: { flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '600' },
+  cardDates: { marginTop: 2, fontSize: 13, color: '#666' },
   activeBadge: {
     backgroundColor: '#34C759',
     borderRadius: 10,

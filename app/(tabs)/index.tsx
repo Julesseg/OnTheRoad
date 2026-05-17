@@ -7,13 +7,13 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { GlassContainer, GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-const glassAvailable = isLiquidGlassAvailable();
+const glassAvailable = isGlassEffectAPIAvailable();
 
 function todayString(): string {
   const d = new Date();
@@ -33,17 +33,6 @@ function daysUntil(dateStr: string): number {
   const today = new Date(todayString());
   const target = new Date(dateStr);
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
-}
-
-function Panel({ style, children }: { style?: object; children: React.ReactNode }) {
-  if (glassAvailable) {
-    return (
-      <GlassView glassEffectStyle="clear" style={style}>
-        {children}
-      </GlassView>
-    );
-  }
-  return <View style={style}>{children}</View>;
 }
 
 export default function NextTripScreen() {
@@ -87,34 +76,70 @@ export default function NextTripScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Panel style={styles.headerPanel}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
-            </Text>
-          </View>
-          <Text style={styles.title}>{next.title}</Text>
-          <Text style={styles.dates}>
-            {next.startDate} — {next.endDate}
-          </Text>
-        </Panel>
+        {glassAvailable ? (
+          <GlassContainer style={styles.glassGroup}>
+            <GlassView glassEffectStyle="clear" style={styles.panel}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
+                </Text>
+              </View>
+              <Text style={styles.tripTitle}>{next.title}</Text>
+              <Text style={styles.dates}>
+                {next.startDate} — {next.endDate}
+              </Text>
+            </GlassView>
 
-        {isInProgress && (
-          <Panel style={styles.sectionPanel}>
-            <Text style={styles.sectionTitle}>Today</Text>
-            {todayDay && todayDay.items.length > 0 ? (
-              todayDay.items.map((item) => (
-                <View key={item.id} style={styles.item}>
-                  <Text style={styles.itemType}>{item.type}</Text>
-                  <Text style={styles.itemName}>
-                    {'name' in item ? item.name : item.text}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.emptyDay}>Nothing scheduled for today.</Text>
+            {isInProgress && (
+              <GlassView glassEffectStyle="clear" style={styles.panel}>
+                <Text style={styles.sectionTitle}>Today</Text>
+                {todayDay && todayDay.items.length > 0 ? (
+                  todayDay.items.map((item) => (
+                    <View key={item.id} style={styles.item}>
+                      <Text style={styles.itemType}>{item.type}</Text>
+                      <Text style={styles.itemName}>
+                        {'name' in item ? item.name : item.text}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyDay}>Nothing scheduled for today.</Text>
+                )}
+              </GlassView>
             )}
-          </Panel>
+          </GlassContainer>
+        ) : (
+          <>
+            <View style={styles.panel}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
+                </Text>
+              </View>
+              <Text style={styles.tripTitle}>{next.title}</Text>
+              <Text style={styles.dates}>
+                {next.startDate} — {next.endDate}
+              </Text>
+            </View>
+
+            {isInProgress && (
+              <View style={styles.panel}>
+                <Text style={styles.sectionTitle}>Today</Text>
+                {todayDay && todayDay.items.length > 0 ? (
+                  todayDay.items.map((item) => (
+                    <View key={item.id} style={styles.item}>
+                      <Text style={styles.itemType}>{item.type}</Text>
+                      <Text style={styles.itemName}>
+                        {'name' in item ? item.name : item.text}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyDay}>Nothing scheduled for today.</Text>
+                )}
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -124,11 +149,16 @@ export default function NextTripScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loader: { flex: 1 },
-  scroll: { padding: 20, gap: 16 },
+  scroll: { padding: 20, gap: 12 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
   emptyHint: { marginTop: 8, color: '#888', textAlign: 'center' },
-  headerPanel: { borderRadius: 16, padding: 20 },
+  glassGroup: { gap: 12 },
+  panel: {
+    borderRadius: 20,
+    padding: 20,
+    overflow: 'hidden',
+  },
   badge: {
     alignSelf: 'flex-start',
     backgroundColor: '#007AFF',
@@ -138,9 +168,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  title: { fontSize: 28, fontWeight: '700', color: '#111' },
+  tripTitle: { fontSize: 28, fontWeight: '700', color: '#111' },
   dates: { marginTop: 6, fontSize: 14, color: '#666' },
-  sectionPanel: { borderRadius: 16, padding: 20 },
   sectionTitle: { fontSize: 17, fontWeight: '600', marginBottom: 12, color: '#333' },
   item: {
     paddingVertical: 12,
