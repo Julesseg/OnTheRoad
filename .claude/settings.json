@@ -1,0 +1,65 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+            "statusMessage": "Installing dependencies...",
+            "timeout": 300
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; [ -n \"$f\" ] && echo \"$f\" | grep -qE '\\.(ts|tsx|js|jsx)$' && npm run lint 2>&1 | head -50 || true; } 2>/dev/null || true",
+            "statusMessage": "Linting...",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; [ -n \"$f\" ] && echo \"$f\" | grep -qE '\\.(ts|tsx)$' && npx tsc --noEmit 2>&1 | head -50 || true; } 2>/dev/null || true",
+            "statusMessage": "Type checking...",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "touch /tmp/.claude-session-edited"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f /tmp/.claude-session-edited ] && rm /tmp/.claude-session-edited && npm test 2>&1 | tail -20 || true",
+            "statusMessage": "Running tests...",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run test*)",
+      "Bash(npm run lint)",
+      "Bash(npx tsc*)",
+      "Bash(git status)",
+      "Bash(git log*)",
+      "Bash(git diff*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(rm -rf /)"
+    ]
+  }
+}
