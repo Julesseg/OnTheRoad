@@ -9,27 +9,34 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
+const glassAvailable = isLiquidGlassAvailable();
 
 export default function TripsScreen() {
   const { trips, activeTrip, initialized, initialize, setActiveTrip } = useTripStore();
+  const colorScheme = useColorScheme();
 
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized]);
 
+  const bg = colorScheme === 'dark' ? '#000' : '#fff';
+
   if (!initialized) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
         <ActivityIndicator style={styles.loader} size="large" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Trips</Text>
         <TouchableOpacity
@@ -73,8 +80,8 @@ function TripRow({
   isActive: boolean;
   onPress: () => void;
 }) {
-  return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
+  const inner = (
+    <>
       <View style={styles.rowContent}>
         <Text style={styles.rowTitle}>{item.title}</Text>
         <Text style={styles.rowDates}>
@@ -86,12 +93,26 @@ function TripRow({
           <Text style={styles.activeBadgeText}>Active</Text>
         </View>
       )}
+    </>
+  );
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.rowWrapper}>
+      {glassAvailable ? (
+        <GlassView glassEffectStyle="clear" style={styles.card}>
+          {inner}
+        </GlassView>
+      ) : (
+        <View style={styles.card}>
+          {inner}
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   loader: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -115,14 +136,14 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#333' },
   emptyHint: { marginTop: 8, color: '#888' },
-  list: { paddingVertical: 8 },
-  row: {
+  list: { paddingVertical: 8, paddingHorizontal: 16, gap: 8 },
+  rowWrapper: {},
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
+    borderRadius: 12,
   },
   rowContent: { flex: 1 },
   rowTitle: { fontSize: 16, fontWeight: '600' },
