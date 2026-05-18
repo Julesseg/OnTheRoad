@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "minimumOsVersion": "26.0"
+      "minimumOsVersion": "26.0",
+      "bundleIdentifier": "com.anonymous.on-the-road"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +29,14 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "26.0"
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {
