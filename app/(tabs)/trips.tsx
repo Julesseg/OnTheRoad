@@ -4,6 +4,7 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
@@ -39,13 +40,30 @@ export default function TripsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
         <Text style={styles.title}>Trips</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/trip/new')}
-          accessibilityLabel="New trip"
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
+        {glassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            tintColor="#007AFF"
+            isInteractive
+            style={styles.addButton}
+          >
+            <Pressable
+              onPress={() => router.push('/trip/new')}
+              accessibilityLabel="New trip"
+              style={styles.addButtonPressable}
+            >
+              <Text style={styles.addButtonText}>+</Text>
+            </Pressable>
+          </GlassView>
+        ) : (
+          <TouchableOpacity
+            style={[styles.addButton, styles.addButtonSolid]}
+            onPress={() => router.push('/trip/new')}
+            accessibilityLabel="New trip"
+          >
+            <Text style={styles.addButtonText}>+</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {trips.length === 0 ? (
@@ -137,7 +155,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#007AFF',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonSolid: { backgroundColor: '#007AFF' },
+  addButtonPressable: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
