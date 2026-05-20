@@ -7,13 +7,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { GlassContainer, GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
+import { GlassContainer, GlassView } from 'expo-glass-effect';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-const glassAvailable = isGlassEffectAPIAvailable();
 
 function todayString(): string {
   const d = new Date();
@@ -44,6 +42,8 @@ export default function NextTripScreen() {
   }, [initialized]);
 
   const bg = colorScheme === 'dark' ? '#000' : '#fff';
+  const text = colorScheme === 'dark' ? '#fff' : '#111';
+  const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
 
   if (!initialized) {
     return (
@@ -59,8 +59,10 @@ export default function NextTripScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No upcoming trips</Text>
-          <Text style={styles.emptyHint}>Create a trip in the Trips tab to get started.</Text>
+          <Text style={[styles.emptyTitle, { color: text }]}>No upcoming trips</Text>
+          <Text style={[styles.emptyHint, { color: subtext }]}>
+            Create a trip in the Trips tab to get started.
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -76,71 +78,39 @@ export default function NextTripScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {glassAvailable ? (
-          <GlassContainer style={styles.glassGroup}>
-            <GlassView glassEffectStyle="clear" style={styles.panel}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
-                </Text>
-              </View>
-              <Text style={styles.tripTitle}>{next.title}</Text>
-              <Text style={styles.dates}>
-                {next.startDate} — {next.endDate}
-              </Text>
-            </GlassView>
-
-            {isInProgress && (
-              <GlassView glassEffectStyle="clear" style={styles.panel}>
-                <Text style={styles.sectionTitle}>Today</Text>
-                {todayDay && todayDay.items.length > 0 ? (
-                  todayDay.items.map((item) => (
-                    <View key={item.id} style={styles.item}>
-                      <Text style={styles.itemType}>{item.type}</Text>
-                      <Text style={styles.itemName}>
-                        {'name' in item ? item.name : item.text}
-                      </Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.emptyDay}>Nothing scheduled for today.</Text>
-                )}
-              </GlassView>
-            )}
-          </GlassContainer>
-        ) : (
-          <>
-            <View style={styles.panel}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
-                </Text>
-              </View>
-              <Text style={styles.tripTitle}>{next.title}</Text>
-              <Text style={styles.dates}>
-                {next.startDate} — {next.endDate}
+        <GlassContainer style={styles.glassGroup}>
+          <GlassView glassEffectStyle="clear" style={styles.panel}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
               </Text>
             </View>
+            <Text style={[styles.tripTitle, { color: text }]}>{next.title}</Text>
+            <Text style={[styles.dates, { color: subtext }]}>
+              {next.startDate} — {next.endDate}
+            </Text>
+          </GlassView>
 
-            {isInProgress && (
-              <View style={styles.panel}>
-                <Text style={styles.sectionTitle}>Today</Text>
-                {todayDay && todayDay.items.length > 0 ? (
-                  todayDay.items.map((item) => (
-                    <View key={item.id} style={styles.item}>
-                      <Text style={styles.itemType}>{item.type}</Text>
-                      <Text style={styles.itemName}>
-                        {'name' in item ? item.name : item.text}
-                      </Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.emptyDay}>Nothing scheduled for today.</Text>
-                )}
-              </View>
-            )}
-          </>
-        )}
+          {isInProgress && (
+            <GlassView glassEffectStyle="clear" style={styles.panel}>
+              <Text style={[styles.sectionTitle, { color: text }]}>Today</Text>
+              {todayDay && todayDay.items.length > 0 ? (
+                todayDay.items.map((item) => (
+                  <View key={item.id} style={styles.item}>
+                    <Text style={[styles.itemType, { color: subtext }]}>{item.type}</Text>
+                    <Text style={[styles.itemName, { color: text }]}>
+                      {'name' in item ? item.name : item.text}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={[styles.emptyDay, { color: subtext }]}>
+                  Nothing scheduled for today.
+                </Text>
+              )}
+            </GlassView>
+          )}
+        </GlassContainer>
       </ScrollView>
     </SafeAreaView>
   );
@@ -151,8 +121,8 @@ const styles = StyleSheet.create({
   loader: { flex: 1 },
   scroll: { padding: 20, gap: 12 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
-  emptyHint: { marginTop: 8, color: '#888', textAlign: 'center' },
+  emptyTitle: { fontSize: 18, fontWeight: '600' },
+  emptyHint: { marginTop: 8, textAlign: 'center' },
   glassGroup: { gap: 12 },
   panel: {
     borderRadius: 20,
@@ -168,15 +138,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  tripTitle: { fontSize: 28, fontWeight: '700', color: '#111' },
-  dates: { marginTop: 6, fontSize: 14, color: '#666' },
-  sectionTitle: { fontSize: 17, fontWeight: '600', marginBottom: 12, color: '#333' },
+  tripTitle: { fontSize: 28, fontWeight: '700' },
+  dates: { marginTop: 6, fontSize: 14 },
+  sectionTitle: { fontSize: 17, fontWeight: '600', marginBottom: 12 },
   item: {
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0',
   },
-  itemType: { fontSize: 11, fontWeight: '600', color: '#888', textTransform: 'uppercase' },
-  itemName: { marginTop: 2, fontSize: 15, color: '#111' },
-  emptyDay: { color: '#888', fontSize: 14 },
+  itemType: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
+  itemName: { marginTop: 2, fontSize: 15 },
+  emptyDay: { fontSize: 14 },
 });
