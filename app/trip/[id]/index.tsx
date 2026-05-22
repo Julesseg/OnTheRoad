@@ -9,18 +9,18 @@ import { DayList } from '@/components/day-list';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { currentTrip, viewTrip } = useTripStore();
+  const { loadedTrips, loadTripById } = useTripStore();
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    if (id) viewTrip(id);
+    if (id) loadTripById(id);
   }, [id]);
 
   const bg = colorScheme === 'dark' ? '#000' : '#fff';
   const text = colorScheme === 'dark' ? '#fff' : '#111';
   const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
 
-  const trip = currentTrip?.id === id ? currentTrip : null;
+  const trip = loadedTrips[id] ?? null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>

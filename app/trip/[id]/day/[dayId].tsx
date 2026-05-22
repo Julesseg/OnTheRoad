@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 
@@ -8,15 +8,20 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ItemRow } from '@/components/item-row';
 
 export default function DayDetailScreen() {
-  const { dayId } = useLocalSearchParams<{ id: string; dayId: string }>();
-  const { currentTrip } = useTripStore();
+  const { id, dayId } = useLocalSearchParams<{ id: string; dayId: string }>();
+  const { loadedTrips, loadTripById } = useTripStore();
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    if (id) loadTripById(id);
+  }, [id]);
 
   const bg = colorScheme === 'dark' ? '#000' : '#fff';
   const text = colorScheme === 'dark' ? '#fff' : '#111';
   const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
 
-  const day = currentTrip?.days.find((d) => d.id === dayId) ?? null;
+  const trip = loadedTrips[id] ?? null;
+  const day = trip?.days.find((d) => d.id === dayId) ?? null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
@@ -28,7 +33,9 @@ export default function DayDetailScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      {!day || day.items.length === 0 ? (
+      {!trip ? (
+        <ActivityIndicator style={styles.loader} size="large" />
+      ) : !day || day.items.length === 0 ? (
         <View style={styles.empty}>
           <Text style={[styles.emptyText, { color: subtext }]}>No items yet</Text>
         </View>
@@ -45,6 +52,7 @@ export default function DayDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  loader: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -4,23 +4,23 @@ import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage'
 
 interface TripStore {
   trips: TripSummary[];
-  currentTrip: Trip | null;
+  loadedTrips: Record<string, Trip>;
   initialized: boolean;
   initializing: boolean;
 
   initialize: () => Promise<void>;
   addTrip: (trip: Trip) => Promise<void>;
-  viewTrip: (id: string) => Promise<void>;
+  loadTripById: (id: string) => Promise<void>;
   removeTrip: (id: string) => Promise<void>;
 }
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-function scheduleSave(trips: TripSummary[], lastViewedTripId: string | null): void {
+function scheduleSave(trips: TripSummary[]): void {
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(() => {
     try {
-      saveState({ activeTripId: lastViewedTripId, trips, lastUpdated: new Date().toISOString() });
+      saveState({ activeTripId: null, trips, lastUpdated: new Date().toISOString() });
     } catch (e) {
       console.error(e);
     }
@@ -38,7 +38,7 @@ function toSummary(trip: Trip): TripSummary {
 
 export const useTripStore = create<TripStore>((set, get) => ({
   trips: [],
-  currentTrip: null,
+  loadedTrips: {},
   initialized: false,
   initializing: false,
 
@@ -47,11 +47,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     set({ initializing: true });
     try {
       const state = await loadState();
-      if (!state) {
-        set({ initialized: true, initializing: false });
-        return;
-      }
-      set({ trips: state.trips, initialized: true, initializing: false });
+      set({ trips: state?.trips ?? [], initialized: true, initializing: false });
     } catch {
       // Corrupt or missing state — treat as fresh start so the UI unblocks.
       set({ initialized: true, initializing: false });
@@ -62,23 +58,24 @@ export const useTripStore = create<TripStore>((set, get) => ({
     saveTrip(trip);
     const summary = toSummary(trip);
     const updatedTrips = get().trips.concat(summary);
-    set({ trips: updatedTrips, currentTrip: trip });
-    scheduleSave(updatedTrips, trip.id);
+    set((s) => ({ trips: updatedTrips, loadedTrips: { ...s.loadedTrips, [trip.id]: trip } }));
+    scheduleSave(updatedTrips);
   },
 
-  async viewTrip(id: string) {
-    if (get().currentTrip?.id === id) return;
+  async loadTripById(id: string) {
+    if (get().loadedTrips[id]) return;
     const trip = await loadTrip(id);
     if (!trip) return;
-    set({ currentTrip: trip });
-    scheduleSave(get().trips, id);
+    set((s) => ({ loadedTrips: { ...s.loadedTrips, [id]: trip } }));
   },
 
   async removeTrip(id: string) {
     deleteTrip(id);
     const updatedTrips = get().trips.filter((t) => t.id !== id);
-    const currentTrip = get().currentTrip?.id === id ? null : get().currentTrip;
-    set({ trips: updatedTrips, currentTrip });
-    scheduleSave(updatedTrips, currentTrip?.id ?? null);
+    set((s) => {
+      const { [id]: _removed, ...rest } = s.loadedTrips;
+      return { trips: updatedTrips, loadedTrips: rest };
+    });
+    scheduleSave(updatedTrips);
   },
 }));

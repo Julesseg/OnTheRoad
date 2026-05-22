@@ -49,9 +49,9 @@ function setStore(state: Record<string, unknown>) {
   mockedStore.mockReturnValue({
     initialized: true,
     initialize: vi.fn(),
-    viewTrip: vi.fn(),
+    loadTripById: vi.fn(),
     trips: [],
-    currentTrip: null,
+    loadedTrips: {},
     ...state,
   } as never);
 }
@@ -62,13 +62,13 @@ beforeEach(() => {
 
 describe('Upcoming tab', () => {
   it('shows an empty state when there are no upcoming trips', () => {
-    setStore({ trips: [], currentTrip: null });
+    setStore({ trips: [], loadedTrips: {} });
     render(<UpcomingScreen />);
     expect(screen.getByText('No upcoming trips')).toBeInTheDocument();
   });
 
   it("renders the selected trip's days once it is loaded", () => {
-    setStore({ trips: [SUMMARY], currentTrip: TRIP });
+    setStore({ trips: [SUMMARY], loadedTrips: { 'trip-1': TRIP } });
     render(<UpcomingScreen />);
     expect(screen.getByText('Pacific Coast Highway')).toBeInTheDocument();
     expect(screen.getByText('2099-07-01')).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('Upcoming tab', () => {
   });
 
   it('navigates to the day detail when a day is tapped', () => {
-    setStore({ trips: [SUMMARY], currentTrip: TRIP });
+    setStore({ trips: [SUMMARY], loadedTrips: { 'trip-1': TRIP } });
     render(<UpcomingScreen />);
     fireEvent.click(screen.getByText('2099-07-01'));
     expect(router.push).toHaveBeenCalledWith('/trip/trip-1/day/day-1');

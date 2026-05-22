@@ -41,7 +41,7 @@ const TRIP: Trip = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedStore.mockReturnValue({ currentTrip: TRIP } as never);
+  mockedStore.mockReturnValue({ loadedTrips: { 'trip-1': TRIP }, loadTripById: vi.fn() } as never);
 });
 
 describe('Day detail', () => {

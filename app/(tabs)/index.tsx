@@ -31,7 +31,7 @@ function daysUntil(dateStr: string): number {
 }
 
 export default function UpcomingScreen() {
-  const { trips, currentTrip, initialized, initialize, viewTrip } = useTripStore();
+  const { trips, loadedTrips, initialized, initialize, loadTripById } = useTripStore();
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -39,10 +39,11 @@ export default function UpcomingScreen() {
   }, [initialized]);
 
   const selected = selectCurrentOrNext(trips);
+  const trip = selected ? (loadedTrips[selected.id] ?? null) : null;
 
   useEffect(() => {
-    if (selected && currentTrip?.id !== selected.id) viewTrip(selected.id);
-  }, [selected?.id, currentTrip?.id]);
+    if (selected) loadTripById(selected.id);
+  }, [selected?.id]);
 
   const bg = colorScheme === 'dark' ? '#000' : '#fff';
   const text = colorScheme === 'dark' ? '#fff' : '#111';
@@ -87,14 +88,14 @@ export default function UpcomingScreen() {
         </Text>
       </View>
 
-      {!currentTrip || currentTrip.id !== selected.id ? (
+      {!trip ? (
         <ActivityIndicator style={styles.loader} size="large" />
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
           <DayList
-            trip={currentTrip}
+            trip={trip}
             todayDate={isInProgress ? today : undefined}
-            onSelectDay={(dayId) => router.push(`/trip/${currentTrip.id}/day/${dayId}`)}
+            onSelectDay={(dayId) => router.push(`/trip/${trip.id}/day/${dayId}`)}
           />
         </ScrollView>
       )}
