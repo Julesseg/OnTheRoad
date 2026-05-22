@@ -13,10 +13,29 @@ import { router } from 'expo-router';
 import { GlassContainer, GlassView } from 'expo-glass-effect';
 
 import { useTripStore } from '@/lib/store';
+import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+function todayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function tripStatus(trip: TripSummary): 'In progress' | 'Upcoming' | 'Past' {
+  const today = todayString();
+  if (trip.endDate < today) return 'Past';
+  if (trip.startDate > today) return 'Upcoming';
+  return 'In progress';
+}
+
+const STATUS_COLOR: Record<ReturnType<typeof tripStatus>, string> = {
+  'In progress': '#34C759',
+  Upcoming: '#007AFF',
+  Past: '#8E8E93',
+};
+
 export default function TripsScreen() {
-  const { trips, activeTrip, initialized, initialize, setActiveTrip } = useTripStore();
+  const { trips, initialized, initialize } = useTripStore();
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -71,7 +90,7 @@ export default function TripsScreen() {
             renderItem={({ item }) => (
               <GlassView glassEffectStyle="clear" style={styles.card}>
                 <TouchableOpacity
-                  onPress={() => setActiveTrip(item.id)}
+                  onPress={() => router.push(`/trip/${item.id}`)}
                   activeOpacity={0.7}
                   style={styles.cardInner}
                 >
@@ -81,11 +100,9 @@ export default function TripsScreen() {
                       {item.startDate} — {item.endDate}
                     </Text>
                   </View>
-                  {activeTrip?.id === item.id && (
-                    <View style={styles.activeBadge}>
-                      <Text style={styles.activeBadgeText}>Active</Text>
-                    </View>
-                  )}
+                  <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[tripStatus(item)] }]}>
+                    <Text style={styles.statusBadgeText}>{tripStatus(item)}</Text>
+                  </View>
                 </TouchableOpacity>
               </GlassView>
             )}
@@ -142,11 +159,10 @@ const styles = StyleSheet.create({
   cardContent: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: '600' },
   cardDates: { marginTop: 2, fontSize: 13 },
-  activeBadge: {
-    backgroundColor: '#34C759',
+  statusBadge: {
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
-  activeBadgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  statusBadgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });
