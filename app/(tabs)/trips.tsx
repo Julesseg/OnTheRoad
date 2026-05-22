@@ -4,94 +4,100 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { GlassContainer, GlassView } from 'expo-glass-effect';
 
 import { useTripStore } from '@/lib/store';
-import { TripSummary } from '@/lib/schema';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TripsScreen() {
   const { trips, activeTrip, initialized, initialize, setActiveTrip } = useTripStore();
+  const colorScheme = useColorScheme();
 
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized]);
 
+  const bg = colorScheme === 'dark' ? '#000' : '#fff';
+  const text = colorScheme === 'dark' ? '#fff' : '#111';
+  const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
+
   if (!initialized) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
         <ActivityIndicator style={styles.loader} size="large" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Trips</Text>
-        <TouchableOpacity
+        <Text style={[styles.title, { color: text }]}>Trips</Text>
+        <GlassView
+          glassEffectStyle="regular"
+          tintColor="#007AFF"
+          isInteractive
           style={styles.addButton}
-          onPress={() => router.push('/trip/new')}
-          accessibilityLabel="New trip"
         >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
+          <Pressable
+            onPress={() => router.push('/trip/new')}
+            accessibilityLabel="New trip"
+            style={styles.addButtonPressable}
+          >
+            <Text style={styles.addButtonText}>+</Text>
+          </Pressable>
+        </GlassView>
       </View>
 
       {trips.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>No trips yet.</Text>
-          <Text style={styles.emptyHint}>Tap + to create your first trip.</Text>
+          <Text style={[styles.emptyText, { color: text }]}>No trips yet.</Text>
+          <Text style={[styles.emptyHint, { color: subtext }]}>
+            Tap + to create your first trip.
+          </Text>
         </View>
       ) : (
-        <FlatList
-          data={trips}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TripRow
-              item={item}
-              isActive={activeTrip?.id === item.id}
-              onPress={() => setActiveTrip(item.id)}
-            />
-          )}
-        />
+        <GlassContainer style={styles.glassContainer}>
+          <FlatList
+            data={trips}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <GlassView glassEffectStyle="clear" style={styles.card}>
+                <TouchableOpacity
+                  onPress={() => setActiveTrip(item.id)}
+                  activeOpacity={0.7}
+                  style={styles.cardInner}
+                >
+                  <View style={styles.cardContent}>
+                    <Text style={[styles.cardTitle, { color: text }]}>{item.title}</Text>
+                    <Text style={[styles.cardDates, { color: subtext }]}>
+                      {item.startDate} — {item.endDate}
+                    </Text>
+                  </View>
+                  {activeTrip?.id === item.id && (
+                    <View style={styles.activeBadge}>
+                      <Text style={styles.activeBadgeText}>Active</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </GlassView>
+            )}
+          />
+        </GlassContainer>
       )}
     </SafeAreaView>
   );
 }
 
-function TripRow({
-  item,
-  isActive,
-  onPress,
-}: {
-  item: TripSummary;
-  isActive: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.rowContent}>
-        <Text style={styles.rowTitle}>{item.title}</Text>
-        <Text style={styles.rowDates}>
-          {item.startDate} — {item.endDate}
-        </Text>
-      </View>
-      {isActive && (
-        <View style={styles.activeBadge}>
-          <Text style={styles.activeBadgeText}>Active</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   loader: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -107,26 +113,35 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#007AFF',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonPressable: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   addButtonText: { color: '#fff', fontSize: 24, lineHeight: 28, fontWeight: '400' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#333' },
-  emptyHint: { marginTop: 8, color: '#888' },
-  list: { paddingVertical: 8 },
-  row: {
+  emptyText: { fontSize: 18, fontWeight: '600' },
+  emptyHint: { marginTop: 8 },
+  glassContainer: { flex: 1 },
+  list: { paddingVertical: 8, paddingHorizontal: 16, gap: 8 },
+  card: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  cardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
   },
-  rowContent: { flex: 1 },
-  rowTitle: { fontSize: 16, fontWeight: '600' },
-  rowDates: { marginTop: 2, fontSize: 13, color: '#666' },
+  cardContent: { flex: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '600' },
+  cardDates: { marginTop: 2, fontSize: 13 },
   activeBadge: {
     backgroundColor: '#34C759',
     borderRadius: 10,

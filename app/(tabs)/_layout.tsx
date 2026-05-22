@@ -1,43 +1,20 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <Tabs
-      initialRouteName="index"
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Upcoming',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="map" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="trips"
-        options={{
-          title: 'Trips',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="list.bullet" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
-        }}
-      />
-    </Tabs>
+    <NativeTabs>
+      <NativeTabs.Trigger name="index">
+        <Icon sf="map" />
+        <Label>Upcoming</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="trips">
+        <Icon sf="list.bullet" />
+        <Label>Trips</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf="gearshape.fill" />
+        <Label>Settings</Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }
