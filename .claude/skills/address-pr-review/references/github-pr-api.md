@@ -6,6 +6,7 @@ Exact `gh` commands for each phase. Substitute `{owner}`, `{repo}`, `{n}` (PR nu
 - [Fetch all feedback](#fetch-all-feedback)
 - [Reply to a thread](#reply-to-a-thread)
 - [Resolve a thread (GraphQL)](#resolve-a-thread-graphql)
+- [Resolve a thread (MCP — no gh CLI)](#resolve-a-thread-mcp--no-gh-cli)
 - [Gotchas](#gotchas)
 
 ## Find the PR and repo
@@ -94,6 +95,79 @@ mutation($threadId:ID!) {
 ```
 
 Reply first (Step in the SKILL flow), then resolve, so the reply lands in the thread before it's collapsed.
+
+## Resolve a thread (MCP — no `gh` CLI)
+
+When `gh` is unavailable, use `mcp__github__pull_request_read` (method `get_review_comments`) and `mcp__github__resolve_review_thread`. The challenge: `get_review_comments` doesn't return thread node IDs. They can be reconstructed from the pagination cursors.
+
+**Background — node ID structure**
+
+A `PRRT_` node ID is `base64(type_bytes + repo_bytes + thread_db_id)`:
+- `type_bytes` — always `\x93\x00` (two bytes; shared with `PRRC_`). Encodes as `kwDO...` prefix.
+- `repo_bytes` — six bytes that identify the repository; constant per repo.
+- `thread_db_id` — four bytes (big-endian uint32) unique to each thread.
+
+**Step 1 — collect per-thread cursors**
+
+Each cursor returned by `get_review_comments` encodes the thread's DB ID. Fetch with `perPage: k` to get the k-th thread's cursor as `pageInfo.endCursor`:
+
+```python
+# First fetch to learn total thread count
+resp = pull_request_read(get_review_comments, perPage=100)
+total = resp["totalCount"]
+
+# One fetch per thread to collect each cursor in order
+cursors = []
+for k in range(1, total + 1):
+    resp = pull_request_read(get_review_comments, perPage=k)
+    cursors.append(resp["pageInfo"]["endCursor"])
+```
+
+**Step 2 — extract thread DB IDs from cursors**
+
+Each cursor is base64 of msgpack `[iso_timestamp, uint32_thread_id]`:
+
+```
+layout (37 bytes): "cursor:v2:" (10) | \x92\xb4 (2) | timestamp (20) | \xce (1) | thread_id (4)
+```
+
+```python
+import base64
+
+def thread_id_bytes(cursor: str) -> bytes:
+    return base64.b64decode(cursor)[-4:]   # last 4 bytes are the uint32 thread ID
+```
+
+**Step 3 — get repo bytes from a PRRC node ID**
+
+Post the first reply (you're posting replies in Phase 5 anyway). The response from `add_reply_to_pull_request_comment` includes the new comment's `node_id` — a `PRRC_kwDO...` string. Decode bytes 2–7 of the base64 suffix:
+
+```python
+def repo_bytes_from_prrc(prrc_node_id: str) -> bytes:
+    suffix = prrc_node_id[len("PRRC_"):]
+    raw = base64.b64decode(suffix + "=" * (-len(suffix) % 4))
+    return raw[2:8]
+```
+
+The repo bytes are constant for the repo — decode once, reuse for every thread.
+
+**Step 4 — construct and resolve**
+
+```python
+def build_prrt_id(repo_b: bytes, tid_b: bytes) -> str:
+    TYPE = b"\x93\x00"
+    encoded = base64.b64encode(TYPE + repo_b + tid_b).decode()
+    # URL-safe base64 (+ → -, / → _), no padding
+    return "PRRT_" + encoded.replace("+", "-").replace("/", "_").rstrip("=")
+
+# For each thread:
+thread_id = mcp__github__resolve_review_thread(
+    owner=owner, repo=repo,
+    threadId=build_prrt_id(repo_b, thread_id_bytes(cursors[i]))
+)
+```
+
+**Order:** post your reply first (`add_reply_to_pull_request_comment`), then resolve, so the reply is visible inside the thread before it collapses.
 
 ## Gotchas
 
