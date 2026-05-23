@@ -1,6 +1,6 @@
 ---
 name: address-pr-review
-description: Work through pull-request review feedback end-to-end on GitHub — gather every comment (inline line comments, review summaries, and conversation comments), investigate each one, fix the code or push back with reasoning, verify, then commit, push, and reply-and-resolve the threads. Use this whenever the user wants to address reviewer feedback, respond to PR comments, "fix the comments on PR #N", resolve review threads, or work through a code review — even when they just say "handle the review" or "the reviewer left some notes". GitHub PRs via the gh CLI.
+description: Work through pull-request review feedback end-to-end on GitHub — gather every comment (inline line comments, review summaries, and conversation comments), investigate each one, fix the code or push back with reasoning, verify, then commit, push, and reply-and-resolve the threads. Use this whenever the user wants to address reviewer feedback, respond to PR comments, "fix the comments on PR #N", resolve review threads, or work through a code review — even when they just say "handle the review" or "the reviewer left some notes". GitHub PRs via the gh CLI or GitHub MCP tools.
 ---
 
 # Address a PR review
@@ -66,10 +66,12 @@ For each thread:
 - **Pushed back:** reply explaining your reasoning, and **leave the thread open** — the reviewer decides whether they're satisfied.
 - **Deferred to the user:** leave it for them.
 
-Replying and resolving use two different GitHub APIs with two different IDs — the REST comment id (for replies) and the GraphQL thread node id (for resolving), and you correlate them via the comment's `databaseId`. This is the most error-prone part of the whole flow; the exact queries and the correlation trick are in `references/github-pr-api.md`. Read it before you start posting.
+Replying and resolving use two different GitHub APIs with two different IDs — the REST comment id (for replies) and the GraphQL thread node id (for resolving). The exact queries and the correlation trick are in `references/github-pr-api.md`. Read it before you start posting. If `gh` is unavailable use the MCP section in that reference — thread node IDs can be reconstructed from the pagination cursors that `get_review_comments` returns.
 
 Keep replies short and specific. "Done — switched to theme-aware colors in `index.tsx`/`trips.tsx`" is better than a paragraph. The reviewer can read the diff; the reply just tells them where to look and that you heard them.
 
 ## Prerequisites
 
 `gh` authenticated with the `repo` scope (needed both to post replies and to run the `resolveReviewThread` GraphQL mutation). Check with `gh auth status`.
+
+If `gh` is not available (e.g. remote execution environments), all operations can be performed with the GitHub MCP tools — see the MCP section in `references/github-pr-api.md`.

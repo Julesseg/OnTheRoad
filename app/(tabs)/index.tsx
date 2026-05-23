@@ -1,24 +1,17 @@
 import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { GlassContainer, GlassView } from 'expo-glass-effect';
+import { router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { DayList } from '@/components/day-list';
+import { todayString } from '@/lib/date-utils';
 
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function findNextTrip(trips: TripSummary[]): TripSummary | null {
+// The trip shown on Upcoming: the one in progress today, otherwise the next by
+// start date. Past trips (endDate before today) are excluded.
+function selectCurrentOrNext(trips: TripSummary[]): TripSummary | null {
   const today = todayString();
   return (
     trips
@@ -33,13 +26,20 @@ function daysUntil(dateStr: string): number {
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
 
-export default function NextTripScreen() {
-  const { trips, activeTrip, initialized, initialize } = useTripStore();
+export default function UpcomingScreen() {
+  const { trips, loadedTrips, initialized, initialize, loadTripById } = useTripStore();
   const colorScheme = useColorScheme();
 
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized]);
+
+  const selected = selectCurrentOrNext(trips);
+  const trip = selected ? (loadedTrips[selected.id] ?? null) : null;
+
+  useEffect(() => {
+    if (selected) loadTripById(selected.id);
+  }, [selected?.id]);
 
   const bg = colorScheme === 'dark' ? '#000' : '#fff';
   const text = colorScheme === 'dark' ? '#fff' : '#111';
@@ -53,9 +53,7 @@ export default function NextTripScreen() {
     );
   }
 
-  const next = findNextTrip(trips);
-
-  if (!next) {
+  if (!selected) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
         <View style={styles.empty}>
@@ -69,49 +67,34 @@ export default function NextTripScreen() {
   }
 
   const today = todayString();
-  const isInProgress = next.startDate <= today && next.endDate >= today;
-  const delta = daysUntil(next.startDate);
-
-  const fullTrip = activeTrip?.id === next.id ? activeTrip : null;
-  const todayDay = fullTrip?.days.find((d) => d.date === today);
+  const isInProgress = selected.startDate <= today && selected.endDate >= today;
+  const delta = daysUntil(selected.startDate);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <GlassContainer style={styles.glassGroup}>
-          <GlassView glassEffectStyle="clear" style={styles.panel}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
-              </Text>
-            </View>
-            <Text style={[styles.tripTitle, { color: text }]}>{next.title}</Text>
-            <Text style={[styles.dates, { color: subtext }]}>
-              {next.startDate} — {next.endDate}
-            </Text>
-          </GlassView>
+      <View style={styles.header}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
+          </Text>
+        </View>
+        <Text style={[styles.title, { color: text }]}>{selected.title}</Text>
+        <Text style={[styles.dates, { color: subtext }]}>
+          {selected.startDate} — {selected.endDate}
+        </Text>
+      </View>
 
-          {isInProgress && (
-            <GlassView glassEffectStyle="clear" style={styles.panel}>
-              <Text style={[styles.sectionTitle, { color: text }]}>Today</Text>
-              {todayDay && todayDay.items.length > 0 ? (
-                todayDay.items.map((item) => (
-                  <View key={item.id} style={styles.item}>
-                    <Text style={[styles.itemType, { color: subtext }]}>{item.type}</Text>
-                    <Text style={[styles.itemName, { color: text }]}>
-                      {'name' in item ? item.name : item.text}
-                    </Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={[styles.emptyDay, { color: subtext }]}>
-                  Nothing scheduled for today.
-                </Text>
-              )}
-            </GlassView>
-          )}
-        </GlassContainer>
-      </ScrollView>
+      {!trip ? (
+        <ActivityIndicator style={styles.loader} size="large" />
+      ) : (
+        <ScrollView contentContainerStyle={styles.list}>
+          <DayList
+            trip={trip}
+            todayDate={isInProgress ? today : undefined}
+            onSelectDay={(dayId) => router.push(`/trip/${trip.id}/day/${dayId}`)}
+          />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -119,15 +102,11 @@ export default function NextTripScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loader: { flex: 1 },
-  scroll: { padding: 20, gap: 12 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTitle: { fontSize: 18, fontWeight: '600' },
-  emptyHint: { marginTop: 8, textAlign: 'center' },
-  glassGroup: { gap: 12 },
-  panel: {
-    borderRadius: 20,
-    padding: 20,
-    overflow: 'hidden',
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
   },
   badge: {
     alignSelf: 'flex-start',
@@ -135,18 +114,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  tripTitle: { fontSize: 28, fontWeight: '700' },
-  dates: { marginTop: 6, fontSize: 14 },
-  sectionTitle: { fontSize: 17, fontWeight: '600', marginBottom: 12 },
-  item: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
-  },
-  itemType: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
-  itemName: { marginTop: 2, fontSize: 15 },
-  emptyDay: { fontSize: 14 },
+  title: { fontSize: 28, fontWeight: '700' },
+  dates: { marginTop: 4, fontSize: 14 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '600' },
+  emptyHint: { marginTop: 8, textAlign: 'center' },
+  list: { paddingVertical: 8, paddingHorizontal: 16 },
 });
