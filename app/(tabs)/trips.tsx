@@ -15,18 +15,7 @@ import { GlassContainer, GlassView } from 'expo-glass-effect';
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function tripStatus(trip: TripSummary): 'In progress' | 'Upcoming' | 'Past' {
-  const today = todayString();
-  if (trip.endDate < today) return 'Past';
-  if (trip.startDate > today) return 'Upcoming';
-  return 'In progress';
-}
+import { tripStatus } from '@/lib/date-utils';
 
 const STATUS_COLOR: Record<ReturnType<typeof tripStatus>, string> = {
   'In progress': '#34C759',

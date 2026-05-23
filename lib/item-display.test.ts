@@ -106,4 +106,10 @@ describe('linkify', () => {
       { kind: 'phone', value: '555-123-4567', href: 'tel:5551234567' },
     ]);
   });
+
+  it('does not treat an ISO date (YYYY-MM-DD) as a phone number', () => {
+    expect(linkify('depart 2026-07-01 early')).toEqual([
+      { kind: 'text', value: 'depart 2026-07-01 early' },
+    ]);
+  });
 });

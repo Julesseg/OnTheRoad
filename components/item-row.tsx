@@ -15,7 +15,7 @@ export function ItemRow({ item }: { item: Item }) {
             seg.kind === 'text' ? (
               <Text key={j}>{seg.value}</Text>
             ) : (
-              <Text key={j} style={styles.link} onPress={() => Linking.openURL(seg.href)}>
+              <Text key={j} style={styles.link} onPress={() => Linking.openURL(seg.href).catch(() => {})}>
                 {seg.value}
               </Text>
             ),

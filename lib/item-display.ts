@@ -41,7 +41,7 @@ export type Segment =
   | { kind: 'url'; value: string; href: string }
   | { kind: 'phone'; value: string; href: string };
 
-const TOKEN_RE = /(?<url>https?:\/\/[^\s]+)|(?<phone>\+?\d[\d().-]{5,}\d)/g;
+const TOKEN_RE = /(?<url>https?:\/\/[^\s]+)|(?<phone>(?<!\d)(?!\d{4}-\d{2}-\d{2})\+?\d[\d().-]{5,}\d)/g;
 
 export function linkify(text: string): Segment[] {
   const segments: Segment[] = [];

@@ -7,11 +7,7 @@ import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DayList } from '@/components/day-list';
-
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import { todayString } from '@/lib/date-utils';
 
 // The trip shown on Upcoming: the one in progress today, otherwise the next by
 // start date. Past trips (endDate before today) are excluded.
