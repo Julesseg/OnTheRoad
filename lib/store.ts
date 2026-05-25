@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { Trip, TripSummary } from './schema';
+import { Item, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage';
+import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
 
 interface TripStore {
   trips: TripSummary[];
@@ -12,6 +13,8 @@ interface TripStore {
   addTrip: (trip: Trip) => Promise<void>;
   loadTripById: (id: string) => Promise<void>;
   removeTrip: (id: string) => Promise<void>;
+  upsertItem: (tripId: string, dayId: string, item: Item) => void;
+  deleteItem: (tripId: string, dayId: string, itemId: string) => void;
 }
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -67,6 +70,22 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const trip = await loadTrip(id);
     if (!trip) return;
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [id]: trip } }));
+  },
+
+  upsertItem(tripId: string, dayId: string, item: Item) {
+    const trip = get().loadedTrips[tripId];
+    if (!trip) return;
+    const next = upsertItemInTrip(trip, dayId, item, new Date().toISOString());
+    saveTrip(next);
+    set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+  },
+
+  deleteItem(tripId: string, dayId: string, itemId: string) {
+    const trip = get().loadedTrips[tripId];
+    if (!trip) return;
+    const next = deleteItemFromTrip(trip, dayId, itemId, new Date().toISOString());
+    saveTrip(next);
+    set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
   },
 
   async removeTrip(id: string) {
