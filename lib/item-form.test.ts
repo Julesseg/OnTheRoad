@@ -50,6 +50,17 @@ describe('formToItem', () => {
     const item = formToItem('location', { ...emptyForm(), name: 'X', coords: 'not coords' }, 'id-5');
     expect(item).toEqual({ type: 'location', id: 'id-5', name: 'X' });
   });
+
+  it('carries attachments from the original item on edit, since the form does not surface them', () => {
+    const original: Item = { type: 'location', id: 'id-6', name: 'Old', attachments: ['a.jpg', 'b.jpg'] };
+    const edited = formToItem('location', { ...itemToForm(original), name: 'New' }, 'id-6', original);
+    expect(edited).toEqual({ type: 'location', id: 'id-6', name: 'New', attachments: ['a.jpg', 'b.jpg'] });
+  });
+
+  it('preserves attachments across all item types on edit', () => {
+    const note: Item = { type: 'note', id: 'n', text: 'hi', attachments: ['x.pdf'] };
+    expect(formToItem('note', itemToForm(note), 'n', note)).toEqual(note);
+  });
 });
 
 describe('itemToForm round-trips through formToItem', () => {

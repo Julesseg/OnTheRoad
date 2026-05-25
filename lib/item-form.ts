@@ -53,17 +53,33 @@ const optionalDuration = z
   .string()
   .refine((s) => s === '' || (/^\d+$/.test(s) && Number(s) > 0), 'Whole minutes greater than 0');
 
-/** Per-type zod schema over the flat form strings, for use as a react-hook-form resolver. */
-export function itemFormSchema(type: ItemType) {
+/**
+ * Per-type zod schema over the flat form strings, for use as a react-hook-form resolver.
+ * Every field is present (unconstrained ones pass through as plain strings) so the schema's
+ * output is exactly `ItemFormValues` — that lets the resolver stay typed without a cast.
+ */
+export function itemFormSchema(type: ItemType): z.ZodType<ItemFormValues, ItemFormValues> {
+  const base = {
+    name: z.string(),
+    text: z.string(),
+    address: z.string(),
+    coords: z.string(),
+    time: z.string(),
+    checkIn: z.string(),
+    checkOut: z.string(),
+    confirmationNumber: z.string(),
+    duration: z.string(),
+    notes: z.string(),
+  };
   switch (type) {
     case 'location':
-      return z.object({ name: required(), time: optionalTime, coords: optionalCoords });
+      return z.object({ ...base, name: required(), time: optionalTime, coords: optionalCoords });
     case 'activity':
-      return z.object({ name: required(), time: optionalTime, duration: optionalDuration });
+      return z.object({ ...base, name: required(), time: optionalTime, duration: optionalDuration });
     case 'accommodation':
-      return z.object({ name: required(), checkIn: optionalTime, checkOut: optionalTime });
+      return z.object({ ...base, name: required(), checkIn: optionalTime, checkOut: optionalTime });
     case 'note':
-      return z.object({ text: required() });
+      return z.object({ ...base, text: required() });
   }
 }
 
@@ -112,8 +128,13 @@ export function itemToForm(item: Item): ItemFormValues {
   }
 }
 
-/** Convert validated form strings into a domain Item. Assumes the per-type schema already passed. */
-export function formToItem(type: ItemType, v: ItemFormValues, id: string): Item {
+/**
+ * Convert validated form strings into a domain Item. Assumes the per-type schema already passed.
+ * Pass `original` on the edit path so fields the form doesn't surface (currently `attachments`)
+ * are carried over instead of being silently dropped on save.
+ */
+export function formToItem(type: ItemType, v: ItemFormValues, id: string, original?: Item): Item {
+  const carried = original?.attachments ? { attachments: original.attachments } : {};
   switch (type) {
     case 'location': {
       const c = parseCoords(v.coords);
@@ -126,6 +147,7 @@ export function formToItem(type: ItemType, v: ItemFormValues, id: string): Item 
         lng: c?.lng,
         time: trimToUndefined(v.time),
         notes: trimToUndefined(v.notes),
+        ...carried,
       }) as Item;
     }
     case 'activity':
@@ -136,6 +158,7 @@ export function formToItem(type: ItemType, v: ItemFormValues, id: string): Item 
         time: trimToUndefined(v.time),
         duration: v.duration.trim() === '' ? undefined : Number(v.duration),
         notes: trimToUndefined(v.notes),
+        ...carried,
       }) as Item;
     case 'accommodation':
       return omitUndefined({
@@ -147,8 +170,9 @@ export function formToItem(type: ItemType, v: ItemFormValues, id: string): Item 
         checkOut: trimToUndefined(v.checkOut),
         confirmationNumber: trimToUndefined(v.confirmationNumber),
         notes: trimToUndefined(v.notes),
+        ...carried,
       }) as Item;
     case 'note':
-      return { type: 'note', id, text: v.text.trim() };
+      return { type: 'note', id, text: v.text.trim(), ...carried };
   }
 }

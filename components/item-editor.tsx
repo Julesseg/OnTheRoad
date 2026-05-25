@@ -8,7 +8,7 @@ import {
   ScrollView,
   type KeyboardTypeOptions,
 } from 'react-native';
-import { useForm, Controller, type Control, type Resolver } from 'react-hook-form';
+import { useForm, Controller, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -134,13 +134,13 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
     handleSubmit,
     getValues,
     formState: { errors },
-  } = useForm<ItemFormValues>({
-    resolver: zodResolver(itemFormSchema(type)) as unknown as Resolver<ItemFormValues>,
+  } = useForm<ItemFormValues, unknown, ItemFormValues>({
+    resolver: zodResolver(itemFormSchema(type)),
     defaultValues: initialItem ? itemToForm(initialItem) : emptyForm(),
     mode: 'onSubmit',
   });
 
-  const submit = handleSubmit(() => onSubmit(formToItem(type, getValues(), itemId)));
+  const submit = handleSubmit(() => onSubmit(formToItem(type, getValues(), itemId, initialItem)));
 
   return (
     <View style={styles.container}>
