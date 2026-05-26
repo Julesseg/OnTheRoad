@@ -4,6 +4,12 @@ import { Linking } from 'react-native';
 import { ItemRow } from './item-row';
 import type { Item } from '@/lib/schema';
 
+vi.mock('@/lib/store', () => ({
+  useTripStore: (
+    selector: (s: { preferredMapsApp: 'apple' | 'google' | 'waze'; installedMapsApps: string[] }) => unknown,
+  ) => selector({ preferredMapsApp: 'apple', installedMapsApps: ['apple'] }),
+}));
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -34,5 +40,25 @@ describe('ItemRow', () => {
     render(<ItemRow item={item} />);
     fireEvent.click(screen.getByText('https://example.com/tickets'));
     expect(openURL).toHaveBeenCalledWith('https://example.com/tickets');
+  });
+
+  it('opens the maps target in the preferred app, labelling the button with that app', () => {
+    const openURL = vi.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    const item: Item = {
+      type: 'location',
+      id: 'a',
+      name: 'Golden Gate Bridge',
+      lat: 37.8199,
+      lng: -122.4783,
+    };
+    render(<ItemRow item={item} />);
+    fireEvent.click(screen.getByText('Open in Apple Maps'));
+    expect(openURL).toHaveBeenCalledWith('maps://?daddr=37.8199,-122.4783');
+  });
+
+  it('shows no maps action for an item without an address or coords', () => {
+    const item: Item = { type: 'activity', id: 'c', name: 'Whale watching' };
+    render(<ItemRow item={item} />);
+    expect(screen.queryByText(/^Open in /)).toBeNull();
   });
 });

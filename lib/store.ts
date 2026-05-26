@@ -1,11 +1,14 @@
 import { create } from 'zustand';
-import { Item, Trip, TripSummary } from './schema';
+import { Item, MapsApp, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage';
+import { getInstalledMapsApps, reconcilePreferredMapsApp } from './maps';
 import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
 
 interface TripStore {
   trips: TripSummary[];
   loadedTrips: Record<string, Trip>;
+  preferredMapsApp: MapsApp;
+  installedMapsApps: MapsApp[];
   initialized: boolean;
   initializing: boolean;
 
@@ -15,19 +18,31 @@ interface TripStore {
   removeTrip: (id: string) => Promise<void>;
   upsertItem: (tripId: string, dayId: string, item: Item) => void;
   deleteItem: (tripId: string, dayId: string, itemId: string) => void;
+  setPreferredMapsApp: (app: MapsApp) => void;
 }
+
+type StateSnapshot = { trips: TripSummary[]; preferredMapsApp: MapsApp };
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-function scheduleSave(trips: TripSummary[]): void {
+function writeState(snapshot: StateSnapshot): void {
+  try {
+    saveState({
+      activeTripId: null,
+      trips: snapshot.trips,
+      preferredMapsApp: snapshot.preferredMapsApp,
+      lastUpdated: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Read the snapshot lazily when the timer fires so a debounced trip save can't
+// clobber an immediate setting write made within the debounce window.
+function scheduleSave(getSnapshot: () => StateSnapshot): void {
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-  saveDebounceTimer = setTimeout(() => {
-    try {
-      saveState({ activeTripId: null, trips, lastUpdated: new Date().toISOString() });
-    } catch (e) {
-      console.error(e);
-    }
-  }, 300);
+  saveDebounceTimer = setTimeout(() => writeState(getSnapshot()), 300);
 }
 
 function toSummary(trip: Trip): TripSummary {
@@ -39,9 +54,15 @@ function toSummary(trip: Trip): TripSummary {
   };
 }
 
+function snapshotOf(get: () => TripStore): StateSnapshot {
+  return { trips: get().trips, preferredMapsApp: get().preferredMapsApp };
+}
+
 export const useTripStore = create<TripStore>((set, get) => ({
   trips: [],
   loadedTrips: {},
+  preferredMapsApp: 'apple',
+  installedMapsApps: ['apple'],
   initialized: false,
   initializing: false,
 
@@ -50,11 +71,23 @@ export const useTripStore = create<TripStore>((set, get) => ({
     set({ initializing: true });
     try {
       const state = await loadState();
-      set({ trips: state?.trips ?? [], initialized: true, initializing: false });
+      set({
+        trips: state?.trips ?? [],
+        preferredMapsApp: state?.preferredMapsApp ?? 'apple',
+        initialized: true,
+        initializing: false,
+      });
     } catch {
       // Corrupt or missing state — treat as fresh start so the UI unblocks.
       set({ initialized: true, initializing: false });
     }
+    getInstalledMapsApps()
+      .then((apps) => {
+        set({ installedMapsApps: apps });
+        const reconciled = reconcilePreferredMapsApp(get().preferredMapsApp, apps);
+        if (reconciled !== get().preferredMapsApp) get().setPreferredMapsApp(reconciled);
+      })
+      .catch(() => {});
   },
 
   async addTrip(trip: Trip) {
@@ -62,7 +95,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const summary = toSummary(trip);
     const updatedTrips = get().trips.concat(summary);
     set((s) => ({ trips: updatedTrips, loadedTrips: { ...s.loadedTrips, [trip.id]: trip } }));
-    scheduleSave(updatedTrips);
+    scheduleSave(() => snapshotOf(get));
   },
 
   async loadTripById(id: string) {
@@ -95,6 +128,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
       const { [id]: _removed, ...rest } = s.loadedTrips;
       return { trips: updatedTrips, loadedTrips: rest };
     });
-    scheduleSave(updatedTrips);
+    scheduleSave(() => snapshotOf(get));
+  },
+
+  setPreferredMapsApp(app: MapsApp) {
+    set({ preferredMapsApp: app });
+    writeState(snapshotOf(get));
   },
 }));

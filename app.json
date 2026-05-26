@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.on-the-road"
+      "bundleIdentifier": "com.anonymous.on-the-road",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["comgooglemaps", "waze"]
+      }
     },
     "android": {
       "adaptiveIcon": {

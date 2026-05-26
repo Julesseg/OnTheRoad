@@ -94,9 +94,14 @@ export const TripSummarySchema = z.object({
 
 export type TripSummary = z.infer<typeof TripSummarySchema>;
 
+export const MapsAppSchema = z.enum(['apple', 'google', 'waze']);
+
+export type MapsApp = z.infer<typeof MapsAppSchema>;
+
 export const AppStateSchema = z.object({
   activeTripId: z.string().uuid().nullable(),
   trips: z.array(TripSummarySchema),
+  preferredMapsApp: MapsAppSchema.default('apple'),
   lastUpdated: z.string().datetime(),
 });
 
