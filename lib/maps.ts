@@ -1,3 +1,5 @@
+import { Linking } from 'react-native';
+
 export type MapsTarget = {
   coords?: { lat: number; lng: number };
   address?: string;
@@ -20,9 +22,7 @@ export function buildGoogleMapsUrl(target: MapsTarget): string {
   return `comgooglemaps://?daddr=${daddrParam(target)}`;
 }
 
-export async function openInMaps(target: MapsTarget, options: { app: MapsApp }): Promise<void> {
+export function openInMaps(target: MapsTarget, options: { app: MapsApp }): Promise<void> {
   const url = options.app === 'google' ? buildGoogleMapsUrl(target) : buildAppleMapsUrl(target);
-  // Lazy import so the pure URL builders above stay importable in the node test env.
-  const { Linking } = await import('react-native');
-  await Linking.openURL(url);
+  return Linking.openURL(url);
 }
