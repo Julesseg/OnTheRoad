@@ -3,16 +3,12 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTripStore } from '@/lib/store';
+import { MAPS_APP_LABELS } from '@/lib/maps';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import type { MapsApp } from '@/lib/schema';
-
-const MAPS_APPS: { value: MapsApp; label: string }[] = [
-  { value: 'apple', label: 'Apple Maps' },
-  { value: 'google', label: 'Google Maps' },
-];
 
 export default function SettingsScreen() {
-  const { preferredMapsApp, setPreferredMapsApp, initialized, initialize } = useTripStore();
+  const { preferredMapsApp, setPreferredMapsApp, installedMapsApps, initialized, initialize } =
+    useTripStore();
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -34,20 +30,20 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: subtext }]}>PREFERRED MAPS APP</Text>
         <View style={[styles.card, { backgroundColor: cardBg }]}>
-          {MAPS_APPS.map((app, i) => (
+          {installedMapsApps.map((app, i) => (
             <Pressable
-              key={app.value}
-              onPress={() => setPreferredMapsApp(app.value)}
+              key={app}
+              onPress={() => setPreferredMapsApp(app)}
               accessibilityRole="button"
-              accessibilityState={{ selected: preferredMapsApp === app.value }}
-              accessibilityLabel={app.label}
+              accessibilityState={{ selected: preferredMapsApp === app }}
+              accessibilityLabel={MAPS_APP_LABELS[app]}
               style={[
                 styles.row,
                 i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border },
               ]}
             >
-              <Text style={[styles.rowLabel, { color: text }]}>{app.label}</Text>
-              {preferredMapsApp === app.value ? <Text style={styles.check}>✓</Text> : null}
+              <Text style={[styles.rowLabel, { color: text }]}>{MAPS_APP_LABELS[app]}</Text>
+              {preferredMapsApp === app ? <Text style={styles.check}>✓</Text> : null}
             </Pressable>
           ))}
         </View>

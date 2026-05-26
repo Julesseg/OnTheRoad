@@ -174,13 +174,23 @@ describe('AppStateSchema', () => {
     expect(state.preferredMapsApp).toBe('google');
   });
 
+  it('accepts an explicit preferredMapsApp of waze', () => {
+    const state = AppStateSchema.parse({
+      activeTripId: null,
+      trips: [],
+      lastUpdated: '2026-05-01T10:00:00.000Z',
+      preferredMapsApp: 'waze',
+    });
+    expect(state.preferredMapsApp).toBe('waze');
+  });
+
   it('rejects an unknown preferredMapsApp value', () => {
     expect(() =>
       AppStateSchema.parse({
         activeTripId: null,
         trips: [],
         lastUpdated: '2026-05-01T10:00:00.000Z',
-        preferredMapsApp: 'waze',
+        preferredMapsApp: 'bing',
       }),
     ).toThrow();
   });

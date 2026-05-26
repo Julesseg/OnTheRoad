@@ -5,8 +5,9 @@ import { ItemRow } from './item-row';
 import type { Item } from '@/lib/schema';
 
 vi.mock('@/lib/store', () => ({
-  useTripStore: (selector: (s: { preferredMapsApp: 'apple' | 'google' }) => unknown) =>
-    selector({ preferredMapsApp: 'apple' }),
+  useTripStore: (
+    selector: (s: { preferredMapsApp: 'apple' | 'google' | 'waze'; installedMapsApps: string[] }) => unknown,
+  ) => selector({ preferredMapsApp: 'apple', installedMapsApps: ['apple'] }),
 }));
 
 afterEach(() => {

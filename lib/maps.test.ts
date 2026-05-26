@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAppleMapsUrl, buildGoogleMapsUrl } from './maps';
+import { buildAppleMapsUrl, buildGoogleMapsUrl, buildWazeMapsUrl } from './maps';
 
 describe('buildAppleMapsUrl', () => {
   it('builds a daddr directions URL from coords', () => {
@@ -49,6 +49,32 @@ describe('buildGoogleMapsUrl', () => {
   it('url-encodes special characters in an address', () => {
     expect(buildGoogleMapsUrl({ address: 'Café René, 1 Rue de la Paix' })).toBe(
       'comgooglemaps://?daddr=Caf%C3%A9%20Ren%C3%A9%2C%201%20Rue%20de%20la%20Paix',
+    );
+  });
+});
+
+describe('buildWazeMapsUrl', () => {
+  it('navigates to coords via the ll parameter', () => {
+    expect(buildWazeMapsUrl({ coords: { lat: 47.6062, lng: -122.3321 } })).toBe(
+      'waze://?ll=47.6062,-122.3321&navigate=yes',
+    );
+  });
+
+  it('navigates to an address via the q parameter', () => {
+    expect(buildWazeMapsUrl({ address: '100 Bridge Way' })).toBe(
+      'waze://?q=100%20Bridge%20Way&navigate=yes',
+    );
+  });
+
+  it('prefers coords over address when both are present', () => {
+    expect(
+      buildWazeMapsUrl({ coords: { lat: 47.6062, lng: -122.3321 }, address: '100 Bridge Way' }),
+    ).toBe('waze://?ll=47.6062,-122.3321&navigate=yes');
+  });
+
+  it('url-encodes special characters in an address', () => {
+    expect(buildWazeMapsUrl({ address: 'Café René, 1 Rue de la Paix' })).toBe(
+      'waze://?q=Caf%C3%A9%20Ren%C3%A9%2C%201%20Rue%20de%20la%20Paix&navigate=yes',
     );
   });
 });

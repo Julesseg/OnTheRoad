@@ -94,7 +94,7 @@ export const TripSummarySchema = z.object({
 
 export type TripSummary = z.infer<typeof TripSummarySchema>;
 
-export const MapsAppSchema = z.enum(['apple', 'google']);
+export const MapsAppSchema = z.enum(['apple', 'google', 'waze']);
 
 export type MapsApp = z.infer<typeof MapsAppSchema>;
 

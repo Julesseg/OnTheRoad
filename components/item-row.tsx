@@ -1,7 +1,7 @@
 import { View, Text, Linking, Pressable, ActionSheetIOS, StyleSheet } from 'react-native';
 
 import { formatItem, linkify } from '@/lib/item-display';
-import { openInMaps, type MapsTarget } from '@/lib/maps';
+import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
 import { useTripStore } from '@/lib/store';
 import type { Item } from '@/lib/schema';
 
@@ -22,13 +22,18 @@ export function ItemRow({ item }: { item: Item }) {
   const { typeLabel, title, lines } = formatItem(item);
   const mapsTarget = mapsTargetForItem(item);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
+  const installedMapsApps = useTripStore((s) => s.installedMapsApps);
 
   function chooseMapsApp(target: MapsTarget) {
     ActionSheetIOS.showActionSheetWithOptions(
-      { title: 'Open in Maps', options: ['Apple Maps', 'Google Maps', 'Cancel'], cancelButtonIndex: 2 },
+      {
+        title: 'Open in Maps',
+        options: [...installedMapsApps.map((app) => MAPS_APP_LABELS[app]), 'Cancel'],
+        cancelButtonIndex: installedMapsApps.length,
+      },
       (index) => {
-        if (index === 0) openInMaps(target, { app: 'apple' }).catch(() => {});
-        else if (index === 1) openInMaps(target, { app: 'google' }).catch(() => {});
+        const app = installedMapsApps[index];
+        if (app) openInMaps(target, { app }).catch(() => {});
       },
     );
   }

@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { Item, MapsApp, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage';
+import { getInstalledMapsApps } from './maps';
 import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
 
 interface TripStore {
   trips: TripSummary[];
   loadedTrips: Record<string, Trip>;
   preferredMapsApp: MapsApp;
+  installedMapsApps: MapsApp[];
   initialized: boolean;
   initializing: boolean;
 
@@ -52,6 +54,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   trips: [],
   loadedTrips: {},
   preferredMapsApp: 'apple',
+  installedMapsApps: ['apple'],
   initialized: false,
   initializing: false,
 
@@ -70,6 +73,9 @@ export const useTripStore = create<TripStore>((set, get) => ({
       // Corrupt or missing state — treat as fresh start so the UI unblocks.
       set({ initialized: true, initializing: false });
     }
+    getInstalledMapsApps()
+      .then((apps) => set({ installedMapsApps: apps }))
+      .catch(() => {});
   },
 
   async addTrip(trip: Trip) {
