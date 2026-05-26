@@ -7,10 +7,12 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { GlassContainer, GlassView } from 'expo-glass-effect';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
@@ -24,12 +26,28 @@ const STATUS_COLOR: Record<ReturnType<typeof tripStatus>, string> = {
 };
 
 export default function TripsScreen() {
-  const { trips, initialized, initialize } = useTripStore();
+  const { trips, initialized, initialize, importTrip } = useTripStore();
   const colorScheme = useColorScheme();
 
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized]);
+
+  const onImport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const uri = result.assets[0]?.uri;
+      if (!uri) return;
+      const trip = await importTrip(uri);
+      router.push(`/trip/${trip.id}`);
+    } catch (e) {
+      Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this file.');
+    }
+  };
 
   const bg = colorScheme === 'dark' ? '#000' : '#fff';
   const text = colorScheme === 'dark' ? '#fff' : '#111';
@@ -47,20 +65,25 @@ export default function TripsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: text }]}>Trips</Text>
-        <GlassView
-          glassEffectStyle="regular"
-          tintColor="#007AFF"
-          isInteractive
-          style={styles.addButton}
-        >
-          <Pressable
-            onPress={() => router.push('/trip/new')}
-            accessibilityLabel="New trip"
-            style={styles.addButtonPressable}
-          >
-            <Text style={styles.addButtonText}>+</Text>
+        <View style={styles.headerActions}>
+          <Pressable onPress={onImport} accessibilityLabel="Import trip" hitSlop={8}>
+            <Text style={styles.importText}>Import</Text>
           </Pressable>
-        </GlassView>
+          <GlassView
+            glassEffectStyle="regular"
+            tintColor="#007AFF"
+            isInteractive
+            style={styles.addButton}
+          >
+            <Pressable
+              onPress={() => router.push('/trip/new')}
+              accessibilityLabel="New trip"
+              style={styles.addButtonPressable}
+            >
+              <Text style={styles.addButtonText}>+</Text>
+            </Pressable>
+          </GlassView>
+        </View>
       </View>
 
       {trips.length === 0 ? (
@@ -115,6 +138,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   title: { fontSize: 28, fontWeight: '700' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  importText: { color: '#007AFF', fontSize: 17 },
   addButton: {
     width: 36,
     height: 36,

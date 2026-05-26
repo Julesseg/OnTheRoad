@@ -1,5 +1,7 @@
 import { File, Directory, Paths } from 'expo-file-system';
 import { AppState, AppStateSchema, Trip, TripSchema } from './schema';
+import { importTripFromJson, serializeTrip } from './trip-io';
+import { newId } from './id';
 
 const tripsDir = new Directory(Paths.document, 'trips');
 
@@ -57,4 +59,39 @@ export function listTrips(): string[] {
 export function deleteTrip(id: string): void {
   const file = tripFile(id);
   if (file.exists) file.delete();
+}
+
+function exportFileName(trip: Trip): string {
+  const safe = trip.title
+    .replace(/[^a-z0-9-_ ]/gi, '')
+    .trim()
+    .replace(/\s+/g, '-');
+  return safe.length > 0 ? safe : `trip-${trip.id}`;
+}
+
+/**
+ * Read a `.json` file at `uri`, validate it against the schema, and return a
+ * Trip with a fresh id (never overwriting an existing trip). Throws an Error
+ * with a user-facing message if the file is missing or invalid. Does not save.
+ */
+export async function importTripFromFile(uri: string): Promise<Trip> {
+  const file = new File(uri);
+  if (!file.exists) throw new Error('File not found.');
+  const raw = await file.text();
+  const result = importTripFromJson(raw, newId());
+  if (!result.ok) throw new Error(result.error);
+  return result.trip;
+}
+
+/**
+ * Write a trip's JSON to a shareable file in the cache directory and return its
+ * uri (suitable for `expo-sharing`). Throws if the trip is not on disk.
+ */
+export async function exportTripAsFile(tripId: string): Promise<string> {
+  const trip = await loadTrip(tripId);
+  if (!trip) throw new Error('Trip not found.');
+  const file = new File(Paths.cache, `${exportFileName(trip)}.json`);
+  if (file.exists) file.delete();
+  file.write(serializeTrip(trip));
+  return file.uri;
 }
