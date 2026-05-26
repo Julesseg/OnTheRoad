@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Trip, TripSummary } from '@/lib/schema';
 import { useTripStore } from '@/lib/store';
@@ -80,5 +80,56 @@ describe('Upcoming tab', () => {
     render(<UpcomingScreen />);
     fireEvent.click(screen.getByText('2099-07-01'));
     expect(router.push).toHaveBeenCalledWith('/trip/trip-1/day/day-1');
+  });
+
+  it('shows a "Starts in N days" affordance before the trip begins', () => {
+    setStore({ trips: [SUMMARY], loadedTrips: { 'trip-1': TRIP } });
+    render(<UpcomingScreen />);
+    expect(screen.getByText(/Starts in \d+ days?/)).toBeInTheDocument();
+  });
+});
+
+const INPROGRESS_SUMMARY: TripSummary = {
+  id: 'trip-2',
+  title: 'Desert Loop',
+  startDate: '2026-07-01',
+  endDate: '2026-07-03',
+};
+
+const INPROGRESS_TRIP: Trip = {
+  id: 'trip-2',
+  schemaVersion: 1,
+  title: 'Desert Loop',
+  startDate: '2026-07-01',
+  endDate: '2026-07-03',
+  days: [
+    { id: 'd1', date: '2026-07-01', items: [] },
+    {
+      id: 'd2',
+      date: '2026-07-02',
+      items: [
+        { type: 'activity', id: 'x', name: 'Sunrise hike', time: '06:00' },
+        { type: 'location', id: 'y', name: 'Canyon Overlook', time: '11:00' },
+      ],
+    },
+    { id: 'd3', date: '2026-07-03', items: [] },
+  ],
+  createdAt: '2026-05-01T10:00:00.000Z',
+  updatedAt: '2026-05-01T10:00:00.000Z',
+};
+
+describe('Upcoming tab — today companion', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders the current day's items in the big-type companion when in progress", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 2, 10, 0));
+    setStore({ trips: [INPROGRESS_SUMMARY], loadedTrips: { 'trip-2': INPROGRESS_TRIP } });
+    render(<UpcomingScreen />);
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(screen.getByText('Canyon Overlook')).toBeInTheDocument();
+    expect(screen.getByLabelText('Next up: Canyon Overlook')).toBeInTheDocument();
   });
 });

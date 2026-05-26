@@ -1,0 +1,42 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import type { Day } from '@/lib/schema';
+import { TodayCompanion } from '@/components/today-companion';
+
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
+
+const DAY: Day = {
+  id: 'day-1',
+  date: '2026-07-02',
+  items: [
+    { type: 'activity', id: 'a', name: 'Breakfast', time: '09:00' },
+    { type: 'location', id: 'b', name: 'Museum', time: '11:00', notes: 'buy tickets online first' },
+    { type: 'note', id: 'c', text: 'remember sunscreen' },
+  ],
+};
+
+describe('TodayCompanion', () => {
+  it("renders each of the day's item titles", () => {
+    render(<TodayCompanion day={DAY} highlightId={null} />);
+    expect(screen.getByText('Breakfast')).toBeInTheDocument();
+    expect(screen.getByText('Museum')).toBeInTheDocument();
+  });
+
+  it('marks the highlighted item as "Next up"', () => {
+    render(<TodayCompanion day={DAY} highlightId="b" />);
+    expect(screen.getByLabelText('Next up: Museum')).toBeInTheDocument();
+  });
+
+  it('marks nothing when there is no highlight', () => {
+    render(<TodayCompanion day={DAY} highlightId={null} />);
+    expect(screen.queryByLabelText(/^Next up:/)).not.toBeInTheDocument();
+  });
+
+  it('renders item notes collapsed and expands them on tap', () => {
+    render(<TodayCompanion day={DAY} highlightId={null} />);
+    const notes = screen.getByLabelText('Notes for Museum');
+    expect(notes).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(notes);
+    expect(notes).toHaveAttribute('aria-expanded', 'true');
+  });
+});
