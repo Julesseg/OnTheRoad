@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Item, MapsApp, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage';
-import { getInstalledMapsApps } from './maps';
+import { getInstalledMapsApps, reconcilePreferredMapsApp } from './maps';
 import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
 
 interface TripStore {
@@ -21,14 +21,16 @@ interface TripStore {
   setPreferredMapsApp: (app: MapsApp) => void;
 }
 
+type StateSnapshot = { trips: TripSummary[]; preferredMapsApp: MapsApp };
+
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-function persistState(state: { trips: TripSummary[]; preferredMapsApp: MapsApp }): void {
+function writeState(snapshot: StateSnapshot): void {
   try {
     saveState({
       activeTripId: null,
-      trips: state.trips,
-      preferredMapsApp: state.preferredMapsApp,
+      trips: snapshot.trips,
+      preferredMapsApp: snapshot.preferredMapsApp,
       lastUpdated: new Date().toISOString(),
     });
   } catch (e) {
@@ -36,9 +38,11 @@ function persistState(state: { trips: TripSummary[]; preferredMapsApp: MapsApp }
   }
 }
 
-function scheduleSave(state: { trips: TripSummary[]; preferredMapsApp: MapsApp }): void {
+// Read the snapshot lazily when the timer fires so a debounced trip save can't
+// clobber an immediate setting write made within the debounce window.
+function scheduleSave(getSnapshot: () => StateSnapshot): void {
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-  saveDebounceTimer = setTimeout(() => persistState(state), 300);
+  saveDebounceTimer = setTimeout(() => writeState(getSnapshot()), 300);
 }
 
 function toSummary(trip: Trip): TripSummary {
@@ -48,6 +52,10 @@ function toSummary(trip: Trip): TripSummary {
     startDate: trip.startDate,
     endDate: trip.endDate,
   };
+}
+
+function snapshotOf(get: () => TripStore): StateSnapshot {
+  return { trips: get().trips, preferredMapsApp: get().preferredMapsApp };
 }
 
 export const useTripStore = create<TripStore>((set, get) => ({
@@ -74,7 +82,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
       set({ initialized: true, initializing: false });
     }
     getInstalledMapsApps()
-      .then((apps) => set({ installedMapsApps: apps }))
+      .then((apps) => {
+        set({ installedMapsApps: apps });
+        const reconciled = reconcilePreferredMapsApp(get().preferredMapsApp, apps);
+        if (reconciled !== get().preferredMapsApp) get().setPreferredMapsApp(reconciled);
+      })
       .catch(() => {});
   },
 
@@ -83,7 +95,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const summary = toSummary(trip);
     const updatedTrips = get().trips.concat(summary);
     set((s) => ({ trips: updatedTrips, loadedTrips: { ...s.loadedTrips, [trip.id]: trip } }));
-    scheduleSave({ trips: updatedTrips, preferredMapsApp: get().preferredMapsApp });
+    scheduleSave(() => snapshotOf(get));
   },
 
   async loadTripById(id: string) {
@@ -116,11 +128,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
       const { [id]: _removed, ...rest } = s.loadedTrips;
       return { trips: updatedTrips, loadedTrips: rest };
     });
-    scheduleSave({ trips: updatedTrips, preferredMapsApp: get().preferredMapsApp });
+    scheduleSave(() => snapshotOf(get));
   },
 
   setPreferredMapsApp(app: MapsApp) {
     set({ preferredMapsApp: app });
-    persistState({ trips: get().trips, preferredMapsApp: app });
+    writeState(snapshotOf(get));
   },
 }));

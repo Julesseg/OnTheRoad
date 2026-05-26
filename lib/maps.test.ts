@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildAppleMapsUrl, buildGoogleMapsUrl, buildWazeMapsUrl } from './maps';
+import {
+  buildAppleMapsUrl,
+  buildGoogleMapsUrl,
+  buildWazeMapsUrl,
+  reconcilePreferredMapsApp,
+} from './maps';
 
 describe('buildAppleMapsUrl', () => {
   it('builds a daddr directions URL from coords', () => {
@@ -76,5 +81,19 @@ describe('buildWazeMapsUrl', () => {
     expect(buildWazeMapsUrl({ address: 'Café René, 1 Rue de la Paix' })).toBe(
       'waze://?q=Caf%C3%A9%20Ren%C3%A9%2C%201%20Rue%20de%20la%20Paix&navigate=yes',
     );
+  });
+});
+
+describe('reconcilePreferredMapsApp', () => {
+  it('keeps the preference when that app is installed', () => {
+    expect(reconcilePreferredMapsApp('google', ['apple', 'google'])).toBe('google');
+  });
+
+  it('falls back to apple when the preferred app is not installed', () => {
+    expect(reconcilePreferredMapsApp('google', ['apple', 'waze'])).toBe('apple');
+  });
+
+  it('falls back to apple when only apple is available', () => {
+    expect(reconcilePreferredMapsApp('waze', ['apple'])).toBe('apple');
   });
 });

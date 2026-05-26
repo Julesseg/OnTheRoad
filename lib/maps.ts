@@ -58,3 +58,9 @@ export async function getInstalledMapsApps(): Promise<MapsApp[]> {
   );
   return ['apple', ...optional.filter((_, i) => available[i])];
 }
+
+// Falls back to Apple Maps (always present on iOS) when the stored preference
+// points at an app that isn't installed, so the chosen app can never dead-end.
+export function reconcilePreferredMapsApp(preferred: MapsApp, installed: MapsApp[]): MapsApp {
+  return installed.includes(preferred) ? preferred : 'apple';
+}
