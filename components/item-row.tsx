@@ -59,11 +59,11 @@ export function ItemRow({ item }: { item: Item }) {
         <Pressable
           onPress={() => openInMaps(mapsTarget, { app: preferredMapsApp }).catch(() => {})}
           onLongPress={() => chooseMapsApp(mapsTarget)}
-          accessibilityLabel="Open in Maps"
+          accessibilityLabel={`Open in ${MAPS_APP_LABELS[preferredMapsApp]}`}
           hitSlop={6}
           style={styles.mapsButton}
         >
-          <Text style={styles.mapsButtonText}>Open in Maps</Text>
+          <Text style={styles.mapsButtonText}>Open in {MAPS_APP_LABELS[preferredMapsApp]}</Text>
         </Pressable>
       ) : null}
     </View>

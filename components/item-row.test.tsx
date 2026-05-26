@@ -42,7 +42,7 @@ describe('ItemRow', () => {
     expect(openURL).toHaveBeenCalledWith('https://example.com/tickets');
   });
 
-  it('opens the maps target in the preferred app when "Open in Maps" is pressed', () => {
+  it('opens the maps target in the preferred app, labelling the button with that app', () => {
     const openURL = vi.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     const item: Item = {
       type: 'location',
@@ -52,13 +52,13 @@ describe('ItemRow', () => {
       lng: -122.4783,
     };
     render(<ItemRow item={item} />);
-    fireEvent.click(screen.getByLabelText('Open in Maps'));
+    fireEvent.click(screen.getByText('Open in Apple Maps'));
     expect(openURL).toHaveBeenCalledWith('maps://?daddr=37.8199,-122.4783');
   });
 
   it('shows no maps action for an item without an address or coords', () => {
     const item: Item = { type: 'activity', id: 'c', name: 'Whale watching' };
     render(<ItemRow item={item} />);
-    expect(screen.queryByLabelText('Open in Maps')).toBeNull();
+    expect(screen.queryByText(/^Open in /)).toBeNull();
   });
 });
