@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Item, MapsApp, Trip, TripSummary } from './schema';
-import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage';
+import { loadState, saveState, loadTrip, saveTrip, deleteTrip, importTripFromFile } from './storage';
 import { getInstalledMapsApps, reconcilePreferredMapsApp } from './maps';
 import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
 
@@ -14,6 +14,7 @@ interface TripStore {
 
   initialize: () => Promise<void>;
   addTrip: (trip: Trip) => Promise<void>;
+  importTrip: (uri: string) => Promise<Trip>;
   loadTripById: (id: string) => Promise<void>;
   removeTrip: (id: string) => Promise<void>;
   upsertItem: (tripId: string, dayId: string, item: Item) => void;
@@ -96,6 +97,12 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const updatedTrips = get().trips.concat(summary);
     set((s) => ({ trips: updatedTrips, loadedTrips: { ...s.loadedTrips, [trip.id]: trip } }));
     scheduleSave(() => snapshotOf(get));
+  },
+
+  async importTrip(uri: string) {
+    const trip = await importTripFromFile(uri);
+    await get().addTrip(trip);
+    return trip;
   },
 
   async loadTripById(id: string) {
