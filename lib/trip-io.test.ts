@@ -55,11 +55,20 @@ describe('importTripFromJson — errors', () => {
     if (!res.ok) expect(res.error).toMatch(/json/i);
   });
 
-  it('returns an error naming the field when a required field is missing', () => {
+  it('labels an absent required field with the "Missing required field:" prefix', () => {
     const { startDate: _omit, ...noStartDate } = VALID_TRIP;
     const res = importTripFromJson(JSON.stringify(noStartDate), FRESH_ID);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toContain('startDate');
+    if (!res.ok) expect(res.error).toContain('Missing required field: startDate');
+  });
+
+  it('does not label a present-but-wrong-type field as missing', () => {
+    const res = importTripFromJson(JSON.stringify({ ...VALID_TRIP, title: 123 }), FRESH_ID);
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toContain('title');
+      expect(res.error).not.toContain('Missing required field');
+    }
   });
 
   it('returns an error naming the nested path for an unknown item type', () => {

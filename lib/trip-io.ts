@@ -5,14 +5,27 @@ export type ImportResult =
   | { ok: true; trip: Trip }
   | { ok: false; error: string };
 
+// Walk an object along a zod issue path; returns undefined if any hop is absent.
+function valueAtPath(root: unknown, path: PropertyKey[]): unknown {
+  let cur: unknown = root;
+  for (const key of path) {
+    if (cur === null || typeof cur !== 'object') return undefined;
+    cur = (cur as Record<PropertyKey, unknown>)[key];
+  }
+  return cur;
+}
+
 // Turn zod issues into a single user-facing message that names the offending
 // field path(s), e.g. "Missing required field: startDate" or
-// "days.0.items.0.type: Invalid discriminator value...".
-function formatIssues(error: z.ZodError): string {
+// "days.0.items.0.type: Invalid discriminator value...". The missing-field case
+// is detected structurally (the value at the path is absent) rather than from
+// zod's English message text, so message rewording across zod versions can't
+// silently drop the friendly label.
+function formatIssues(error: z.ZodError, data: unknown): string {
   return error.issues
     .map((issue) => {
       const path = issue.path.join('.') || '(root)';
-      if (issue.code === 'invalid_type' && issue.message.includes('received undefined')) {
+      if (issue.code === 'invalid_type' && valueAtPath(data, issue.path) === undefined) {
         return `Missing required field: ${path}`;
       }
       return `${path}: ${issue.message}`;
@@ -35,7 +48,7 @@ export function importTripFromJson(raw: string, freshId: string): ImportResult {
   }
   const result = TripSchema.safeParse(data);
   if (!result.success) {
-    return { ok: false, error: formatIssues(result.error) };
+    return { ok: false, error: formatIssues(result.error, data) };
   }
   return { ok: true, trip: { ...result.data, id: freshId } };
 }
