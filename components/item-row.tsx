@@ -2,6 +2,7 @@ import { View, Text, Linking, Pressable, ActionSheetIOS, StyleSheet } from 'reac
 
 import { formatItem, linkify } from '@/lib/item-display';
 import { openInMaps, type MapsTarget } from '@/lib/maps';
+import { useTripStore } from '@/lib/store';
 import type { Item } from '@/lib/schema';
 
 function mapsTargetForItem(item: Item): MapsTarget | null {
@@ -20,6 +21,7 @@ function mapsTargetForItem(item: Item): MapsTarget | null {
 export function ItemRow({ item }: { item: Item }) {
   const { typeLabel, title, lines } = formatItem(item);
   const mapsTarget = mapsTargetForItem(item);
+  const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
 
   function chooseMapsApp(target: MapsTarget) {
     ActionSheetIOS.showActionSheetWithOptions(
@@ -50,7 +52,7 @@ export function ItemRow({ item }: { item: Item }) {
       ))}
       {mapsTarget ? (
         <Pressable
-          onPress={() => openInMaps(mapsTarget, { app: 'apple' }).catch(() => {})}
+          onPress={() => openInMaps(mapsTarget, { app: preferredMapsApp }).catch(() => {})}
           onLongPress={() => chooseMapsApp(mapsTarget)}
           accessibilityLabel="Open in Maps"
           hitSlop={6}

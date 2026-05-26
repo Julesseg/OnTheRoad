@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import { Item, Trip, TripSummary } from './schema';
+import { Item, MapsApp, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip } from './storage';
 import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
 
 interface TripStore {
   trips: TripSummary[];
   loadedTrips: Record<string, Trip>;
+  preferredMapsApp: MapsApp;
   initialized: boolean;
   initializing: boolean;
 
@@ -15,19 +16,27 @@ interface TripStore {
   removeTrip: (id: string) => Promise<void>;
   upsertItem: (tripId: string, dayId: string, item: Item) => void;
   deleteItem: (tripId: string, dayId: string, itemId: string) => void;
+  setPreferredMapsApp: (app: MapsApp) => void;
 }
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-function scheduleSave(trips: TripSummary[]): void {
+function persistState(state: { trips: TripSummary[]; preferredMapsApp: MapsApp }): void {
+  try {
+    saveState({
+      activeTripId: null,
+      trips: state.trips,
+      preferredMapsApp: state.preferredMapsApp,
+      lastUpdated: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function scheduleSave(state: { trips: TripSummary[]; preferredMapsApp: MapsApp }): void {
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-  saveDebounceTimer = setTimeout(() => {
-    try {
-      saveState({ activeTripId: null, trips, lastUpdated: new Date().toISOString() });
-    } catch (e) {
-      console.error(e);
-    }
-  }, 300);
+  saveDebounceTimer = setTimeout(() => persistState(state), 300);
 }
 
 function toSummary(trip: Trip): TripSummary {
@@ -42,6 +51,7 @@ function toSummary(trip: Trip): TripSummary {
 export const useTripStore = create<TripStore>((set, get) => ({
   trips: [],
   loadedTrips: {},
+  preferredMapsApp: 'apple',
   initialized: false,
   initializing: false,
 
@@ -50,7 +60,12 @@ export const useTripStore = create<TripStore>((set, get) => ({
     set({ initializing: true });
     try {
       const state = await loadState();
-      set({ trips: state?.trips ?? [], initialized: true, initializing: false });
+      set({
+        trips: state?.trips ?? [],
+        preferredMapsApp: state?.preferredMapsApp ?? 'apple',
+        initialized: true,
+        initializing: false,
+      });
     } catch {
       // Corrupt or missing state — treat as fresh start so the UI unblocks.
       set({ initialized: true, initializing: false });
@@ -62,7 +77,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const summary = toSummary(trip);
     const updatedTrips = get().trips.concat(summary);
     set((s) => ({ trips: updatedTrips, loadedTrips: { ...s.loadedTrips, [trip.id]: trip } }));
-    scheduleSave(updatedTrips);
+    scheduleSave({ trips: updatedTrips, preferredMapsApp: get().preferredMapsApp });
   },
 
   async loadTripById(id: string) {
@@ -95,6 +110,11 @@ export const useTripStore = create<TripStore>((set, get) => ({
       const { [id]: _removed, ...rest } = s.loadedTrips;
       return { trips: updatedTrips, loadedTrips: rest };
     });
-    scheduleSave(updatedTrips);
+    scheduleSave({ trips: updatedTrips, preferredMapsApp: get().preferredMapsApp });
+  },
+
+  setPreferredMapsApp(app: MapsApp) {
+    set({ preferredMapsApp: app });
+    persistState({ trips: get().trips, preferredMapsApp: app });
   },
 }));

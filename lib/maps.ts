@@ -1,11 +1,11 @@
 import { Linking } from 'react-native';
 
+import type { MapsApp } from './schema';
+
 export type MapsTarget = {
   coords?: { lat: number; lng: number };
   address?: string;
 };
-
-export type MapsApp = 'apple' | 'google';
 
 function daddrParam(target: MapsTarget): string {
   if (target.coords) {

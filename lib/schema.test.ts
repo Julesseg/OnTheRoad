@@ -154,4 +154,34 @@ describe('AppStateSchema', () => {
     expect(state.activeTripId).toBeNull();
     expect(state.trips).toHaveLength(0);
   });
+
+  it('defaults preferredMapsApp to apple when the field is absent', () => {
+    const state = AppStateSchema.parse({
+      activeTripId: null,
+      trips: [],
+      lastUpdated: '2026-05-01T10:00:00.000Z',
+    });
+    expect(state.preferredMapsApp).toBe('apple');
+  });
+
+  it('accepts an explicit preferredMapsApp of google', () => {
+    const state = AppStateSchema.parse({
+      activeTripId: null,
+      trips: [],
+      lastUpdated: '2026-05-01T10:00:00.000Z',
+      preferredMapsApp: 'google',
+    });
+    expect(state.preferredMapsApp).toBe('google');
+  });
+
+  it('rejects an unknown preferredMapsApp value', () => {
+    expect(() =>
+      AppStateSchema.parse({
+        activeTripId: null,
+        trips: [],
+        lastUpdated: '2026-05-01T10:00:00.000Z',
+        preferredMapsApp: 'waze',
+      }),
+    ).toThrow();
+  });
 });
