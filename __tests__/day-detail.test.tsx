@@ -6,12 +6,42 @@ import { useLocalSearchParams } from 'expo-router';
 import DayDetailScreen from '@/app/trip/[id]/day/[dayId]';
 
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
-vi.mock('expo-router', () => ({ useLocalSearchParams: vi.fn(), router: { back: vi.fn() } }));
+vi.mock('expo-router', () => ({
+  useLocalSearchParams: vi.fn(),
+  router: { back: vi.fn(), push: vi.fn() },
+}));
 vi.mock('react-native-safe-area-context', async () => {
   const React = await import('react');
   const Passthrough = ({ children }: { children?: React.ReactNode }) =>
     React.createElement('div', null, children);
   return { SafeAreaView: Passthrough };
+});
+// The native DraggableFlatList can't render under jsdom; stand in a plain list
+// that renders each item via renderItem in the data (stored) order.
+vi.mock('react-native-draggable-flatlist', async () => {
+  const React = await import('react');
+  type Params<T> = { item: T; getIndex: () => number; drag: () => void; isActive: boolean };
+  const DraggableFlatList = <T,>({
+    data,
+    renderItem,
+    keyExtractor,
+  }: {
+    data: T[];
+    renderItem: (p: Params<T>) => React.ReactNode;
+    keyExtractor: (item: T, index: number) => string;
+  }) =>
+    React.createElement(
+      'div',
+      null,
+      data.map((item, index) =>
+        React.createElement(
+          React.Fragment,
+          { key: keyExtractor(item, index) },
+          renderItem({ item, getIndex: () => index, drag: () => {}, isActive: false }),
+        ),
+      ),
+    );
+  return { default: DraggableFlatList };
 });
 
 const mockedStore = vi.mocked(useTripStore);
@@ -58,7 +88,7 @@ describe('Day detail', () => {
     expect(screen.getByText('No items yet')).toBeInTheDocument();
   });
 
-  it('renders items in chronological order regardless of stored order', () => {
+  it('renders items in their stored order, not re-sorted by time', () => {
     const trip: Trip = {
       ...TRIP,
       days: [
@@ -75,8 +105,8 @@ describe('Day detail', () => {
     mockedStore.mockReturnValue({ loadedTrips: { 'trip-1': trip }, loadTripById: vi.fn() } as never);
     mockedParams.mockReturnValue({ id: 'trip-1', dayId: 'day-1' });
     render(<DayDetailScreen />);
-    const early = screen.getByText('Breakfast');
-    const late = screen.getByText('Dinner');
-    expect(early.compareDocumentPosition(late) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const dinner = screen.getByText('Dinner');
+    const breakfast = screen.getByText('Breakfast');
+    expect(dinner.compareDocumentPosition(breakfast) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

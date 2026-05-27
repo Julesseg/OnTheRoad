@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
+import {
+  upsertItemInTrip,
+  deleteItemFromTrip,
+  reorderDayItems,
+  moveItemToDay,
+} from './trip-mutations';
 import type { Trip, Item } from './schema';
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -18,6 +23,10 @@ function tripFixture(): Trip {
       { id: 'day-2', date: '2026-07-02', items: [] },
     ],
   };
+}
+
+function notes(...ids: string[]): Item[] {
+  return ids.map((id) => ({ type: 'note', id, text: id }));
 }
 
 describe('upsertItemInTrip', () => {
@@ -63,5 +72,56 @@ describe('deleteItemFromTrip', () => {
     const trip = tripFixture();
     deleteItemFromTrip(trip, 'day-1', 'i1', NOW);
     expect(trip.days[0].items.map((i) => i.id)).toEqual(['i1']);
+  });
+});
+
+describe('reorderDayItems', () => {
+  it('moves an item from one index to a later one, shifting the rest', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b', 'c');
+    const next = reorderDayItems(trip, 'day-1', 0, 2, NOW);
+    expect(next.days[0].items.map((i) => i.id)).toEqual(['b', 'c', 'a']);
+    expect(next.updatedAt).toBe(NOW);
+  });
+
+  it('moves an item to an earlier index', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b', 'c');
+    const next = reorderDayItems(trip, 'day-1', 2, 0, NOW);
+    expect(next.days[0].items.map((i) => i.id)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('does not mutate the input and leaves other days untouched', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b', 'c');
+    const next = reorderDayItems(trip, 'day-1', 0, 2, NOW);
+    expect(trip.days[0].items.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+    expect(next.days[1]).toBe(trip.days[1]);
+  });
+});
+
+describe('moveItemToDay', () => {
+  it('removes the item from the source day and appends it to the end of the target day', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b');
+    trip.days[1].items = notes('x');
+    const next = moveItemToDay(trip, 'day-1', 'day-2', 'a', NOW);
+    expect(next.days[0].items.map((i) => i.id)).toEqual(['b']);
+    expect(next.days[1].items.map((i) => i.id)).toEqual(['x', 'a']);
+    expect(next.updatedAt).toBe(NOW);
+  });
+
+  it('does not mutate the input trip', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b');
+    moveItemToDay(trip, 'day-1', 'day-2', 'a', NOW);
+    expect(trip.days[0].items.map((i) => i.id)).toEqual(['a', 'b']);
+    expect(trip.days[1].items).toEqual([]);
+  });
+
+  it('returns the trip unchanged when the item is not in the source day', () => {
+    const trip = tripFixture();
+    const next = moveItemToDay(trip, 'day-1', 'day-2', 'missing', NOW);
+    expect(next).toBe(trip);
   });
 });
