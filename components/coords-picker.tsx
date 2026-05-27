@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 
-import { parseMapsUrl, type Coords } from '@/lib/coords';
+import { resolveMapsUrl, type Coords } from '@/lib/coords';
 
 type Tab = 'paste' | 'search' | 'pin';
 
@@ -11,7 +11,8 @@ const TAB_LABELS: Record<Tab, string> = {
   pin: 'Pin',
 };
 
-const PARSE_ERROR = "Couldn't read a location from that URL — try copying the share URL again.";
+const PARSE_ERROR =
+  "Couldn't read a location from that link. Check the link or your connection, then try again.";
 
 export interface CoordsPickerProps {
   initial?: Coords | null;
@@ -24,11 +25,16 @@ export function CoordsPicker({ initial, onConfirm, onCancel }: CoordsPickerProps
   const [text, setText] = useState(initial ? `${initial.lat}, ${initial.lng}` : '');
   const [parsed, setParsed] = useState<Coords | null>(initial ?? null);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleParse() {
-    const coords = parseMapsUrl(text);
+  async function handleParse() {
+    if (loading) return;
+    setLoading(true);
+    // Short links carry no coords until they redirect, so this may hit the network.
+    const coords = await resolveMapsUrl(text);
     setParsed(coords);
     setError(coords === null);
+    setLoading(false);
   }
 
   function handleConfirm() {
@@ -78,8 +84,18 @@ export function CoordsPicker({ initial, onConfirm, onCancel }: CoordsPickerProps
             autoCorrect={false}
           />
 
-          <Pressable accessibilityLabel="Parse" style={styles.parseButton} onPress={handleParse}>
-            <Text style={styles.parseText}>Parse</Text>
+          <Pressable
+            accessibilityLabel="Parse"
+            accessibilityState={{ disabled: loading }}
+            disabled={loading}
+            style={[styles.parseButton, loading && styles.parseButtonLoading]}
+            onPress={handleParse}
+          >
+            {loading ? (
+              <ActivityIndicator color="#0a7ea4" />
+            ) : (
+              <Text style={styles.parseText}>Parse</Text>
+            )}
           </Pressable>
 
           {parsed ? (
@@ -155,6 +171,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#eef6fa',
   },
+  parseButtonLoading: { opacity: 0.7 },
   parseText: { fontSize: 16, fontWeight: '600', color: '#0a7ea4' },
   preview: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 },
   previewPin: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#0a7ea4' },

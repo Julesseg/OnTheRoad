@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { parseMapsUrl } from './coords';
+import { describe, it, expect, vi } from 'vitest';
+import { parseMapsUrl, resolveMapsUrl } from './coords';
 
 describe('parseMapsUrl', () => {
   it('parses an Apple Maps ?ll= share URL', () => {
@@ -66,5 +66,56 @@ describe('parseMapsUrl', () => {
   it('returns null for shortened links that need a network redirect', () => {
     expect(parseMapsUrl('https://maps.app.goo.gl/abc123')).toBeNull();
     expect(parseMapsUrl('https://goo.gl/maps/abc123')).toBeNull();
+  });
+
+  it('prefers the !3d/!4d dropped-pin coordinates over the @ viewport centre', () => {
+    expect(
+      parseMapsUrl('https://www.google.com/maps/place/X/@47.61,-122.34,17z/data=!3d47.6097!4d-122.3422'),
+    ).toEqual({ lat: 47.6097, lng: -122.3422 });
+  });
+});
+
+describe('resolveMapsUrl', () => {
+  it('parses offline without any network call when coordinates are already present', async () => {
+    const fetchImpl = vi.fn();
+    await expect(resolveMapsUrl('maps://?ll=47.6062,-122.3321', fetchImpl)).resolves.toEqual({
+      lat: 47.6062,
+      lng: -122.3321,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('follows a short-link redirect and parses the resolved URL', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      url: 'https://www.google.com/maps/place/Pike+Place/@47.61,-122.34,17z/data=!3d47.6097!4d-122.3422',
+      text: async () => '',
+    });
+    await expect(resolveMapsUrl('https://maps.app.goo.gl/abc123', fetchImpl)).resolves.toEqual({
+      lat: 47.6097,
+      lng: -122.3422,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith('https://maps.app.goo.gl/abc123');
+  });
+
+  it('falls back to the response body when the resolved URL has no coordinates', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      url: 'https://www.google.com/maps',
+      text: async () => 'APP_INITIALIZATION_STATE=[[[...]],...!3d47.6097!4d-122.3422...',
+    });
+    await expect(resolveMapsUrl('https://maps.app.goo.gl/xyz', fetchImpl)).resolves.toEqual({
+      lat: 47.6097,
+      lng: -122.3422,
+    });
+  });
+
+  it('returns null when the request fails', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new Error('offline'));
+    await expect(resolveMapsUrl('https://maps.app.goo.gl/abc', fetchImpl)).resolves.toBeNull();
+  });
+
+  it('returns null for non-URL garbage without attempting a fetch', async () => {
+    const fetchImpl = vi.fn();
+    await expect(resolveMapsUrl('hello', fetchImpl)).resolves.toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

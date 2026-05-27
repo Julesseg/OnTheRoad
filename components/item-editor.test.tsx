@@ -51,6 +51,7 @@ describe('ItemEditor', () => {
       target: { value: 'maps://?ll=47.6062,-122.3321' },
     });
     fireEvent.click(screen.getByLabelText('Parse'));
+    await screen.findByText('47.6062, -122.3321');
     fireEvent.click(screen.getByLabelText('Use these coordinates'));
 
     fireEvent.click(screen.getByText('Save'));
