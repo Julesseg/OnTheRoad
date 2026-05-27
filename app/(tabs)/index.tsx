@@ -7,6 +7,8 @@ import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DayList } from '@/components/day-list';
+import { TodayCompanion } from '@/components/today-companion';
+import { selectTodayDay, nextItemId } from '@/lib/today';
 import { todayString } from '@/lib/date-utils';
 
 // The trip shown on Upcoming: the one in progress today, otherwise the next by
@@ -18,12 +20,6 @@ function selectCurrentOrNext(trips: TripSummary[]): TripSummary | null {
       .filter((t) => t.endDate >= today)
       .sort((a, b) => a.startDate.localeCompare(b.startDate))[0] ?? null
   );
-}
-
-function daysUntil(dateStr: string): number {
-  const today = new Date(todayString());
-  const target = new Date(dateStr);
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
 
 export default function UpcomingScreen() {
@@ -66,16 +62,21 @@ export default function UpcomingScreen() {
     );
   }
 
-  const today = todayString();
-  const isInProgress = selected.startDate <= today && selected.endDate >= today;
-  const delta = daysUntil(selected.startDate);
+  const now = new Date();
+  const selection = selectTodayDay(
+    { startDate: selected.startDate, endDate: selected.endDate, days: trip?.days ?? [] },
+    now,
+  );
+  const isInProgress = selection.kind === 'today';
+  const daysAway = selection.daysAway ?? 0;
+  const companionDay = selection.kind === 'today' ? selection.day : undefined;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
-            {isInProgress ? 'In progress' : `In ${delta} day${delta === 1 ? '' : 's'}`}
+            {isInProgress ? 'In progress' : `Starts in ${daysAway} day${daysAway === 1 ? '' : 's'}`}
           </Text>
         </View>
         <Text style={[styles.title, { color: text }]}>{selected.title}</Text>
@@ -88,9 +89,12 @@ export default function UpcomingScreen() {
         <ActivityIndicator style={styles.loader} size="large" />
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
+          {companionDay ? (
+            <TodayCompanion day={companionDay} highlightId={nextItemId(companionDay, now)} />
+          ) : null}
           <DayList
             trip={trip}
-            todayDate={isInProgress ? today : undefined}
+            todayDate={isInProgress ? todayString() : undefined}
             onSelectDay={(dayId) => router.push(`/trip/${trip.id}/day/${dayId}`)}
           />
         </ScrollView>

@@ -98,9 +98,7 @@ function TimeField(props: { label: string; value: string; onChange: (v: string) 
             mode="time"
             display="spinner"
             value={timeToDate(value)}
-            onChange={(_e, d) => {
-              if (d) onChange(dateToTime(d));
-            }}
+            onValueChange={(_e, d) => onChange(dateToTime(d))}
           />
           <Pressable onPress={() => setShow(false)}>
             <Text style={styles.done}>Done</Text>
