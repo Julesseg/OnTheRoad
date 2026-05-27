@@ -10,7 +10,7 @@ export default function ModalScreen() {
     <View style={[styles.container, { backgroundColor: Colors[scheme].background }]}>
       <Text style={[styles.title, { color: Colors[scheme].text }]}>This is a modal</Text>
       <Link href="/(tabs)" dismissTo style={styles.link}>
-        <Text style={styles.linkText}>Go to home screen</Text>
+        <Text style={[styles.linkText, { color: Colors[scheme].tint }]}>Go to home screen</Text>
       </Link>
     </View>
   );
@@ -35,6 +35,5 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 16,
     lineHeight: 30,
-    color: Colors.light.tint,
   },
 });
