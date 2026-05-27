@@ -1,50 +1,68 @@
-# Welcome to your Expo app 👋
+# On the Road
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal road-trip itinerary app for iOS, built with React Native and Expo.
 
-## Get started
+Plan a trip day by day and keep everything you need for the road in one place. Each trip is a sequence of days, and each day holds an ordered list of items:
 
-1. Install dependencies
+- **Locations** — places to stop, with an address you can tap to open in Maps
+- **Accommodations** — check-in / check-out times and confirmation numbers
+- **Activities** — things to do, with a time and duration
+- **Notes** — free-form reminders
+
+The app has three tabs:
+
+- **Upcoming** — the trip in progress today (or the next one coming up), with the next item on your schedule highlighted
+- **Trips** — all your trips with status badges (In progress / Upcoming / Past); create a new trip or import one from a JSON file
+- **Settings** — pick your preferred maps app (Apple Maps, Google Maps, or Waze) for opening addresses
+
+Trips are stored locally on the device as JSON files (local-first, no account or network required) and can be imported and exported.
+
+## Tech stack
+
+- [Expo](https://expo.dev) (SDK 56) + [Expo Router](https://docs.expo.dev/router/introduction) for file-based, typed routing
+- React Native 0.85 / React 19
+- [Zustand](https://github.com/pmndrs/zustand) for state, [Zod](https://zod.dev) for schema validation, [React Hook Form](https://react-hook-form.com) for forms
+- [Vitest](https://vitest.dev) for unit tests
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org) (LTS) and npm
+- macOS with [Xcode](https://developer.apple.com/xcode/) and the iOS Simulator — the app is iOS-only and relies on native modules (native tabs, the iOS 26 glass effect), so it needs a development build rather than Expo Go.
+
+## Getting started
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Build and run on the iOS Simulator (this compiles the native iOS project):
 
    ```bash
-   npx expo start
+   npm run ios
    ```
 
-In the output, you'll find options to open the app in a
+   The first build takes a few minutes. On subsequent runs you can start just the dev server with:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   npm start
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   then press `i` to open the already-installed app on the simulator.
 
-## Get a fresh project
+## Development
 
-When you're ready, run:
+- **Run tests:**
 
-```bash
-npm run reset-project
-```
+  ```bash
+  npm test
+  ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- **Lint:**
 
-## Learn more
+  ```bash
+  npm run lint
+  ```
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+App screens live in the `app/` directory (file-based routing), and shared logic — schema, storage, and the trip store — lives in `lib/`.
