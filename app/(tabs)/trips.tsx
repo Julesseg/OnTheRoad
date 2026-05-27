@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -16,7 +17,6 @@ import * as DocumentPicker from 'expo-document-picker';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { tripStatus } from '@/lib/date-utils';
 
 const STATUS_COLOR: Record<ReturnType<typeof tripStatus>, string> = {

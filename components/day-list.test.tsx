@@ -3,7 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { Trip } from '@/lib/schema';
 import { DayList } from './day-list';
 
-vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 vi.mock('expo-glass-effect', async () => {
   const React = await import('react');
   const Passthrough = ({ children }: { children?: React.ReactNode }) =>

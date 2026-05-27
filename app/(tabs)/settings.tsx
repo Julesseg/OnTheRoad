@@ -1,10 +1,9 @@
 import React, { useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTripStore } from '@/lib/store';
 import { MAPS_APP_LABELS } from '@/lib/maps';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function SettingsScreen() {
   const { preferredMapsApp, setPreferredMapsApp, installedMapsApps, initialized, initialize } =
