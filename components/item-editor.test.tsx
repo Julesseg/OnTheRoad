@@ -41,6 +41,30 @@ describe('ItemEditor', () => {
     );
   });
 
+  it('attaches coords picked from a pasted URL to the saved item', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor type="location" itemId="loc-2" onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Market' } });
+
+    fireEvent.click(screen.getByLabelText('Coordinates'));
+    fireEvent.change(screen.getByLabelText('Maps URL or coordinates'), {
+      target: { value: 'maps://?ll=47.6062,-122.3321' },
+    });
+    fireEvent.click(screen.getByLabelText('Parse'));
+    fireEvent.click(screen.getByLabelText('Use these coordinates'));
+
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        type: 'location',
+        id: 'loc-2',
+        name: 'Market',
+        lat: 47.6062,
+        lng: -122.3321,
+      }),
+    );
+  });
+
   it('invokes onDelete when editing an existing item', () => {
     const onDelete = vi.fn();
     render(
