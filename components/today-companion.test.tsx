@@ -22,6 +22,21 @@ describe('TodayCompanion', () => {
     expect(screen.getByText('Museum')).toBeInTheDocument();
   });
 
+  it('renders items in chronological order regardless of stored order', () => {
+    const day: Day = {
+      id: 'day-1',
+      date: '2026-07-02',
+      items: [
+        { type: 'activity', id: 'late', name: 'Dinner', time: '19:00' },
+        { type: 'activity', id: 'early', name: 'Breakfast', time: '08:00' },
+      ],
+    };
+    render(<TodayCompanion day={day} highlightId={null} />);
+    const early = screen.getByText('Breakfast');
+    const late = screen.getByText('Dinner');
+    expect(early.compareDocumentPosition(late) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('marks the highlighted item as "Next up"', () => {
     render(<TodayCompanion day={DAY} highlightId="b" />);
     expect(screen.getByLabelText('Next up: Museum')).toBeInTheDocument();

@@ -58,4 +58,26 @@ describe('Day detail', () => {
     render(<DayDetailScreen />);
     expect(screen.getByText('No items yet')).toBeInTheDocument();
   });
+
+  it('renders items in chronological order regardless of stored order', () => {
+    const trip: Trip = {
+      ...TRIP,
+      days: [
+        {
+          id: 'day-1',
+          date: '2026-07-01',
+          items: [
+            { type: 'activity', id: 'late', name: 'Dinner', time: '19:00' },
+            { type: 'activity', id: 'early', name: 'Breakfast', time: '08:00' },
+          ],
+        },
+      ],
+    };
+    mockedStore.mockReturnValue({ loadedTrips: { 'trip-1': trip }, loadTripById: vi.fn() } as never);
+    mockedParams.mockReturnValue({ id: 'trip-1', dayId: 'day-1' });
+    render(<DayDetailScreen />);
+    const early = screen.getByText('Breakfast');
+    const late = screen.getByText('Dinner');
+    expect(early.compareDocumentPosition(late) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

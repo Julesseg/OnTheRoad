@@ -14,6 +14,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useTripStore } from '@/lib/store';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ItemRow } from '@/components/item-row';
+import { sortItemsByTime } from '@/lib/item-display';
 import type { ItemType } from '@/lib/item-form';
 
 const ADD_OPTIONS: { label: string; type: ItemType }[] = [
@@ -86,7 +87,7 @@ export default function DayDetailScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
-          {day.items.map((item) => (
+          {sortItemsByTime(day.items).map((item) => (
             <Pressable key={item.id} onPress={() => openItem(item.id)} accessibilityLabel={`Edit ${item.type}`}>
               <ItemRow item={item} />
             </Pressable>

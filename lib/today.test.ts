@@ -61,6 +61,14 @@ describe('nextItemId', () => {
     expect(nextItemId(day, new Date(2026, 6, 2, 10, 0))).toBe('b');
   });
 
+  it('picks the chronologically earliest upcoming item even when stored out of order', () => {
+    const day = makeDay([
+      { type: 'location', id: 'late', name: 'Museum', time: '11:00' },
+      { type: 'activity', id: 'early', name: 'Breakfast', time: '09:00' },
+    ]);
+    expect(nextItemId(day, new Date(2026, 6, 2, 8, 0))).toBe('early');
+  });
+
   it('uses an accommodation check-in as its time', () => {
     const day = makeDay([
       { type: 'accommodation', id: 'hotel', name: 'Seaside Inn', checkIn: '15:00' },

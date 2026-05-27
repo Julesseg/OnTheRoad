@@ -1,4 +1,5 @@
-import type { Day, Item, Trip } from './schema';
+import type { Day, Trip } from './schema';
+import { itemTime, sortItemsByTime } from './item-display';
 
 export type TodayKind = 'today' | 'before' | 'after';
 
@@ -16,31 +17,24 @@ function localTimeString(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** The single comparable time an item happens at: `time` for location/activity,
- * `checkIn` for accommodation, none for a note. */
-export function itemTime(item: Item): string | undefined {
-  if (item.type === 'location' || item.type === 'activity') return item.time;
-  if (item.type === 'accommodation') return item.checkIn;
-  return undefined;
-}
-
 /**
- * The item to spotlight in the at-a-glance "today" view. The first item (in
- * list order) whose time is at or after `now`; if no item carries a time at
- * all, the first item. Returns null when the day is empty or when every timed
- * item has already passed.
+ * The item to spotlight in the at-a-glance "today" view. Considering items in
+ * chronological order, the earliest whose time is at or after `now`; if no item
+ * carries a time at all, the first item. Returns null when the day is empty or
+ * when every timed item has already passed.
  */
 export function nextItemId(day: Day, now: Date): string | null {
   const nowTime = localTimeString(now);
-  const hasTimed = day.items.some((i) => itemTime(i) != null);
+  const items = sortItemsByTime(day.items);
+  const hasTimed = items.some((i) => itemTime(i) != null);
   if (hasTimed) {
-    const next = day.items.find((i) => {
+    const next = items.find((i) => {
       const t = itemTime(i);
       return t != null && t >= nowTime;
     });
     return next?.id ?? null;
   }
-  return day.items[0]?.id ?? null;
+  return items[0]?.id ?? null;
 }
 
 function daysBetween(from: string, to: string): number {

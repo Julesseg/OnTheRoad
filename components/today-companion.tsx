@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable, Linking, StyleSheet } from 'react-native';
 
-import { formatItem, linkify } from '@/lib/item-display';
-import { itemTime } from '@/lib/today';
+import { formatItem, linkify, itemTime, sortItemsByTime } from '@/lib/item-display';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { Day, Item } from '@/lib/schema';
 
@@ -61,7 +60,7 @@ function CompanionItem({ item, highlighted }: { item: Item; highlighted: boolean
 export function TodayCompanion({ day, highlightId }: { day: Day; highlightId: string | null }) {
   return (
     <View style={styles.container}>
-      {day.items.map((item) => (
+      {sortItemsByTime(day.items).map((item) => (
         <CompanionItem key={item.id} item={item} highlighted={item.id === highlightId} />
       ))}
     </View>

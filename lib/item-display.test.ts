@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatItem, linkify } from './item-display';
+import { formatItem, linkify, sortItemsByTime } from './item-display';
 import type { Item } from './schema';
 
 describe('formatItem — location', () => {
@@ -74,6 +74,45 @@ describe('formatItem — note', () => {
     expect(display.typeLabel).toBe('Note');
     expect(display.title).toBe('Note');
     expect(display.lines).toEqual(['Remember sunscreen']);
+  });
+});
+
+describe('sortItemsByTime', () => {
+  const ids = (items: Item[]) => items.map((i) => i.id);
+
+  it('orders timed items ascending by time', () => {
+    const items: Item[] = [
+      { type: 'activity', id: 'c', name: 'Dinner', time: '19:00' },
+      { type: 'activity', id: 'a', name: 'Breakfast', time: '09:00' },
+      { type: 'location', id: 'b', name: 'Museum', time: '11:00' },
+    ];
+    expect(ids(sortItemsByTime(items))).toEqual(['a', 'b', 'c']);
+  });
+
+  it('places untimed items after timed ones, preserving their original order', () => {
+    const items: Item[] = [
+      { type: 'note', id: 'n1', text: 'first note' },
+      { type: 'location', id: 'l1', name: 'Lookout', time: '08:00' },
+      { type: 'note', id: 'n2', text: 'second note' },
+    ];
+    expect(ids(sortItemsByTime(items))).toEqual(['l1', 'n1', 'n2']);
+  });
+
+  it('sorts accommodation by its check-in time', () => {
+    const items: Item[] = [
+      { type: 'activity', id: 'act', name: 'Sunset walk', time: '16:00' },
+      { type: 'accommodation', id: 'hotel', name: 'Seaside Inn', checkIn: '15:00' },
+    ];
+    expect(ids(sortItemsByTime(items))).toEqual(['hotel', 'act']);
+  });
+
+  it('does not mutate the input array', () => {
+    const items: Item[] = [
+      { type: 'activity', id: 'c', name: 'Dinner', time: '19:00' },
+      { type: 'activity', id: 'a', name: 'Breakfast', time: '09:00' },
+    ];
+    sortItemsByTime(items);
+    expect(ids(items)).toEqual(['c', 'a']);
   });
 });
 

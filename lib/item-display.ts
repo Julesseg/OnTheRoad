@@ -36,6 +36,28 @@ export function formatItem(item: Item): ItemDisplay {
   }
 }
 
+/** The single comparable time an item happens at: `time` for location/activity,
+ * `checkIn` for accommodation, none for a note. */
+export function itemTime(item: Item): string | undefined {
+  if (item.type === 'location' || item.type === 'activity') return item.time;
+  if (item.type === 'accommodation') return item.checkIn;
+  return undefined;
+}
+
+/** Items ordered chronologically by their time; untimed items (notes, and
+ * location/activity without a time) follow in their original relative order.
+ * Returns a new array — the input is not mutated. */
+export function sortItemsByTime(items: Item[]): Item[] {
+  return [...items].sort((a, b) => {
+    const ta = itemTime(a);
+    const tb = itemTime(b);
+    if (ta == null && tb == null) return 0;
+    if (ta == null) return 1;
+    if (tb == null) return -1;
+    return ta.localeCompare(tb);
+  });
+}
+
 export type Segment =
   | { kind: 'text'; value: string }
   | { kind: 'url'; value: string; href: string }
