@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  Modal,
   type KeyboardTypeOptions,
 } from 'react-native';
 import { useForm, Controller, type Control } from 'react-hook-form';
@@ -19,7 +20,9 @@ import {
   itemToForm,
   formToItem,
   itemFormSchema,
+  parseCoords,
 } from '@/lib/item-form';
+import { CoordsPicker } from '@/components/coords-picker';
 import type { Item } from '@/lib/schema';
 
 export interface ItemEditorProps {
@@ -126,6 +129,55 @@ function ControlledTime(props: {
   );
 }
 
+function CoordsField(props: { label: string; value: string; onChange: (v: string) => void; error?: string }) {
+  const { label, value, onChange, error } = props;
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.timeRow}>
+        <Pressable accessibilityLabel={label} style={[styles.input, styles.timeButton]} onPress={() => setOpen(true)}>
+          <Text style={value ? styles.value : styles.placeholder}>{value || 'Set coordinates'}</Text>
+        </Pressable>
+        {value ? (
+          <Pressable accessibilityLabel={`Clear ${label}`} onPress={() => onChange('')}>
+            <Text style={styles.clear}>Clear</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOpen(false)}>
+        {open ? (
+          <CoordsPicker
+            initial={parseCoords(value)}
+            onCancel={() => setOpen(false)}
+            onConfirm={(c) => {
+              onChange(`${c.lat}, ${c.lng}`);
+              setOpen(false);
+            }}
+          />
+        ) : null}
+      </Modal>
+    </View>
+  );
+}
+
+function ControlledCoords(props: {
+  control: Control<ItemFormValues>;
+  name: keyof ItemFormValues;
+  label: string;
+  error?: string;
+}) {
+  const { control, name, label, error } = props;
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field }) => <CoordsField label={label} value={field.value} onChange={field.onChange} error={error} />}
+    />
+  );
+}
+
 export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const {
     control,
@@ -165,7 +217,7 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
         {type === 'location' && (
           <>
             <TextField control={control} name="address" label="Address" />
-            <TextField control={control} name="coords" label="Coordinates" placeholder="lat, lng" error={errors.coords?.message} />
+            <ControlledCoords control={control} name="coords" label="Coordinates" error={errors.coords?.message} />
             <ControlledTime control={control} name="time" label="Time" error={errors.time?.message} />
           </>
         )}
