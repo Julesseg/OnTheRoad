@@ -7,7 +7,6 @@ import UpcomingScreen from '@/app/(tabs)/index';
 
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
 vi.mock('expo-router', () => ({ router: { push: vi.fn() } }));
-vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 vi.mock('react-native-safe-area-context', async () => {
   const React = await import('react');
   const Passthrough = ({ children }: { children?: React.ReactNode }) =>

@@ -7,12 +7,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   ActionSheetIOS,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { ItemRow } from '@/components/item-row';
 import { sortItemsByTime } from '@/lib/item-display';
 import type { ItemType } from '@/lib/item-form';

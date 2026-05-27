@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { View, Text, Pressable, Linking, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Linking, StyleSheet, useColorScheme } from 'react-native';
 
 import { formatItem, linkify, itemTime, sortItemsByTime } from '@/lib/item-display';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import type { Day, Item } from '@/lib/schema';
 
 function itemBody(item: Item): string | undefined {

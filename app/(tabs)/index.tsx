@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DayList } from '@/components/day-list';
 import { TodayCompanion } from '@/components/today-companion';
 import { selectTodayDay, nextItemId } from '@/lib/today';

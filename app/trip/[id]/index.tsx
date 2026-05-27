@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 
 import { useTripStore } from '@/lib/store';
 import { exportTripAsFile } from '@/lib/storage';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DayList } from '@/components/day-list';
 
 export default function TripDetailScreen() {

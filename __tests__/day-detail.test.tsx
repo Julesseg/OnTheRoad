@@ -6,7 +6,6 @@ import { useLocalSearchParams } from 'expo-router';
 import DayDetailScreen from '@/app/trip/[id]/day/[dayId]';
 
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
-vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 vi.mock('expo-router', () => ({ useLocalSearchParams: vi.fn(), router: { back: vi.fn() } }));
 vi.mock('react-native-safe-area-context', async () => {
   const React = await import('react');

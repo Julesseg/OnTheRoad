@@ -1,8 +1,7 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { GlassContainer, GlassView } from 'expo-glass-effect';
 
 import type { Day, Trip } from '@/lib/schema';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 function itemCountLabel(day: Day): string {
   const n = day.items.length;

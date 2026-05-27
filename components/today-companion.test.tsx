@@ -1,9 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { Day } from '@/lib/schema';
 import { TodayCompanion } from '@/components/today-companion';
-
-vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => 'light' }));
 
 const DAY: Day = {
   id: 'day-1',
