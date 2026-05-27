@@ -22,12 +22,6 @@ function selectCurrentOrNext(trips: TripSummary[]): TripSummary | null {
   );
 }
 
-function daysUntil(dateStr: string): number {
-  const today = new Date(todayString());
-  const target = new Date(dateStr);
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
-}
-
 export default function UpcomingScreen() {
   const { trips, loadedTrips, initialized, initialize, loadTripById } = useTripStore();
   const colorScheme = useColorScheme();
@@ -68,20 +62,21 @@ export default function UpcomingScreen() {
     );
   }
 
-  const today = todayString();
-  const isInProgress = selected.startDate <= today && selected.endDate >= today;
-  const delta = daysUntil(selected.startDate);
-
   const now = new Date();
-  const selection = trip ? selectTodayDay(trip, now) : null;
-  const companionDay = selection?.kind === 'today' ? selection.day : undefined;
+  const selection = selectTodayDay(
+    { startDate: selected.startDate, endDate: selected.endDate, days: trip?.days ?? [] },
+    now,
+  );
+  const isInProgress = selection.kind === 'today';
+  const daysAway = selection.daysAway ?? 0;
+  const companionDay = selection.kind === 'today' ? selection.day : undefined;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
       <View style={styles.header}>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
-            {isInProgress ? 'In progress' : `Starts in ${delta} day${delta === 1 ? '' : 's'}`}
+            {isInProgress ? 'In progress' : `Starts in ${daysAway} day${daysAway === 1 ? '' : 's'}`}
           </Text>
         </View>
         <Text style={[styles.title, { color: text }]}>{selected.title}</Text>
@@ -99,7 +94,7 @@ export default function UpcomingScreen() {
           ) : null}
           <DayList
             trip={trip}
-            todayDate={isInProgress ? today : undefined}
+            todayDate={isInProgress ? todayString() : undefined}
             onSelectDay={(dayId) => router.push(`/trip/${trip.id}/day/${dayId}`)}
           />
         </ScrollView>

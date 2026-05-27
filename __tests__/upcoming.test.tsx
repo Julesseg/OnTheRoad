@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { Trip, TripSummary } from '@/lib/schema';
 import { useTripStore } from '@/lib/store';
 import { router } from 'expo-router';
@@ -130,6 +130,7 @@ describe('Upcoming tab — today companion', () => {
     render(<UpcomingScreen />);
     expect(screen.getByText('In progress')).toBeInTheDocument();
     expect(screen.getByText('Canyon Overlook')).toBeInTheDocument();
-    expect(screen.getByLabelText('Next up: Canyon Overlook')).toBeInTheDocument();
+    const nextUpCard = screen.getByText('Next up').parentElement as HTMLElement;
+    expect(within(nextUpCard).getByText('Canyon Overlook')).toBeInTheDocument();
   });
 });

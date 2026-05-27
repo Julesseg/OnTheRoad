@@ -20,10 +20,7 @@ function CompanionItem({ item, highlighted }: { item: Item; highlighted: boolean
   const body = itemBody(item);
 
   return (
-    <View
-      style={[styles.card, highlighted && styles.cardHighlighted]}
-      accessibilityLabel={highlighted ? `Next up: ${title}` : undefined}
-    >
+    <View style={[styles.card, highlighted && styles.cardHighlighted]}>
       {highlighted ? <Text style={styles.nextUp}>Next up</Text> : null}
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: text }]}>{title}</Text>

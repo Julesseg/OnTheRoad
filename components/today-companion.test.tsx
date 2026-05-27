@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { Day } from '@/lib/schema';
 import { TodayCompanion } from '@/components/today-companion';
 
@@ -37,14 +37,15 @@ describe('TodayCompanion', () => {
     expect(early.compareDocumentPosition(late) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('marks the highlighted item as "Next up"', () => {
+  it('shows a "Next up" badge on the highlighted item', () => {
     render(<TodayCompanion day={DAY} highlightId="b" />);
-    expect(screen.getByLabelText('Next up: Museum')).toBeInTheDocument();
+    const card = screen.getByText('Next up').parentElement as HTMLElement;
+    expect(within(card).getByText('Museum')).toBeInTheDocument();
   });
 
-  it('marks nothing when there is no highlight', () => {
+  it('shows no "Next up" badge when there is no highlight', () => {
     render(<TodayCompanion day={DAY} highlightId={null} />);
-    expect(screen.queryByLabelText(/^Next up:/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Next up')).not.toBeInTheDocument();
   });
 
   it('renders item notes collapsed and expands them on tap', () => {

@@ -43,11 +43,13 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000);
 }
 
-function sortedDays(trip: Trip): Day[] {
+type DatedTrip = Pick<Trip, 'startDate' | 'endDate' | 'days'>;
+
+function sortedDays(trip: DatedTrip): Day[] {
   return [...trip.days].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function selectTodayDay(trip: Trip, now: Date): TodaySelection {
+export function selectTodayDay(trip: DatedTrip, now: Date): TodaySelection {
   const today = localDateString(now);
   if (today < trip.startDate) {
     const days = sortedDays(trip);
