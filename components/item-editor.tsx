@@ -147,14 +147,16 @@ function CoordsField(props: { label: string; value: string; onChange: (v: string
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOpen(false)}>
-        <CoordsPicker
-          initial={parseCoords(value)}
-          onCancel={() => setOpen(false)}
-          onConfirm={(c) => {
-            onChange(`${c.lat}, ${c.lng}`);
-            setOpen(false);
-          }}
-        />
+        {open ? (
+          <CoordsPicker
+            initial={parseCoords(value)}
+            onCancel={() => setOpen(false)}
+            onConfirm={(c) => {
+              onChange(`${c.lat}, ${c.lng}`);
+              setOpen(false);
+            }}
+          />
+        ) : null}
       </Modal>
     </View>
   );

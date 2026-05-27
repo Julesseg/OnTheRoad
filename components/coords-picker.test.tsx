@@ -38,6 +38,22 @@ describe('CoordsPicker', () => {
     expect(onConfirm).toHaveBeenCalledWith({ lat: 40.0, lng: -3.0 });
   });
 
+  it('re-gates confirm after the field is edited following a successful parse', () => {
+    const onConfirm = vi.fn();
+    render(<CoordsPicker onConfirm={onConfirm} />);
+
+    const input = screen.getByLabelText('Maps URL or coordinates');
+    fireEvent.change(input, { target: { value: 'maps://?ll=47.6062,-122.3321' } });
+    fireEvent.click(screen.getByLabelText('Parse'));
+    expect(screen.getByText('47.6062, -122.3321')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '47.6062, -100' } });
+    expect(screen.queryByText('47.6062, -122.3321')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Use these coordinates'));
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it('shows an inline error and does not confirm when input cannot be parsed', () => {
     const onConfirm = vi.fn();
     render(<CoordsPicker onConfirm={onConfirm} />);

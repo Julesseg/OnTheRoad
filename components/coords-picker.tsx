@@ -71,6 +71,7 @@ export function CoordsPicker({ initial, onConfirm, onCancel }: CoordsPickerProps
             value={text}
             onChangeText={(v) => {
               setText(v);
+              setParsed(null);
               setError(false);
             }}
             autoCapitalize="none"

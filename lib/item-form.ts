@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseLatLng } from './coords';
 import type { Item } from './schema';
 
 export type ItemType = Item['type'];
@@ -32,15 +33,8 @@ export function emptyForm(): ItemFormValues {
   };
 }
 
-/** Parse a free-typed "lat, lng" pair. Returns null for anything out of geographic range or malformed. */
-export function parseCoords(input: string): { lat: number; lng: number } | null {
-  const m = input.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
-  if (!m) return null;
-  const lat = Number(m[1]);
-  const lng = Number(m[2]);
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  return { lat, lng };
-}
+/** Parse a free-typed "lat, lng" pair; delegates to the shared coords parser. */
+export const parseCoords = parseLatLng;
 
 const required = (msg = 'Required') => z.string().trim().min(1, msg);
 const optionalTime = z
