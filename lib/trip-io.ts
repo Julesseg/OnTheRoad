@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Trip, TripSchema } from './schema';
+import { migrateTripData } from './trip-migrate';
 
 export type ImportResult =
   | { ok: true; trip: Trip }
@@ -42,7 +43,7 @@ function formatIssues(error: z.ZodError, data: unknown): string {
 export function importTripFromJson(raw: string, freshId: string): ImportResult {
   let data: unknown;
   try {
-    data = JSON.parse(raw);
+    data = migrateTripData(JSON.parse(raw));
   } catch {
     return { ok: false, error: 'File is not valid JSON.' };
   }

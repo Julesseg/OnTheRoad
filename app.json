@@ -55,6 +55,12 @@
       ],
       "expo-font",
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow On the Road to add a cover photo to your trips."
+        }
+      ],
       "expo-maps",
       "expo-status-bar",
       "expo-web-browser",

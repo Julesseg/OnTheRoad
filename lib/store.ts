@@ -59,6 +59,7 @@ function toSummary(trip: Trip): TripSummary {
     title: trip.title,
     startDate: trip.startDate,
     endDate: trip.endDate,
+    wallpaperUri: trip.wallpaperUri,
   };
 }
 

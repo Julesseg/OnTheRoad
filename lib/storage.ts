@@ -1,6 +1,8 @@
 import { File, Directory, Paths } from 'expo-file-system';
 import { AppState, AppStateSchema, Trip, TripSchema } from './schema';
 import { importTripFromJson, serializeTrip } from './trip-io';
+import { migrateTripData } from './trip-migrate';
+import { wallpaperRelativePath } from './wallpaper';
 import { newId } from './id';
 
 const tripsDir = new Directory(Paths.document, 'trips');
@@ -40,7 +42,7 @@ export async function loadTrip(id: string): Promise<Trip | null> {
   const file = tripFile(id);
   if (!file.exists) return null;
   const raw = await file.text();
-  return TripSchema.parse(JSON.parse(raw));
+  return TripSchema.parse(migrateTripData(JSON.parse(raw)));
 }
 
 export function saveTrip(trip: Trip): void {
@@ -59,6 +61,28 @@ export function listTrips(): string[] {
 export function deleteTrip(id: string): void {
   const file = tripFile(id);
   if (file.exists) file.delete();
+  const dir = new Directory(tripsDir, id);
+  if (dir.exists) dir.delete();
+}
+
+/**
+ * Copy a picked image into the trip's own folder as its durable wallpaper,
+ * overwriting any existing one, and return the path relative to
+ * DocumentsDirectory to store in `trip.wallpaperUri`. The copy survives the
+ * source being removed from the photo library.
+ */
+export async function saveWallpaper(tripId: string, sourceUri: string): Promise<string> {
+  const dir = new Directory(tripsDir, tripId);
+  if (!dir.exists) dir.create({ intermediates: true });
+  const dest = new File(dir, 'wallpaper.jpg');
+  if (dest.exists) dest.delete();
+  await new File(sourceUri).copy(dest);
+  return wallpaperRelativePath(tripId);
+}
+
+/** Resolve a stored relative `wallpaperUri` to a displayable `file://` uri. */
+export function wallpaperDisplayUri(relativePath: string): string {
+  return new File(Paths.document, relativePath).uri;
 }
 
 function exportFileName(trip: Trip): string {

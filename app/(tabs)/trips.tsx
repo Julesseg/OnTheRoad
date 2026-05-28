@@ -13,11 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { GlassContainer, GlassView } from 'expo-glass-effect';
+import { Image } from 'expo-image';
 import * as DocumentPicker from 'expo-document-picker';
 
 import { useTripStore } from '@/lib/store';
 import { TripSummary } from '@/lib/schema';
 import { tripStatus } from '@/lib/date-utils';
+import { wallpaperDisplayUri } from '@/lib/storage';
 
 const STATUS_COLOR: Record<ReturnType<typeof tripStatus>, string> = {
   'In progress': '#34C759',
@@ -100,23 +102,32 @@ export default function TripsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <GlassView glassEffectStyle="clear" style={styles.card}>
-                <TouchableOpacity
-                  onPress={() => router.push(`/trip/${item.id}`)}
-                  activeOpacity={0.7}
-                  style={styles.cardInner}
-                >
-                  <View style={styles.cardContent}>
-                    <Text style={[styles.cardTitle, { color: text }]}>{item.title}</Text>
-                    <Text style={[styles.cardDates, { color: subtext }]}>
-                      {item.startDate} — {item.endDate}
-                    </Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[tripStatus(item)] }]}>
-                    <Text style={styles.statusBadgeText}>{tripStatus(item)}</Text>
-                  </View>
-                </TouchableOpacity>
-              </GlassView>
+              <View style={[styles.card, { backgroundColor: bg }]}>
+                {item.wallpaperUri ? (
+                  <Image
+                    source={{ uri: wallpaperDisplayUri(item.wallpaperUri) }}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                  />
+                ) : null}
+                <GlassView glassEffectStyle="clear" style={styles.glass}>
+                  <TouchableOpacity
+                    onPress={() => router.push(`/trip/${item.id}`)}
+                    activeOpacity={0.7}
+                    style={styles.cardInner}
+                  >
+                    <View style={styles.cardContent}>
+                      <Text style={[styles.cardTitle, { color: text }]}>{item.title}</Text>
+                      <Text style={[styles.cardDates, { color: subtext }]}>
+                        {item.startDate} — {item.endDate}
+                      </Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[tripStatus(item)] }]}>
+                      <Text style={styles.statusBadgeText}>{tripStatus(item)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </GlassView>
+              </View>
             )}
           />
         </GlassContainer>
@@ -164,6 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
+  glass: { flex: 1 },
   cardInner: {
     flexDirection: 'row',
     alignItems: 'center',

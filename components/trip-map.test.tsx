@@ -6,7 +6,7 @@ import { TripMap } from './trip-map';
 function makeTrip(items: Trip['days'][number]['items']): Trip {
   return {
     id: '00000000-0000-0000-0000-000000000001',
-    schemaVersion: 1,
+    schemaVersion: 2,
     title: 'Test trip',
     startDate: '2099-07-01',
     endDate: '2099-07-01',

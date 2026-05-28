@@ -12,7 +12,7 @@ const NOW = '2026-06-01T12:00:00.000Z';
 function tripFixture(): Trip {
   return {
     id: 'trip-1',
-    schemaVersion: 1,
+    schemaVersion: 2,
     title: 'Coast',
     startDate: '2026-07-01',
     endDate: '2026-07-02',
