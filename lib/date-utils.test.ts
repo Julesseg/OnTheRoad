@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { todayString, tripStatus } from './date-utils';
+import { todayString, tripStatus, formatDayLabel } from './date-utils';
 import type { TripSummary } from './schema';
 
 function makeSummary(startDate: string, endDate: string): TripSummary {
@@ -44,5 +44,18 @@ describe('tripStatus', () => {
   it('returns In progress when today equals endDate', () => {
     mockToday('2026-05-23');
     expect(tripStatus(makeSummary('2026-05-20', '2026-05-23'))).toBe('In progress');
+  });
+});
+
+describe('formatDayLabel', () => {
+  it('renders a YYYY-MM-DD date as a short weekday, month and day', () => {
+    // 2026-06-15 is a Monday.
+    expect(formatDayLabel('2026-06-15')).toBe('Mon, Jun 15');
+  });
+
+  it('parses the date in local time so it does not shift across midnight UTC', () => {
+    // If parsed as UTC, '2026-01-01' would render as Dec 31 in negative-offset
+    // time zones. Parsing the Y-M-D parts directly avoids that drift.
+    expect(formatDayLabel('2026-01-01')).toBe('Thu, Jan 1');
   });
 });

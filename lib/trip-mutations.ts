@@ -38,7 +38,8 @@ export function reorderDayItems(
 }
 
 /** Move `itemId` out of `fromDayId` and append it to the end of `toDayId`. Pure.
- * No-op if the item isn't in the source day. */
+ * No-op if the item isn't in the source day, or if `toDayId` isn't in the trip
+ * (avoids silently dropping the item). */
 export function moveItemToDay(
   trip: Trip,
   fromDayId: string,
@@ -46,6 +47,7 @@ export function moveItemToDay(
   itemId: string,
   now: string,
 ): Trip {
+  if (!trip.days.some((d) => d.id === toDayId)) return trip;
   const item = trip.days
     .find((d) => d.id === fromDayId)
     ?.items.find((i) => i.id === itemId);

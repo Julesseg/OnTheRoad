@@ -124,4 +124,11 @@ describe('moveItemToDay', () => {
     const next = moveItemToDay(trip, 'day-1', 'day-2', 'missing', NOW);
     expect(next).toBe(trip);
   });
+
+  it('returns the trip unchanged when the target day is not in the trip', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b');
+    const next = moveItemToDay(trip, 'day-1', 'day-missing', 'a', NOW);
+    expect(next).toBe(trip);
+  });
 });

@@ -15,7 +15,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
 import { ItemRow } from '@/components/item-row';
-import type { Item } from '@/lib/schema';
+import { formatDayLabel } from '@/lib/date-utils';
+import type { Day, Item } from '@/lib/schema';
 import type { ItemType } from '@/lib/item-form';
 
 const ADD_OPTIONS: { label: string; type: ItemType }[] = [
@@ -52,16 +53,11 @@ export default function DayDetailScreen() {
     );
   }
 
-  function moveToDay(item: Item) {
-    if (!trip) return;
-    const targets = [...trip.days]
-      .filter((d) => d.id !== dayId)
-      .sort((a, b) => a.date.localeCompare(b.date));
-    if (targets.length === 0) return;
+  function moveToDay(item: Item, targets: Day[]) {
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: 'Move to day',
-        options: [...targets.map((d) => d.date), 'Cancel'],
+        options: [...targets.map((d) => formatDayLabel(d.date)), 'Cancel'],
         cancelButtonIndex: targets.length,
       },
       (index) => {
@@ -79,16 +75,26 @@ export default function DayDetailScreen() {
   }
 
   function showItemActions(item: Item) {
+    const targets = trip
+      ? [...trip.days].filter((d) => d.id !== dayId).sort((a, b) => a.date.localeCompare(b.date))
+      : [];
+    // Drop "Move to day…" when there's nowhere to move the item — otherwise
+    // the sheet advertises an action that silently no-ops.
+    const options =
+      targets.length > 0
+        ? ['Edit', 'Move to day…', 'Delete', 'Cancel']
+        : ['Edit', 'Delete', 'Cancel'];
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        options: ['Edit', 'Move to day…', 'Delete', 'Cancel'],
-        destructiveButtonIndex: 2,
-        cancelButtonIndex: 3,
+        options,
+        destructiveButtonIndex: options.length - 2,
+        cancelButtonIndex: options.length - 1,
       },
       (index) => {
-        if (index === 0) openItem(item.id);
-        else if (index === 1) moveToDay(item);
-        else if (index === 2) confirmDelete(item);
+        const choice = options[index];
+        if (choice === 'Edit') openItem(item.id);
+        else if (choice === 'Move to day…') moveToDay(item, targets);
+        else if (choice === 'Delete') confirmDelete(item);
       },
     );
   }
@@ -113,7 +119,8 @@ export default function DayDetailScreen() {
         onPress={() => openItem(item.id)}
         onLongPress={drag}
         disabled={isActive}
-        accessibilityLabel={`Edit ${item.type}`}
+        accessibilityLabel={item.type}
+        accessibilityHint="Double tap to edit, long press to reorder or open actions"
         style={isActive ? styles.activeRow : undefined}
       >
         <ItemRow item={item} />
