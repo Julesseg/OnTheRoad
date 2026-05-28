@@ -11,7 +11,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.on-the-road",
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["comgooglemaps", "waze"]
+        "LSApplicationQueriesSchemes": [
+          "comgooglemaps",
+          "waze"
+        ]
       }
     },
     "android": {
@@ -21,7 +24,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.ontheroad"
     },
     "web": {
       "output": "static",
