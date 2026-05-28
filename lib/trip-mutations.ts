@@ -16,6 +16,57 @@ export function upsertItemInTrip(trip: Trip, dayId: string, item: Item, now: str
   };
 }
 
+/** Move the item at `from` to index `to` within `dayId`'s items. Pure. */
+export function reorderDayItems(
+  trip: Trip,
+  dayId: string,
+  from: number,
+  to: number,
+  now: string,
+): Trip {
+  return {
+    ...trip,
+    updatedAt: now,
+    days: trip.days.map((day) => {
+      if (day.id !== dayId) return day;
+      const items = [...day.items];
+      const [moved] = items.splice(from, 1);
+      items.splice(to, 0, moved);
+      return { ...day, items };
+    }),
+  };
+}
+
+/** Move `itemId` out of `fromDayId` and append it to the end of `toDayId`. Pure.
+ * No-op if the item isn't in the source day, or if `toDayId` isn't in the trip
+ * (avoids silently dropping the item). */
+export function moveItemToDay(
+  trip: Trip,
+  fromDayId: string,
+  toDayId: string,
+  itemId: string,
+  now: string,
+): Trip {
+  if (!trip.days.some((d) => d.id === toDayId)) return trip;
+  const item = trip.days
+    .find((d) => d.id === fromDayId)
+    ?.items.find((i) => i.id === itemId);
+  if (!item) return trip;
+  return {
+    ...trip,
+    updatedAt: now,
+    days: trip.days.map((day) => {
+      if (day.id === fromDayId) {
+        return { ...day, items: day.items.filter((i) => i.id !== itemId) };
+      }
+      if (day.id === toDayId) {
+        return { ...day, items: [...day.items, item] };
+      }
+      return day;
+    }),
+  };
+}
+
 /** Remove the item with `itemId` from `dayId`. Pure. */
 export function deleteItemFromTrip(trip: Trip, dayId: string, itemId: string, now: string): Trip {
   return {

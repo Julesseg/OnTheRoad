@@ -2,7 +2,12 @@ import { create } from 'zustand';
 import { Item, MapsApp, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip, importTripFromFile } from './storage';
 import { getInstalledMapsApps, reconcilePreferredMapsApp } from './maps';
-import { upsertItemInTrip, deleteItemFromTrip } from './trip-mutations';
+import {
+  upsertItemInTrip,
+  deleteItemFromTrip,
+  reorderDayItems,
+  moveItemToDay,
+} from './trip-mutations';
 
 interface TripStore {
   trips: TripSummary[];
@@ -19,6 +24,8 @@ interface TripStore {
   removeTrip: (id: string) => Promise<void>;
   upsertItem: (tripId: string, dayId: string, item: Item) => void;
   deleteItem: (tripId: string, dayId: string, itemId: string) => void;
+  reorderItems: (tripId: string, dayId: string, from: number, to: number) => void;
+  moveItem: (tripId: string, fromDayId: string, toDayId: string, itemId: string) => void;
   setPreferredMapsApp: (app: MapsApp) => void;
 }
 
@@ -124,6 +131,22 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const trip = get().loadedTrips[tripId];
     if (!trip) return;
     const next = deleteItemFromTrip(trip, dayId, itemId, new Date().toISOString());
+    saveTrip(next);
+    set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+  },
+
+  reorderItems(tripId: string, dayId: string, from: number, to: number) {
+    const trip = get().loadedTrips[tripId];
+    if (!trip || from === to) return;
+    const next = reorderDayItems(trip, dayId, from, to, new Date().toISOString());
+    saveTrip(next);
+    set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+  },
+
+  moveItem(tripId: string, fromDayId: string, toDayId: string, itemId: string) {
+    const trip = get().loadedTrips[tripId];
+    if (!trip || fromDayId === toDayId) return;
+    const next = moveItemToDay(trip, fromDayId, toDayId, itemId, new Date().toISOString());
     saveTrip(next);
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
   },

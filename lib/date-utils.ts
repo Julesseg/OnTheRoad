@@ -11,3 +11,14 @@ export function tripStatus(trip: TripSummary): 'In progress' | 'Upcoming' | 'Pas
   if (trip.startDate > today) return 'Upcoming';
   return 'In progress';
 }
+
+/** Format a YYYY-MM-DD date for display, e.g. "Mon, Jun 15". Parses the
+ * Y-M-D parts as local time so the rendered weekday never drifts across UTC. */
+export function formatDayLabel(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
