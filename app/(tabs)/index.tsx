@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GlassView } from 'expo-glass-effect';
 import { router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
@@ -86,7 +87,7 @@ export default function UpcomingScreen() {
         <TripMap trip={trip} />
       </View>
       <SafeAreaView style={styles.foreground}>
-        <View style={styles.header}>
+        <GlassView glassEffectStyle="regular" style={styles.header}>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
               {isInProgress ? 'In progress' : `Starts in ${daysAway} day${daysAway === 1 ? '' : 's'}`}
@@ -96,7 +97,7 @@ export default function UpcomingScreen() {
           <Text style={[styles.dates, { color: subtext }]}>
             {selected.startDate} — {selected.endDate}
           </Text>
-        </View>
+        </GlassView>
 
         {!trip ? (
           <ActivityIndicator style={styles.loader} size="large" />
@@ -123,10 +124,12 @@ const styles = StyleSheet.create({
   foreground: { flex: 1 },
   loader: { flex: 1 },
   header: {
+    marginHorizontal: 16,
+    marginTop: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   badge: {
     alignSelf: 'flex-start',

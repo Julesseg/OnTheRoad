@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { AppleMaps } from 'expo-maps';
 
@@ -24,8 +25,18 @@ export function TripMap({ trip }: { trip: Trip | null }) {
         ]
       : [];
   const viewport = routeViewport(coords);
+
+  // `cameraPosition` is honored once on mount, so re-fit imperatively whenever
+  // the route coords change (e.g. the trip loads after the first null render).
+  const ref = useRef<AppleMaps.MapView | null>(null);
+  const key = coords.map((c) => `${c.lat},${c.lng}`).join(';');
+  useEffect(() => {
+    ref.current?.setCameraPosition(viewport);
+  }, [key]);
+
   return (
     <AppleMaps.View
+      ref={ref}
       style={styles.map}
       cameraPosition={viewport}
       markers={markers}

@@ -71,4 +71,18 @@ describe('TripMap', () => {
     render(<TripMap trip={trip} />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
   });
+
+  it('re-fits the camera when the trip becomes available after mount', () => {
+    // Simulates the real Upcoming visit: trip=null on first render (loadedTrips
+    // not yet populated), then loadTripById resolves and the trip prop changes.
+    // `cameraPosition` is documented as initial-only, so we must drive the
+    // camera imperatively when the coords change.
+    const { rerender } = render(<TripMap trip={null} />);
+    const trip = makeTrip([
+      { type: 'location', id: 'a', name: 'A', lat: 40, lng: -120 },
+      { type: 'location', id: 'b', name: 'B', lat: 42, lng: -110 },
+    ]);
+    rerender(<TripMap trip={trip} />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
+  });
 });
