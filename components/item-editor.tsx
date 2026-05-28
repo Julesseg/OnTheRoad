@@ -129,8 +129,14 @@ function ControlledTime(props: {
   );
 }
 
-function CoordsField(props: { label: string; value: string; onChange: (v: string) => void; error?: string }) {
-  const { label, value, onChange, error } = props;
+function CoordsField(props: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onAddressSuggested?: (address: string) => void;
+  error?: string;
+}) {
+  const { label, value, onChange, onAddressSuggested, error } = props;
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.fieldGroup}>
@@ -151,8 +157,9 @@ function CoordsField(props: { label: string; value: string; onChange: (v: string
           <CoordsPicker
             initial={parseCoords(value)}
             onCancel={() => setOpen(false)}
-            onConfirm={(c) => {
+            onConfirm={(c, extras) => {
               onChange(`${c.lat}, ${c.lng}`);
+              if (extras?.address) onAddressSuggested?.(extras.address);
               setOpen(false);
             }}
           />
@@ -166,14 +173,23 @@ function ControlledCoords(props: {
   control: Control<ItemFormValues>;
   name: keyof ItemFormValues;
   label: string;
+  onAddressSuggested?: (address: string) => void;
   error?: string;
 }) {
-  const { control, name, label, error } = props;
+  const { control, name, label, onAddressSuggested, error } = props;
   return (
     <Controller
       control={control}
       name={name}
-      render={({ field }) => <CoordsField label={label} value={field.value} onChange={field.onChange} error={error} />}
+      render={({ field }) => (
+        <CoordsField
+          label={label}
+          value={field.value}
+          onChange={field.onChange}
+          onAddressSuggested={onAddressSuggested}
+          error={error}
+        />
+      )}
     />
   );
 }
@@ -183,6 +199,7 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
     control,
     handleSubmit,
     getValues,
+    setValue,
     formState: { errors },
   } = useForm<ItemFormValues, unknown, ItemFormValues>({
     resolver: zodResolver(itemFormSchema(type)),
@@ -191,6 +208,10 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
   });
 
   const submit = handleSubmit(() => onSubmit(formToItem(type, getValues(), itemId, initialItem)));
+
+  function suggestAddress(address: string) {
+    if (!getValues('address')) setValue('address', address, { shouldDirty: true });
+  }
 
   return (
     <View style={styles.container}>
@@ -217,7 +238,13 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
         {type === 'location' && (
           <>
             <TextField control={control} name="address" label="Address" />
-            <ControlledCoords control={control} name="coords" label="Coordinates" error={errors.coords?.message} />
+            <ControlledCoords
+              control={control}
+              name="coords"
+              label="Coordinates"
+              onAddressSuggested={suggestAddress}
+              error={errors.coords?.message}
+            />
             <ControlledTime control={control} name="time" label="Time" error={errors.time?.message} />
           </>
         )}

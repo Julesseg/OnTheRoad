@@ -66,6 +66,51 @@ describe('ItemEditor', () => {
     );
   });
 
+  it('fills an empty address from a Photon search result', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            geometry: { coordinates: [-122.3422, 47.6097] },
+            properties: { name: 'Pike Place Market', city: 'Seattle' },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const onSubmit = vi.fn();
+    render(<ItemEditor type="location" itemId="loc-3" onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Stop' } });
+
+    fireEvent.click(screen.getByLabelText('Coordinates'));
+    fireEvent.click(screen.getByText('Search'));
+    fireEvent.change(screen.getByLabelText('Search for a place'), {
+      target: { value: 'pike' },
+    });
+    vi.advanceTimersByTime(260);
+    fireEvent.click(await screen.findByText('Pike Place Market'));
+
+    vi.useRealTimers();
+    await waitFor(() =>
+      expect((screen.getByLabelText('Address') as HTMLInputElement).value).toBe('Seattle'),
+    );
+
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        type: 'location',
+        id: 'loc-3',
+        name: 'Stop',
+        address: 'Seattle',
+        lat: 47.6097,
+        lng: -122.3422,
+      }),
+    );
+  });
+
   it('invokes onDelete when editing an existing item', () => {
     const onDelete = vi.fn();
     render(
