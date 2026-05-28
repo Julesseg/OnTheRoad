@@ -150,6 +150,27 @@ describe('CoordsPicker', () => {
     expect(onConfirm).toHaveBeenCalledWith({ lat: 47.61, lng: -122.34 });
   });
 
+  it('aborts the in-flight Photon request when the SearchTab unmounts', async () => {
+    vi.useFakeTimers();
+    let captured: AbortSignal | undefined;
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      captured = init.signal ?? undefined;
+      return new Promise<never>(() => {});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { unmount } = render(<CoordsPicker onConfirm={() => {}} />);
+    fireEvent.click(screen.getByText('Search'));
+    fireEvent.change(screen.getByLabelText('Search for a place'), {
+      target: { value: 'pike' },
+    });
+    await flushDebounce();
+    expect(captured?.aborted).toBe(false);
+
+    unmount();
+    expect(captured?.aborted).toBe(true);
+  });
+
   it('aborts the in-flight Photon request when the query changes', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn(
@@ -190,6 +211,21 @@ describe('CoordsPicker', () => {
     await flushDebounce();
 
     expect(screen.getByText(/Search unavailable/i)).toBeInTheDocument();
+  });
+
+  it('does not flash the empty-results message while typing after a previous search', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', photonFetchReturning([PIKE_PLACE_FEATURE]));
+
+    render(<CoordsPicker onConfirm={() => {}} />);
+    fireEvent.click(screen.getByText('Search'));
+    const input = screen.getByLabelText('Search for a place');
+    fireEvent.change(input, { target: { value: 'pike' } });
+    await flushDebounce();
+    expect(screen.getByText('Pike Place Market')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: 'pike p' } });
+    expect(screen.queryByText(/No matches/i)).not.toBeInTheDocument();
   });
 
   it('shows an empty-results message when Photon returns no features', async () => {

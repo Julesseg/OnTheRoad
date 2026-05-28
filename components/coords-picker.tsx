@@ -229,7 +229,10 @@ function SearchTab({ onConfirm }: SearchTabProps) {
           setLoading(false);
         });
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      abortRef.current?.abort();
+    };
   }, [query]);
 
   function handleQueryChange(next: string) {
@@ -237,10 +240,8 @@ function SearchTab({ onConfirm }: SearchTabProps) {
     setQuery(next);
     setResults([]);
     setErrored(false);
-    if (!next.trim()) {
-      setLoading(false);
-      setSearched(false);
-    }
+    setSearched(false);
+    if (!next.trim()) setLoading(false);
   }
 
   return (

@@ -23,6 +23,15 @@ describe('searchPlaces', () => {
     expect(headers.get('X-Client')).toBe('on-the-road/1.0 (personal)');
   });
 
+  it('throws when Photon returns a non-OK response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: 'boom' }),
+    });
+    await expect(searchPlaces('foo', { fetchImpl: fetchMock })).rejects.toThrow();
+  });
+
   it('forwards an AbortSignal to fetch so callers can cancel in-flight requests', async () => {
     const fetchMock = fetchReturning({ features: [] });
     const controller = new AbortController();

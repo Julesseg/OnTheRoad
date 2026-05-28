@@ -58,6 +58,7 @@ export async function searchPlaces(
     signal,
     headers: { 'X-Client': 'on-the-road/1.0 (personal)' },
   });
+  if (!res.ok) throw new Error(`Photon request failed: ${res.status}`);
   const data = (await res.json()) as PhotonResponse;
   const features = data.features ?? [];
   return features
