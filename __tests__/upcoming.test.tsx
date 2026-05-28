@@ -86,6 +86,34 @@ describe('Upcoming tab', () => {
     render(<UpcomingScreen />);
     expect(screen.getByText(/Starts in \d+ days?/)).toBeInTheDocument();
   });
+
+  it('renders the full-screen map background even when there are no trips', () => {
+    setStore({ trips: [], loadedTrips: {} });
+    render(<UpcomingScreen />);
+    expect(screen.getByTestId('apple-maps-view')).toBeInTheDocument();
+  });
+
+  it("plots the selected trip's location coords as map pins", () => {
+    const tripWithPins: Trip = {
+      ...TRIP,
+      days: [
+        {
+          id: 'day-1',
+          date: '2099-07-01',
+          items: [
+            { type: 'location', id: 'p1', name: 'Big Sur', lat: 36.2704, lng: -121.8081 },
+            { type: 'location', id: 'p2', name: 'Hearst', lat: 35.6852, lng: -121.1685 },
+          ],
+        },
+        { id: 'day-2', date: '2099-07-02', items: [] },
+      ],
+    };
+    setStore({ trips: [SUMMARY], loadedTrips: { 'trip-1': tripWithPins } });
+    render(<UpcomingScreen />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-markers')).toBe(
+      '36.2704,-121.8081;35.6852,-121.1685',
+    );
+  });
 });
 
 const INPROGRESS_SUMMARY: TripSummary = {
