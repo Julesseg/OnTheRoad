@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import {
   View,
   Text,
+  Pressable,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -123,16 +124,15 @@ export default function HomeScreen() {
 
 function TripsButton() {
   return (
-    <GlassView
-      glassEffectStyle="regular"
-      isInteractive
-      style={styles.tripsButton}
-      onTouchEnd={() => {
-        // Trips sheet — implemented in a later slice (#41).
-      }}
+    <Pressable
+      onPress={() => { /* Trips sheet — implemented in slice #41 */ }}
+      accessibilityRole="button"
+      accessibilityLabel="Trips"
     >
-      <Text style={styles.tripsButtonText}>Trips</Text>
-    </GlassView>
+      <GlassView glassEffectStyle="regular" isInteractive style={styles.tripsButton}>
+        <Text style={styles.tripsButtonText}>Trips</Text>
+      </GlassView>
+    </Pressable>
   );
 }
 
