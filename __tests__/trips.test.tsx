@@ -79,6 +79,19 @@ describe('Trips tab', () => {
     expect(image).toHaveAttribute('src', 'display:trips/trip-1/wallpaper.jpg');
   });
 
+  it('lays a legibility scrim over a wallpapered card', () => {
+    const summary: TripSummary = {
+      id: 'trip-1',
+      title: 'Pacific Coast Highway',
+      startDate: '2099-07-01',
+      endDate: '2099-07-02',
+      wallpaperUri: 'trips/trip-1/wallpaper.jpg',
+    };
+    setStore({ trips: [summary] });
+    render(<TripsScreen />);
+    expect(screen.getByTestId('wallpaper-scrim')).toBeInTheDocument();
+  });
+
   it('renders no wallpaper image for a trip without one', () => {
     const summary: TripSummary = {
       id: 'trip-1',
@@ -89,5 +102,6 @@ describe('Trips tab', () => {
     setStore({ trips: [summary] });
     render(<TripsScreen />);
     expect(screen.queryByTestId('wallpaper')).toBeNull();
+    expect(screen.queryByTestId('wallpaper-scrim')).toBeNull();
   });
 });

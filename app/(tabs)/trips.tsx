@@ -54,6 +54,9 @@ export default function TripsScreen() {
   const bg = colorScheme === 'dark' ? '#000' : '#fff';
   const text = colorScheme === 'dark' ? '#fff' : '#111';
   const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
+  // Subtle scrim tinted to the theme so the theme-colored card text keeps its
+  // contrast over an arbitrary photo, without fully hiding the image.
+  const scrim = colorScheme === 'dark' ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
 
   if (!initialized) {
     return (
@@ -104,11 +107,17 @@ export default function TripsScreen() {
             renderItem={({ item }) => (
               <View style={[styles.card, { backgroundColor: bg }]}>
                 {item.wallpaperUri ? (
-                  <Image
-                    source={{ uri: wallpaperDisplayUri(item.wallpaperUri) }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                  />
+                  <>
+                    <Image
+                      source={{ uri: wallpaperDisplayUri(item.wallpaperUri) }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                    />
+                    <View
+                      testID="wallpaper-scrim"
+                      style={[StyleSheet.absoluteFill, { backgroundColor: scrim }]}
+                    />
+                  </>
                 ) : null}
                 <GlassView glassEffectStyle="clear" style={styles.glass}>
                   <TouchableOpacity
