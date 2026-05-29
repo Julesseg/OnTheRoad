@@ -51,3 +51,42 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+export const Palette = {
+  accent: '#E86A2C',
+  accentDark: '#FF8A4C',
+  accentSoft: 'rgba(232,106,44,0.12)',
+  accentSoftDark: 'rgba(255,138,76,0.16)',
+  bg: '#F2F2F7',
+  bgDark: '#0A0A0C',
+  card: '#FFFFFF',
+  cardDark: '#1C1C1E',
+  text: '#0A0A0C',
+  textDark: '#FFFFFF',
+  text2: 'rgba(60,60,67,0.62)',
+  text2Dark: 'rgba(235,235,245,0.6)',
+  text3: 'rgba(60,60,67,0.32)',
+  text3Dark: 'rgba(235,235,245,0.32)',
+  sep: 'rgba(60,60,67,0.12)',
+  sepDark: 'rgba(84,84,88,0.55)',
+  locationTint: '#E86A2C',
+  stayTint: '#7B5BCC',
+  activityTint: '#3E8E58',
+  noteTint: '#8A8A93',
+  statusProgress: '#5BC27E',
+};
+
+export function useTheme(colorScheme: string | null | undefined) {
+  const dark = colorScheme === 'dark';
+  return {
+    dark,
+    accent: dark ? Palette.accentDark : Palette.accent,
+    accentSoft: dark ? Palette.accentSoftDark : Palette.accentSoft,
+    bg: dark ? Palette.bgDark : Palette.bg,
+    card: dark ? Palette.cardDark : Palette.card,
+    text: dark ? Palette.textDark : Palette.text,
+    text2: dark ? Palette.text2Dark : Palette.text2,
+    text3: dark ? Palette.text3Dark : Palette.text3,
+    sep: dark ? Palette.sepDark : Palette.sep,
+  };
+}

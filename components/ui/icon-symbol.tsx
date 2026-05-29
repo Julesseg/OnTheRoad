@@ -21,6 +21,20 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'mappin': 'place',
+  'bed.double': 'hotel',
+  'figure.hiking': 'hiking',
+  'note.text': 'article',
+  'chevron.left': 'chevron-left',
+  'ellipsis': 'more-horiz',
+  'plus': 'add',
+  'map.fill': 'map',
+  'gearshape.fill': 'settings',
+  'calendar': 'calendar-today',
+  'trash': 'delete',
+  'square.and.arrow.up': 'ios-share',
+  'square.and.arrow.down': 'download',
+  'info.circle': 'info',
 } as IconMapping;
 
 /**
