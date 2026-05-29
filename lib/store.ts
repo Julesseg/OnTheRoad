@@ -8,10 +8,13 @@ import {
   reorderDayItems,
   moveItemToDay,
 } from './trip-mutations';
+import { resolveActiveTrip } from './active-trip';
+import { todayString } from './date-utils';
 
 interface TripStore {
   trips: TripSummary[];
   loadedTrips: Record<string, Trip>;
+  activeTripId: string | null;
   preferredMapsApp: MapsApp;
   installedMapsApps: MapsApp[];
   initialized: boolean;
@@ -27,16 +30,18 @@ interface TripStore {
   reorderItems: (tripId: string, dayId: string, from: number, to: number) => void;
   moveItem: (tripId: string, fromDayId: string, toDayId: string, itemId: string) => void;
   setPreferredMapsApp: (app: MapsApp) => void;
+  setFavorite: (id: string) => void;
+  clearFavorite: () => void;
 }
 
-type StateSnapshot = { trips: TripSummary[]; preferredMapsApp: MapsApp };
+type StateSnapshot = { trips: TripSummary[]; activeTripId: string | null; preferredMapsApp: MapsApp };
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function writeState(snapshot: StateSnapshot): void {
   try {
     saveState({
-      activeTripId: null,
+      activeTripId: snapshot.activeTripId,
       trips: snapshot.trips,
       preferredMapsApp: snapshot.preferredMapsApp,
       lastUpdated: new Date().toISOString(),
@@ -64,12 +69,13 @@ function toSummary(trip: Trip): TripSummary {
 }
 
 function snapshotOf(get: () => TripStore): StateSnapshot {
-  return { trips: get().trips, preferredMapsApp: get().preferredMapsApp };
+  return { trips: get().trips, activeTripId: get().activeTripId, preferredMapsApp: get().preferredMapsApp };
 }
 
 export const useTripStore = create<TripStore>((set, get) => ({
   trips: [],
   loadedTrips: {},
+  activeTripId: null,
   preferredMapsApp: 'apple',
   installedMapsApps: ['apple'],
   initialized: false,
@@ -80,12 +86,16 @@ export const useTripStore = create<TripStore>((set, get) => ({
     set({ initializing: true });
     try {
       const state = await loadState();
-      set({
-        trips: state?.trips ?? [],
-        preferredMapsApp: state?.preferredMapsApp ?? 'apple',
-        initialized: true,
-        initializing: false,
-      });
+      const trips = state?.trips ?? [];
+      const storedActiveTripId = state?.activeTripId ?? null;
+      const resolution = resolveActiveTrip(trips, storedActiveTripId, todayString());
+      // Store only the explicit favorite (null if expired); UI derives display trip via resolveActiveTrip.
+      const activeTripId = resolution.shouldClearFavorite ? null : storedActiveTripId;
+      const preferredMapsApp = state?.preferredMapsApp ?? 'apple';
+      set({ trips, activeTripId, preferredMapsApp, initialized: true, initializing: false });
+      if (resolution.shouldClearFavorite) {
+        writeState({ trips, activeTripId: null, preferredMapsApp });
+      }
     } catch {
       // Corrupt or missing state — treat as fresh start so the UI unblocks.
       set({ initialized: true, initializing: false });
@@ -164,6 +174,16 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
   setPreferredMapsApp(app: MapsApp) {
     set({ preferredMapsApp: app });
+    writeState(snapshotOf(get));
+  },
+
+  setFavorite(id: string) {
+    set({ activeTripId: id });
+    writeState(snapshotOf(get));
+  },
+
+  clearFavorite() {
+    set({ activeTripId: null });
     writeState(snapshotOf(get));
   },
 }));

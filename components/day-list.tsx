@@ -16,7 +16,7 @@ export function DayList({
 }: {
   trip: Trip;
   todayDate?: string;
-  onSelectDay: (dayId: string) => void;
+  onSelectDay?: (dayId: string) => void;
 }) {
   const colorScheme = useColorScheme();
   const text = colorScheme === 'dark' ? '#fff' : '#111';
@@ -31,7 +31,7 @@ export function DayList({
         return (
           <GlassView key={day.id} glassEffectStyle="clear" style={styles.card}>
             <Pressable
-              onPress={() => onSelectDay(day.id)}
+              onPress={onSelectDay ? () => onSelectDay(day.id) : undefined}
               style={styles.cardInner}
               accessibilityLabel={`Day ${day.date}`}
             >
