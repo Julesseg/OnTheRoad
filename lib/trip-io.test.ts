@@ -88,6 +88,18 @@ describe('importTripFromJson — errors', () => {
   });
 });
 
+describe('importTripFromJson — wallpaper', () => {
+  it('drops wallpaperUri because the image file never travels with the JSON', () => {
+    const withWallpaper = {
+      ...VALID_TRIP,
+      wallpaperUri: 'trips/01900000-0000-7000-8000-000000000001/wallpaper.jpg',
+    };
+    const res = importTripFromJson(JSON.stringify(withWallpaper), FRESH_ID);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.trip.wallpaperUri).toBeUndefined();
+  });
+});
+
 describe('importTripFromJson — id handling', () => {
   it('discards the original trip id but preserves day and item ids', () => {
     const res = importTripFromJson(JSON.stringify(VALID_TRIP), FRESH_ID);

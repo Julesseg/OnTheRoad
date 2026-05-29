@@ -51,7 +51,9 @@ export function importTripFromJson(raw: string, freshId: string): ImportResult {
   if (!result.success) {
     return { ok: false, error: formatIssues(result.error, data) };
   }
-  return { ok: true, trip: { ...result.data, id: freshId } };
+  // Drop wallpaperUri: the image lives on disk under the original trip id and is
+  // never part of the JSON export, so the path would dangle after import.
+  return { ok: true, trip: { ...result.data, id: freshId, wallpaperUri: undefined } };
 }
 
 /** Serialize a trip to pretty-printed JSON suitable for export / sharing. */

@@ -16,7 +16,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 
 import { useTripStore } from '@/lib/store';
-import { saveWallpaper } from '@/lib/storage';
+import { saveWallpaper, deleteTrip } from '@/lib/storage';
 import { Trip, Day } from '@/lib/schema';
 import { newId } from '@/lib/id';
 
@@ -87,10 +87,12 @@ export default function NewTripScreen() {
     }
 
     setSubmitting(true);
+    const id = newId();
+    let wallpaperSaved = false;
     try {
       const now = new Date().toISOString();
-      const id = newId();
       const wallpaperUri = coverUri ? await saveWallpaper(id, coverUri) : undefined;
+      wallpaperSaved = wallpaperUri !== undefined;
       const trip: Trip = {
         id,
         schemaVersion: 2,
@@ -105,6 +107,8 @@ export default function NewTripScreen() {
       await addTrip(trip);
       router.back();
     } catch (err) {
+      // If the copied wallpaper outlived a failed save, drop the orphaned folder.
+      if (wallpaperSaved) deleteTrip(id);
       Alert.alert('Error', 'Failed to save trip. Please try again.');
     } finally {
       setSubmitting(false);
