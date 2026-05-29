@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { TripSchema, DaySchema, ItemSchema, AppStateSchema } from './schema';
+import { TripSchema, DaySchema, ItemSchema, AppStateSchema, TripSummarySchema } from './schema';
 
 const VALID_TRIP = {
   id: '01900000-0000-7000-8000-000000000001',
-  schemaVersion: 1,
+  schemaVersion: 2,
   title: 'Pacific Coast Highway',
   startDate: '2026-07-01',
   endDate: '2026-07-14',
@@ -16,8 +16,23 @@ describe('TripSchema', () => {
   it('parses a valid trip fixture', () => {
     const result = TripSchema.parse(VALID_TRIP);
     expect(result.title).toBe('Pacific Coast Highway');
-    expect(result.schemaVersion).toBe(1);
+    expect(result.schemaVersion).toBe(2);
     expect(result.startDate).toBe('2026-07-01');
+  });
+
+  it('parses a trip with a wallpaperUri', () => {
+    const result = TripSchema.parse({
+      ...VALID_TRIP,
+      wallpaperUri: 'trips/01900000-0000-7000-8000-000000000001/wallpaper.jpg',
+    });
+    expect(result.wallpaperUri).toBe(
+      'trips/01900000-0000-7000-8000-000000000001/wallpaper.jpg',
+    );
+  });
+
+  it('parses a trip with no wallpaperUri (the field is optional)', () => {
+    const result = TripSchema.parse(VALID_TRIP);
+    expect(result.wallpaperUri).toBeUndefined();
   });
 
   it('rejects a trip with missing title', () => {
@@ -124,6 +139,30 @@ describe('ItemSchema — note', () => {
 
   it('rejects note with empty text', () => {
     expect(() => ItemSchema.parse({ type: 'note', id: ITEM_ID, text: '' })).toThrow();
+  });
+});
+
+describe('TripSummarySchema', () => {
+  const SUMMARY = {
+    id: '01900000-0000-7000-8000-000000000001',
+    title: 'Pacific Coast Highway',
+    startDate: '2026-07-01',
+    endDate: '2026-07-14',
+  };
+
+  it('carries a wallpaperUri so list screens can render the cover photo', () => {
+    const result = TripSummarySchema.parse({
+      ...SUMMARY,
+      wallpaperUri: 'trips/01900000-0000-7000-8000-000000000001/wallpaper.jpg',
+    });
+    expect(result.wallpaperUri).toBe(
+      'trips/01900000-0000-7000-8000-000000000001/wallpaper.jpg',
+    );
+  });
+
+  it('parses a summary without a wallpaperUri', () => {
+    const result = TripSummarySchema.parse(SUMMARY);
+    expect(result.wallpaperUri).toBeUndefined();
   });
 });
 

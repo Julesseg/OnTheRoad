@@ -15,16 +15,38 @@ fills each day with ordered **Items** (where to go, where to stay, what to do).
 
 The top-level itinerary and the unit of storage: one JSON file per trip. A trip
 has a `title`, a `startDate` and `endDate` (the inclusive span it covers),
-an ordered list of `days`, a `schemaVersion`, and `createdAt` / `updatedAt`
-timestamps. Defined by `TripSchema` in `lib/schema.ts`.
+an ordered list of `days`, an optional [wallpaper](#wallpaper), a
+`schemaVersion`, and `createdAt` / `updatedAt` timestamps. Defined by
+`TripSchema` in `lib/schema.ts`.
 
 Prefer **Trip** over "journey" or "vacation".
 
+### Wallpaper
+
+An optional personal cover photo for a trip, rendered as the background of the
+trip's card on the Trips tab (beneath its glass layer). Stored durably on-device
+as `trips/<id>/wallpaper.jpg` so it survives the source being removed from the
+photo library; `trip.wallpaperUri` holds that path **relative** to the documents
+directory, never the picker's `ph://` URI. Absent means no wallpaper — the card
+renders on a plain background. Copied in on pick by `saveWallpaper` and resolved
+for display by `wallpaperDisplayUri` (`lib/storage.ts`, path in `lib/wallpaper.ts`).
+
+Prefer **Wallpaper** (or "cover photo" in user-facing copy) over "background".
+
+### Schema version
+
+The `schemaVersion` stamped on every trip file, bumped when the persisted shape
+changes. On read, a stored trip is run through `migrateTripData`
+(`lib/trip-migrate.ts`) to upgrade it to `CURRENT_SCHEMA_VERSION` before
+validation, so older files keep loading. v1 → v2 added the optional
+[wallpaper](#wallpaper); a v1 trip upgrades with no wallpaper.
+
 ### Trip Summary
 
-The lightweight projection of a trip — `id`, `title`, `startDate`, `endDate` —
-kept in the [App State](#app-state) so list screens (Trips, Upcoming) can render
-without loading every full trip file. The full trip is loaded on demand and
+The lightweight projection of a trip — `id`, `title`, `startDate`, `endDate`,
+and `wallpaperUri` — kept in the [App State](#app-state) so list screens (Trips,
+Upcoming) can render (including the [wallpaper](#wallpaper)) without loading
+every full trip file. The full trip is loaded on demand and
 cached in the store's `loadedTrips`.
 
 ### Day

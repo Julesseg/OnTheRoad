@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Trip, TripSchema } from './schema';
+import { migrateTripData } from './trip-migrate';
 
 export type ImportResult =
   | { ok: true; trip: Trip }
@@ -42,7 +43,7 @@ function formatIssues(error: z.ZodError, data: unknown): string {
 export function importTripFromJson(raw: string, freshId: string): ImportResult {
   let data: unknown;
   try {
-    data = JSON.parse(raw);
+    data = migrateTripData(JSON.parse(raw));
   } catch {
     return { ok: false, error: 'File is not valid JSON.' };
   }
@@ -50,7 +51,9 @@ export function importTripFromJson(raw: string, freshId: string): ImportResult {
   if (!result.success) {
     return { ok: false, error: formatIssues(result.error, data) };
   }
-  return { ok: true, trip: { ...result.data, id: freshId } };
+  // Drop wallpaperUri: the image lives on disk under the original trip id and is
+  // never part of the JSON export, so the path would dangle after import.
+  return { ok: true, trip: { ...result.data, id: freshId, wallpaperUri: undefined } };
 }
 
 /** Serialize a trip to pretty-printed JSON suitable for export / sharing. */

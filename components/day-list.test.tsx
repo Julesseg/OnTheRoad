@@ -12,7 +12,7 @@ vi.mock('expo-glass-effect', async () => {
 
 const TRIP: Trip = {
   id: 'trip-1',
-  schemaVersion: 1,
+  schemaVersion: 2,
   title: 'Pacific Coast Highway',
   startDate: '2026-07-01',
   endDate: '2026-07-02',

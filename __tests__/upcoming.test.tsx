@@ -32,7 +32,7 @@ const SUMMARY: TripSummary = {
 
 const TRIP: Trip = {
   id: 'trip-1',
-  schemaVersion: 1,
+  schemaVersion: 2,
   title: 'Pacific Coast Highway',
   startDate: '2099-07-01',
   endDate: '2099-07-02',
@@ -125,7 +125,7 @@ const INPROGRESS_SUMMARY: TripSummary = {
 
 const INPROGRESS_TRIP: Trip = {
   id: 'trip-2',
-  schemaVersion: 1,
+  schemaVersion: 2,
   title: 'Desert Loop',
   startDate: '2026-07-01',
   endDate: '2026-07-03',

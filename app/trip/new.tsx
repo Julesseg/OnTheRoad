@@ -12,8 +12,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 
 import { useTripStore } from '@/lib/store';
+import { saveWallpaper, deleteTrip } from '@/lib/storage';
 import { Trip, Day } from '@/lib/schema';
 import { newId } from '@/lib/id';
 
@@ -45,7 +48,25 @@ export default function NewTripScreen() {
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [coverUri, setCoverUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  async function pickCover() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Permission needed',
+        'Allow photo library access to add a cover photo for this trip.',
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+    });
+    if (result.canceled) return;
+    const uri = result.assets[0]?.uri;
+    if (uri) setCoverUri(uri);
+  }
 
   async function handleSubmit() {
     if (!title.trim()) {
@@ -66,14 +87,19 @@ export default function NewTripScreen() {
     }
 
     setSubmitting(true);
+    const id = newId();
+    let wallpaperSaved = false;
     try {
       const now = new Date().toISOString();
+      const wallpaperUri = coverUri ? await saveWallpaper(id, coverUri) : undefined;
+      wallpaperSaved = wallpaperUri !== undefined;
       const trip: Trip = {
-        id: newId(),
-        schemaVersion: 1,
+        id,
+        schemaVersion: 2,
         title: title.trim(),
         startDate,
         endDate,
+        wallpaperUri,
         days: buildDays(startDate, endDate),
         createdAt: now,
         updatedAt: now,
@@ -81,6 +107,8 @@ export default function NewTripScreen() {
       await addTrip(trip);
       router.back();
     } catch (err) {
+      // If the copied wallpaper outlived a failed save, drop the orphaned folder.
+      if (wallpaperSaved) deleteTrip(id);
       Alert.alert('Error', 'Failed to save trip. Please try again.');
     } finally {
       setSubmitting(false);
@@ -139,6 +167,32 @@ export default function NewTripScreen() {
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
             />
+
+            <Text style={styles.label}>Cover Photo</Text>
+            {coverUri ? (
+              <View style={styles.coverWrap}>
+                <Image source={{ uri: coverUri }} style={styles.coverPreview} contentFit="cover" />
+                <View style={styles.coverActions}>
+                  <TouchableOpacity onPress={pickCover} accessibilityLabel="Change cover photo">
+                    <Text style={styles.coverAction}>Change</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setCoverUri(null)}
+                    accessibilityLabel="Remove cover photo"
+                  >
+                    <Text style={[styles.coverAction, styles.coverRemove]}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.coverButton}
+                onPress={pickCover}
+                accessibilityLabel="Add cover photo"
+              >
+                <Text style={styles.coverButtonText}>Add cover photo</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -173,4 +227,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
+  coverButton: {
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  coverButtonText: { color: '#007AFF', fontSize: 16, fontWeight: '600' },
+  coverWrap: { gap: 10 },
+  coverPreview: { width: '100%', height: 160, borderRadius: 10 },
+  coverActions: { flexDirection: 'row', gap: 20 },
+  coverAction: { color: '#007AFF', fontSize: 15, fontWeight: '600' },
+  coverRemove: { color: '#FF3B30' },
 });

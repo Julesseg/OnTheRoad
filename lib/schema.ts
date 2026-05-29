@@ -72,12 +72,17 @@ export const DaySchema = z.object({
 
 export type Day = z.infer<typeof DaySchema>;
 
+export const CURRENT_SCHEMA_VERSION = 2;
+
 export const TripSchema = z.object({
   id: z.string().uuid(),
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
   title: z.string().min(1),
   startDate: DateString,
   endDate: DateString,
+  // Relative path within DocumentsDirectory (e.g. `trips/{id}/wallpaper.jpg`).
+  // Absent means the trip has no cover photo.
+  wallpaperUri: z.string().optional(),
   days: z.array(DaySchema),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -90,6 +95,7 @@ export const TripSummarySchema = z.object({
   title: z.string().min(1),
   startDate: DateString,
   endDate: DateString,
+  wallpaperUri: z.string().optional(),
 });
 
 export type TripSummary = z.infer<typeof TripSummarySchema>;
