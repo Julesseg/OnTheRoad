@@ -18,6 +18,7 @@ import { ItemRow } from '@/components/item-row';
 import { formatDayLabel } from '@/lib/date-utils';
 import type { Day, Item } from '@/lib/schema';
 import type { ItemType } from '@/lib/item-form';
+import { useTheme } from '@/constants/theme';
 
 const ADD_OPTIONS: { label: string; type: ItemType }[] = [
   { label: 'Location', type: 'location' },
@@ -30,6 +31,7 @@ export default function DayDetailScreen() {
   const { id, dayId } = useLocalSearchParams<{ id: string; dayId: string }>();
   const { loadedTrips, loadTripById, reorderItems, moveItem, deleteItem } = useTripStore();
   const colorScheme = useColorScheme();
+  const theme = useTheme(colorScheme);
 
   useEffect(() => {
     if (id) loadTripById(id);
@@ -78,8 +80,6 @@ export default function DayDetailScreen() {
     const targets = trip
       ? [...trip.days].filter((d) => d.id !== dayId).sort((a, b) => a.date.localeCompare(b.date))
       : [];
-    // Drop "Move to day…" when there's nowhere to move the item — otherwise
-    // the sheet advertises an action that silently no-ops.
     const options =
       targets.length > 0
         ? ['Edit', 'Move to day…', 'Delete', 'Cancel']
@@ -128,37 +128,59 @@ export default function DayDetailScreen() {
     );
   }
 
-  const bg = colorScheme === 'dark' ? '#000' : '#fff';
-  const text = colorScheme === 'dark' ? '#fff' : '#111';
-  const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
-
   const trip = loadedTrips[id] ?? null;
   const day = trip?.days.find((d) => d.id === dayId) ?? null;
 
+  const dayIndex = trip
+    ? [...trip.days].sort((a, b) => a.date.localeCompare(b.date)).findIndex((d) => d.id === dayId)
+    : -1;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      {/* Nav bar */}
+      <View style={[styles.navBar, { borderBottomColor: theme.sep }]}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Back">
-          <Text style={styles.back}>Back</Text>
+          <Text style={[styles.backText, { color: theme.accent }]}>‹ Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: text }]}>{day ? day.date : 'Day'}</Text>
+        <Text style={[styles.navTitle, { color: theme.text }]}>{day ? day.date : 'Day'}</Text>
         {day ? (
           <Pressable onPress={addItem} accessibilityLabel="Add item" hitSlop={8}>
-            <Text style={styles.add}>+</Text>
+            <Text style={[styles.addText, { color: theme.accent }]}>+</Text>
           </Pressable>
         ) : (
           <View style={styles.headerSpacer} />
         )}
       </View>
 
+      {/* Day header section */}
+      {day ? (
+        <View style={[styles.dayHeader, { borderBottomColor: theme.sep }]}>
+          <Text style={[styles.daySupertitle, { color: theme.accent }]}>
+            {'Day ' + (dayIndex + 1) + (trip ? ' · ' + trip.title : '')}
+          </Text>
+          <Text style={[styles.dayDateText, { color: theme.text }]}>
+            {new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </Text>
+          {day.notes ? (
+            <View style={[styles.notesBox, { backgroundColor: theme.accentSoft }]}>
+              <Text style={[styles.notesText, { color: theme.text }]}>{day.notes}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {!trip ? (
         <ActivityIndicator style={styles.loader} size="large" />
       ) : !day || day.items.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: subtext }]}>No items yet</Text>
+          <Text style={[styles.emptyText, { color: theme.text2 }]}>No items yet</Text>
           {day ? (
             <Pressable onPress={addItem} accessibilityLabel="Add first item" style={styles.emptyAdd}>
-              <Text style={styles.emptyAddText}>Add an item</Text>
+              <Text style={[styles.emptyAddText, { color: theme.accent }]}>Add an item</Text>
             </Pressable>
           ) : null}
         </View>
@@ -178,23 +200,50 @@ export default function DayDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   loader: { flex: 1 },
-  header: {
+  navBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
   },
-  back: { fontSize: 17, color: '#007AFF' },
-  title: { fontSize: 17, fontWeight: '600' },
+  backText: { fontSize: 17, fontWeight: '500' },
+  navTitle: { fontSize: 17, fontWeight: '600' },
   headerSpacer: { width: 40 },
-  add: { fontSize: 28, lineHeight: 30, color: '#007AFF', width: 40, textAlign: 'right' },
+  addText: { fontSize: 28, lineHeight: 30, width: 40, textAlign: 'right' },
+  dayHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  daySupertitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  dayDateText: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: -0.6,
+    lineHeight: 38,
+  },
+  notesBox: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 16,
+  },
+  notesText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyText: { fontSize: 16 },
   emptyAdd: { marginTop: 16, paddingVertical: 10, paddingHorizontal: 20 },
-  emptyAddText: { fontSize: 16, color: '#007AFF', fontWeight: '600' },
+  emptyAddText: { fontSize: 16, fontWeight: '600' },
   list: { paddingHorizontal: 20, paddingVertical: 8 },
   activeRow: { opacity: 0.6 },
 });

@@ -27,7 +27,7 @@ describe('ItemRow', () => {
     expect(screen.getByText('Location')).toBeInTheDocument();
     expect(screen.getByText('Golden Gate Bridge')).toBeInTheDocument();
     expect(screen.getByText('100 Bridge Way')).toBeInTheDocument();
-    expect(screen.getByText('At 09:30')).toBeInTheDocument();
+    expect(screen.getByText('09:30')).toBeInTheDocument();
   });
 
   it('opens a tapped URL inside a line via Linking.openURL', () => {

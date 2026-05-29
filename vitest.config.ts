@@ -4,6 +4,8 @@ import path from 'node:path';
 const alias = {
   'react-native': 'react-native-web',
   'expo-maps': path.resolve(__dirname, '__mocks__/expo-maps.tsx'),
+  '@expo/vector-icons/MaterialIcons': path.resolve(__dirname, '__mocks__/expo-vector-icons.tsx'),
+  '@expo/vector-icons': path.resolve(__dirname, '__mocks__/expo-vector-icons.tsx'),
   '@': path.resolve(__dirname, '.'),
 };
 

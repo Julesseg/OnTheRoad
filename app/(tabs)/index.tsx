@@ -11,6 +11,7 @@ import { TodayCompanion } from '@/components/today-companion';
 import { TripMap } from '@/components/trip-map';
 import { selectTodayDay, nextItemId } from '@/lib/today';
 import { todayString } from '@/lib/date-utils';
+import { useTheme, Palette } from '@/constants/theme';
 
 // The trip shown on Upcoming: the one in progress today, otherwise the next by
 // start date. Past trips (endDate before today) are excluded.
@@ -23,9 +24,22 @@ function selectCurrentOrNext(trips: TripSummary[]): TripSummary | null {
   );
 }
 
+function fmtRange(startDate: string, endDate: string): string {
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ey, em, ed] = endDate.split('-').map(Number);
+  const a = new Date(sy, sm - 1, sd);
+  const b = new Date(ey, em - 1, ed);
+  const sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  if (sameMonth) {
+    return `${a.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${b.getDate()}, ${b.getFullYear()}`;
+  }
+  return `${a.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${b.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${b.getFullYear()}`;
+}
+
 export default function UpcomingScreen() {
   const { trips, loadedTrips, initialized, initialize, loadTripById } = useTripStore();
   const colorScheme = useColorScheme();
+  const theme = useTheme(colorScheme);
 
   useEffect(() => {
     if (!initialized) initialize();
@@ -38,12 +52,9 @@ export default function UpcomingScreen() {
     if (selected) loadTripById(selected.id);
   }, [selected?.id]);
 
-  const text = colorScheme === 'dark' ? '#fff' : '#111';
-  const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
-
   if (!initialized) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
         <View style={styles.mapLayer} pointerEvents="none">
           <TripMap trip={null} />
         </View>
@@ -56,14 +67,14 @@ export default function UpcomingScreen() {
 
   if (!selected) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
         <View style={styles.mapLayer} pointerEvents="none">
           <TripMap trip={null} />
         </View>
         <SafeAreaView style={styles.foreground}>
           <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: text }]}>No upcoming trips</Text>
-            <Text style={[styles.emptyHint, { color: subtext }]}>
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>No upcoming trips</Text>
+            <Text style={[styles.emptyHint, { color: theme.text2 }]}>
               Create a trip in the Trips tab to get started.
             </Text>
           </View>
@@ -81,38 +92,69 @@ export default function UpcomingScreen() {
   const daysAway = selection.daysAway ?? 0;
   const companionDay = selection.kind === 'today' ? selection.day : undefined;
 
+  const statusLabel = isInProgress
+    ? 'In progress'
+    : `Starts in ${daysAway} day${daysAway === 1 ? '' : 's'}`;
+
+  const totalDays = trip ? trip.days.length : 0;
+  const totalItems = trip ? trip.days.reduce((acc, d) => acc + d.items.length, 0) : 0;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      {/* Map background */}
       <View style={styles.mapLayer} pointerEvents="none">
         <TripMap trip={trip} />
       </View>
-      <SafeAreaView style={styles.foreground}>
-        <GlassView glassEffectStyle="regular" style={styles.header}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {isInProgress ? 'In progress' : `Starts in ${daysAway} day${daysAway === 1 ? '' : 's'}`}
-            </Text>
-          </View>
-          <Text style={[styles.title, { color: text }]}>{selected.title}</Text>
-          <Text style={[styles.dates, { color: subtext }]}>
-            {selected.startDate} — {selected.endDate}
-          </Text>
-        </GlassView>
 
-        {!trip ? (
-          <ActivityIndicator style={styles.loader} size="large" />
-        ) : (
-          <ScrollView contentContainerStyle={styles.list}>
-            {companionDay ? (
-              <TodayCompanion day={companionDay} highlightId={nextItemId(companionDay, now)} />
-            ) : null}
-            <DayList
-              trip={trip}
-              todayDate={isInProgress ? todayString() : undefined}
-              onSelectDay={(dayId) => router.push(`/trip/${trip.id}/day/${dayId}`)}
-            />
-          </ScrollView>
-        )}
+      <SafeAreaView style={styles.foreground}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Header card */}
+          <View style={styles.headerWrapper}>
+            <GlassView glassEffectStyle="regular" style={styles.headerCard}>
+              {/* Status pill */}
+              <View style={[styles.statusPill, { backgroundColor: theme.accentSoft }]}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: isInProgress ? Palette.statusProgress : theme.accent },
+                  ]}
+                />
+                <Text style={[styles.statusText, { color: theme.accent }]}>{statusLabel}</Text>
+              </View>
+
+              <Text style={[styles.tripTitle, { color: theme.text }]}>{selected.title}</Text>
+              <Text style={[styles.datesText, { color: theme.text2 }]}>
+                {fmtRange(selected.startDate, selected.endDate)} · {totalDays} days
+              </Text>
+            </GlassView>
+          </View>
+
+          {/* Section header */}
+          <Text style={[styles.sectionHead, { color: theme.text2 }]}>ITINERARY</Text>
+
+          {!trip ? (
+            <ActivityIndicator style={styles.loader} size="large" />
+          ) : (
+            <>
+              {/* Today companion */}
+              {companionDay ? (
+                <TodayCompanion day={companionDay} highlightId={nextItemId(companionDay, now)} />
+              ) : null}
+
+              {/* Day list */}
+              <DayList
+                trip={trip}
+                todayDate={isInProgress ? todayString() : undefined}
+                onSelectDay={(dayId) => router.push(`/trip/${trip.id}/day/${dayId}`)}
+              />
+
+              {/* Footer */}
+              <Text style={[styles.footer, { color: theme.text3 }]}>
+                {'Stored on this device · ' + totalDays + ' days · ' + totalItems + ' items planned'}
+              </Text>
+            </>
+          )}
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -123,27 +165,57 @@ const styles = StyleSheet.create({
   mapLayer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 0 },
   foreground: { flex: 1 },
   loader: { flex: 1 },
-  header: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 16,
+  scrollContent: { paddingBottom: 120 },
+  headerWrapper: { marginHorizontal: 16, marginTop: 8 },
+  headerCard: {
+    padding: 20,
+    borderRadius: 22,
     overflow: 'hidden',
   },
-  badge: {
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     alignSelf: 'flex-start',
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+    marginBottom: 10,
   },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  title: { fontSize: 28, fontWeight: '700' },
-  dates: { marginTop: 4, fontSize: 14 },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tripTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: -0.6,
+  },
+  datesText: {
+    fontSize: 15,
+    marginTop: 6,
+  },
+  sectionHead: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 10,
+  },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyTitle: { fontSize: 18, fontWeight: '600' },
   emptyHint: { marginTop: 8, textAlign: 'center' },
-  list: { paddingVertical: 8, paddingHorizontal: 16 },
+  footer: {
+    textAlign: 'center',
+    marginTop: 28,
+    fontSize: 12,
+    marginBottom: 120,
+  },
 });

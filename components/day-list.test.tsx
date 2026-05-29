@@ -3,13 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { Trip } from '@/lib/schema';
 import { DayList } from './day-list';
 
-vi.mock('expo-glass-effect', async () => {
-  const React = await import('react');
-  const Passthrough = ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('div', null, children);
-  return { GlassView: Passthrough, GlassContainer: Passthrough };
-});
-
 const TRIP: Trip = {
   id: 'trip-1',
   schemaVersion: 2,
@@ -38,9 +31,9 @@ beforeEach(() => {
 describe('DayList', () => {
   it('renders each day with its date and item count', () => {
     render(<DayList trip={TRIP} onSelectDay={vi.fn()} />);
-    expect(screen.getByText('2026-07-01')).toBeInTheDocument();
+    expect(screen.getByLabelText('2026-07-01')).toBeInTheDocument();
     expect(screen.getByText('2 items')).toBeInTheDocument();
-    expect(screen.getByText('2026-07-02')).toBeInTheDocument();
+    expect(screen.getByLabelText('2026-07-02')).toBeInTheDocument();
     expect(screen.getByText('No items')).toBeInTheDocument();
   });
 
@@ -52,7 +45,7 @@ describe('DayList', () => {
   it('calls onSelectDay with the day id when a row is tapped', () => {
     const onSelectDay = vi.fn();
     render(<DayList trip={TRIP} onSelectDay={onSelectDay} />);
-    fireEvent.click(screen.getByText('2026-07-01'));
+    fireEvent.click(screen.getByLabelText('2026-07-01'));
     expect(onSelectDay).toHaveBeenCalledWith('day-1');
   });
 });

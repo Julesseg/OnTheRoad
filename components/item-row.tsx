@@ -99,12 +99,29 @@ export function ItemRow({ item, isLast }: { item: Item; isLast?: boolean }) {
         <View style={styles.headerRow}>
           <Text style={[styles.typeLabel, { color: meta.tint }]}>{meta.label}</Text>
           {time ? (
-            <Text style={[styles.timeText, { color: theme.text2 }]}>{'  ·  '}{time}</Text>
+            <>
+              <Text style={[styles.timeText, { color: theme.text2 }]}>{'  ·  '}</Text>
+              <Text style={[styles.timeText, { color: theme.text2 }]}>{time}</Text>
+            </>
           ) : null}
         </View>
 
-        {/* Title (for note, this is the text; for others, the name) */}
-        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+        {/* Title — for notes, linkify the text; for others, plain name */}
+        {item.type === 'note' ? (
+          <Text style={[styles.title, { color: theme.text }]}>
+            {linkify(title).map((seg, j) =>
+              seg.kind === 'text' ? (
+                <Text key={j}>{seg.value}</Text>
+              ) : (
+                <Text key={j} style={styles.link} onPress={() => Linking.openURL(seg.href).catch(() => {})}>
+                  {seg.value}
+                </Text>
+              ),
+            )}
+          </Text>
+        ) : (
+          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+        )}
 
         {/* Detail lines */}
         {detailLines.map((line, i) => (

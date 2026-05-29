@@ -70,14 +70,14 @@ describe('Upcoming tab', () => {
     setStore({ trips: [SUMMARY], loadedTrips: { 'trip-1': TRIP } });
     render(<UpcomingScreen />);
     expect(screen.getByText('Pacific Coast Highway')).toBeInTheDocument();
-    expect(screen.getByText('2099-07-01')).toBeInTheDocument();
+    expect(screen.getByLabelText('2099-07-01')).toBeInTheDocument();
     expect(screen.getByText('1 item')).toBeInTheDocument();
   });
 
   it('navigates to the day detail when a day is tapped', () => {
     setStore({ trips: [SUMMARY], loadedTrips: { 'trip-1': TRIP } });
     render(<UpcomingScreen />);
-    fireEvent.click(screen.getByText('2099-07-01'));
+    fireEvent.click(screen.getByLabelText('2099-07-01'));
     expect(router.push).toHaveBeenCalledWith('/trip/trip-1/day/day-1');
   });
 
