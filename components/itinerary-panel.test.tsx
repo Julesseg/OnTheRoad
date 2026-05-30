@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { router } from 'expo-router';
 import type { Trip } from '@/lib/schema';
 import { ItineraryPanel } from '@/components/itinerary-panel';
+
+vi.mock('expo-router', () => ({
+  router: { push: vi.fn() },
+}));
 
 vi.mock('expo-glass-effect', async () => {
   const React = await import('react');
@@ -11,8 +16,8 @@ vi.mock('expo-glass-effect', async () => {
 });
 
 vi.mock('@/lib/store', () => ({
-  useTripStore: (selector: (s: { preferredMapsApp: string; installedMapsApps: string[] }) => unknown) =>
-    selector({ preferredMapsApp: 'apple', installedMapsApps: ['apple'] }),
+  useTripStore: (selector: (s: { preferredMapsApp: string; installedMapsApps: string[]; deleteItem: () => void; moveItem: () => void }) => unknown) =>
+    selector({ preferredMapsApp: 'apple', installedMapsApps: ['apple'], deleteItem: vi.fn(), moveItem: vi.fn() }),
 }));
 
 const TRIP: Trip = {
@@ -53,6 +58,15 @@ describe('ItineraryPanel', () => {
   it('does not render a Next-up card when the trip is not In progress', () => {
     render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
     expect(screen.queryByText('Next up')).not.toBeInTheDocument();
+  });
+
+  it('tapping an item row opens the item editor for that item', () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    fireEvent.click(screen.getByText('Lunch'));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/trip/[id]/item',
+      params: { id: 'trip-1', dayId: 'day-1', itemId: 'a1' },
+    });
   });
 
   it('renders a Next-up card naming the next item when In progress', () => {

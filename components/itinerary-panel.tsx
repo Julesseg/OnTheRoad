@@ -1,9 +1,10 @@
 import { useMemo, useRef, type ReactElement } from 'react';
-import { View, Text, Pressable, FlatList, StyleSheet, ActionSheetIOS, useColorScheme } from 'react-native';
+import { View, Text, Pressable, FlatList, StyleSheet, ActionSheetIOS, Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 
-import type { Trip } from '@/lib/schema';
+import type { Trip, Item } from '@/lib/schema';
 import type { ItemType } from '@/lib/item-form';
+import { useTripStore } from '@/lib/store';
 import { buildItineraryRows, dayHeaderIndex, type ItineraryRow } from '@/lib/itinerary-rows';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
@@ -49,12 +50,58 @@ export function ItineraryPanel({
   const text = colorScheme === 'dark' ? '#fff' : '#111';
   const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
 
+  const deleteItem = useTripStore((s) => s.deleteItem);
+  const moveItem = useTripStore((s) => s.moveItem);
+
   const rows = useMemo(() => buildItineraryRows(trip, now), [trip, now]);
   const listRef = useRef<FlatList<ItineraryRow>>(null);
 
   function scrollToDay(dayId: string) {
     const index = dayHeaderIndex(rows, dayId);
     if (index >= 0) listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
+  }
+
+  function openItemEditor(dayId: string, itemId: string) {
+    router.push({ pathname: '/trip/[id]/item', params: { id: trip.id, dayId, itemId } });
+  }
+
+  function confirmDelete(dayId: string, item: Item) {
+    const label = item.type === 'note' ? 'this note' : item.name;
+    Alert.alert('Delete item', `Delete "${label}"? This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteItem(trip.id, dayId, item.id) },
+    ]);
+  }
+
+  function showMoveToDaySheet(fromDayId: string, itemId: string) {
+    const sorted = [...trip.days].sort((a, b) => a.date.localeCompare(b.date));
+    const others = sorted.filter((d) => d.id !== fromDayId);
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: 'Move to day',
+        options: [...others.map((d) => `Day ${sorted.indexOf(d) + 1}`), 'Cancel'],
+        cancelButtonIndex: others.length,
+      },
+      (index) => {
+        const target = others[index];
+        if (target) moveItem(trip.id, fromDayId, target.id, itemId);
+      },
+    );
+  }
+
+  function showItemActions(dayId: string, item: Item) {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['Edit', 'Move to day', 'Delete', 'Cancel'],
+        cancelButtonIndex: 3,
+        destructiveButtonIndex: 2,
+      },
+      (index) => {
+        if (index === 0) openItemEditor(dayId, item.id);
+        else if (index === 1) showMoveToDaySheet(dayId, item.id);
+        else if (index === 2) confirmDelete(dayId, item);
+      },
+    );
   }
 
   // Pick an item type for the day, then open the editor to create it.
@@ -126,9 +173,14 @@ export function ItineraryPanel({
         );
       case 'item':
         return (
-          <View style={styles.itemWrap}>
+          <Pressable
+            onPress={() => openItemEditor(row.dayId, row.item.id)}
+            onLongPress={() => showItemActions(row.dayId, row.item)}
+            accessibilityRole="button"
+            accessibilityLabel={row.item.type === 'note' ? 'Edit note' : `Edit ${row.item.name}`}
+          >
             <ItemRow item={row.item} />
-          </View>
+          </Pressable>
         );
     }
   }
@@ -189,6 +241,4 @@ const styles = StyleSheet.create({
   dayNotes: { marginTop: 4, fontSize: 14 },
   addButton: { paddingHorizontal: 4 },
   addButtonText: { fontSize: 28, fontWeight: '400', lineHeight: 30 },
-
-  itemWrap: {},
 });
