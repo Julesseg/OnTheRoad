@@ -1,4 +1,4 @@
-import { View, Text, Linking, Pressable, ActionSheetIOS, StyleSheet } from 'react-native';
+import { View, Text, Linking, Pressable, ActionSheetIOS, StyleSheet, useColorScheme } from 'react-native';
 
 import { formatItem, linkify } from '@/lib/item-display';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
@@ -24,6 +24,13 @@ export function ItemRow({ item }: { item: Item }) {
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
   const installedMapsApps = useTripStore((s) => s.installedMapsApps);
 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const titleColor = isDark ? '#fff' : '#111';
+  const lineColor = isDark ? '#b0b0b0' : '#444';
+  const typeLabelColor = isDark ? '#9a9a9a' : '#888';
+  const borderColor = isDark ? '#3a3a3c' : '#e0e0e0';
+
   function chooseMapsApp(target: MapsTarget) {
     ActionSheetIOS.showActionSheetWithOptions(
       {
@@ -39,11 +46,11 @@ export function ItemRow({ item }: { item: Item }) {
   }
 
   return (
-    <View style={styles.row}>
-      <Text style={styles.typeLabel}>{typeLabel}</Text>
-      <Text style={styles.title}>{title}</Text>
+    <View style={[styles.row, { borderBottomColor: borderColor }]}>
+      <Text style={[styles.typeLabel, { color: typeLabelColor }]}>{typeLabel}</Text>
+      <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
       {lines.map((line, i) => (
-        <Text key={i} style={styles.line}>
+        <Text key={i} style={[styles.line, { color: lineColor }]}>
           {linkify(line).map((seg, j) =>
             seg.kind === 'text' ? (
               <Text key={j}>{seg.value}</Text>
@@ -75,11 +82,10 @@ const styles = StyleSheet.create({
   row: {
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
   },
-  typeLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: '#888' },
+  typeLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
   title: { marginTop: 2, fontSize: 16, fontWeight: '600' },
-  line: { marginTop: 4, fontSize: 14, color: '#444' },
+  line: { marginTop: 4, fontSize: 14 },
   link: { color: '#007AFF' },
   mapsButton: { marginTop: 8, alignSelf: 'flex-start' },
   mapsButtonText: { fontSize: 14, fontWeight: '600', color: '#0a7ea4' },

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TripSummary } from './schema';
-import { canFavorite, resolveActiveTrip } from './active-trip';
+import { canFavorite, effectiveTripId, resolveActiveTrip } from './active-trip';
 
 function makeSummary(id: string, startDate: string, endDate: string): TripSummary {
   return { id, title: id, startDate, endDate };
@@ -100,5 +100,36 @@ describe('resolveActiveTrip', () => {
       tripId: null,
       shouldClearFavorite: true,
     });
+  });
+});
+
+describe('effectiveTripId', () => {
+  it('returns the Displayed Trip when one is set and still exists', () => {
+    const summaries = [
+      makeSummary('displayed', '2026-08-01', '2026-08-10'),
+      makeSummary('other', '2026-09-01', '2026-09-05'),
+    ];
+    expect(effectiveTripId('displayed', summaries, null, '2026-07-01')).toBe('displayed');
+  });
+
+  it('falls back to the resolved default when no Displayed Trip is set', () => {
+    const summaries = [
+      makeSummary('upcoming', '2026-08-01', '2026-08-10'),
+      makeSummary('inprogress', '2026-07-01', '2026-07-10'),
+    ];
+    expect(effectiveTripId(null, summaries, null, '2026-07-05')).toBe('inprogress');
+  });
+
+  it('ignores a stale Displayed Trip id that no longer exists and falls back', () => {
+    const summaries = [makeSummary('remaining', '2026-08-01', '2026-08-10')];
+    expect(effectiveTripId('deleted-id', summaries, null, '2026-07-01')).toBe('remaining');
+  });
+
+  it('honours the favorite via the fallback when no Displayed Trip is set', () => {
+    const summaries = [
+      makeSummary('fav', '2026-08-01', '2026-08-10'),
+      makeSummary('other', '2026-07-01', '2026-07-10'),
+    ];
+    expect(effectiveTripId(null, summaries, 'fav', '2026-07-05')).toBe('fav');
   });
 });

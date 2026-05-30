@@ -31,3 +31,19 @@ export function resolveActiveTrip(
   }
   return { tripId: selectCurrentOrNext(summaries, today), shouldClearFavorite: false };
 }
+
+// The Displayed Trip the map and /days sheet should show: an explicit
+// Displayed Trip when one is set and still exists, otherwise the resolved
+// active-trip default. A stale Displayed Trip (id no longer in summaries) is
+// ignored so a deleted trip can't leave the UI pointing at nothing.
+export function effectiveTripId(
+  displayedTripId: string | null,
+  summaries: TripSummary[],
+  activeTripId: string | null,
+  today: string,
+): string | null {
+  if (displayedTripId != null && summaries.some((s) => s.id === displayedTripId)) {
+    return displayedTripId;
+  }
+  return resolveActiveTrip(summaries, activeTripId, today).tripId;
+}

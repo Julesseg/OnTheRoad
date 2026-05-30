@@ -15,6 +15,7 @@ interface TripStore {
   trips: TripSummary[];
   loadedTrips: Record<string, Trip>;
   activeTripId: string | null;
+  displayedTripId: string | null;
   preferredMapsApp: MapsApp;
   installedMapsApps: MapsApp[];
   initialized: boolean;
@@ -32,6 +33,8 @@ interface TripStore {
   setPreferredMapsApp: (app: MapsApp) => void;
   setFavorite: (id: string) => void;
   clearFavorite: () => void;
+  setDisplayedTrip: (id: string) => void;
+  resetDisplayedTrip: () => void;
 }
 
 type StateSnapshot = { trips: TripSummary[]; activeTripId: string | null; preferredMapsApp: MapsApp };
@@ -76,6 +79,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   trips: [],
   loadedTrips: {},
   activeTripId: null,
+  displayedTripId: null,
   preferredMapsApp: 'apple',
   installedMapsApps: ['apple'],
   initialized: false,
@@ -185,5 +189,16 @@ export const useTripStore = create<TripStore>((set, get) => ({
   clearFavorite() {
     set({ activeTripId: null });
     writeState(snapshotOf(get));
+  },
+
+  // Displayed Trip is in-memory only: it is absent from StateSnapshot and these
+  // setters never call writeState, so it never reaches state.json. A cold start
+  // therefore always shows the resolved default, not the last-browsed Trip.
+  setDisplayedTrip(id: string) {
+    set({ displayedTripId: id });
+  },
+
+  resetDisplayedTrip() {
+    set({ displayedTripId: null });
   },
 }));
