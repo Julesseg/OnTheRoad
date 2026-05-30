@@ -62,6 +62,25 @@ describe('resolveNextUp', () => {
     expect(resolveNextUp(trip, now)).toEqual({ dayId: 'day-2', itemId: 'l1' });
   });
 
+  it('returns null when today\'s day has only untimed items', () => {
+    const trip = makeTrip({
+      days: [
+        { id: 'day-1', date: '2026-07-01', items: [] },
+        {
+          id: 'day-2',
+          date: '2026-07-02',
+          items: [
+            { type: 'note', id: 'n1', text: 'remember sunscreen' },
+            { type: 'location', id: 'l1', name: 'Lookout' }, // no time
+          ],
+        },
+        { id: 'day-3', date: '2026-07-03', items: [] },
+      ],
+    });
+    const now = new Date(2026, 6, 2, 9, 0);
+    expect(resolveNextUp(trip, now)).toBeNull();
+  });
+
   it('returns null when all timed items today have passed', () => {
     const trip = makeTrip({
       startDate: '2026-07-02',

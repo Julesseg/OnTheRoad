@@ -9,7 +9,7 @@ export interface TodaySelection {
   daysAway?: number;
 }
 
-function localDateString(d: Date): string {
+export function localDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
