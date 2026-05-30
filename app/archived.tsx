@@ -3,13 +3,12 @@ import {
   View,
   Text,
   Pressable,
-  SectionList,
+  FlatList,
   StyleSheet,
   Alert,
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { GlassView } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { Swipeable } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
@@ -17,25 +16,21 @@ import * as Sharing from 'expo-sharing';
 
 import { useTripStore } from '@/lib/store';
 import { partitionTrips } from '@/lib/trip-partition';
-import { canFavorite } from '@/lib/active-trip';
 import { todayString } from '@/lib/date-utils';
 import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
 
-type Section = { title: string; data: TripSummary[] };
-
-export default function TripsSheet() {
-  const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
-    useTripStore();
+export default function ArchivedSheet() {
+  const { trips, setDisplayedTrip, removeTrip } = useTripStore((s) => ({
+    trips: s.trips,
+    setDisplayedTrip: s.setDisplayedTrip,
+    removeTrip: s.removeTrip,
+  }));
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const { active } = partitionTrips(trips, today);
-  const sections: Section[] = [
-    { title: 'In progress', data: active.inProgress },
-    { title: 'Upcoming', data: active.upcoming },
-  ].filter((s) => s.data.length > 0);
+  const { archived } = partitionTrips(trips, today);
 
   async function onExport(summary: TripSummary) {
     try {
@@ -57,69 +52,29 @@ export default function TripsSheet() {
   function onDelete(summary: TripSummary) {
     Alert.alert('Delete trip', `Delete "${summary.title}"? This can't be undone.`, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => removeTrip(summary.id),
-      },
+      { text: 'Delete', style: 'destructive', onPress: () => removeTrip(summary.id) },
     ]);
   }
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.toolbar}>
-          <Pressable
-            onPress={() => router.push('/trip/new')}
-            accessibilityLabel="New trip"
-            accessibilityRole="button"
-          >
-            <GlassView glassEffectStyle="regular" isInteractive style={styles.toolbarBtn}>
-              <Text style={styles.toolbarBtnText}>New</Text>
-            </GlassView>
-          </Pressable>
+        <Text style={[styles.heading, { color: isDark ? '#fff' : '#111' }]}>Archived trips</Text>
 
-          <Pressable
-            onPress={() => router.push('/settings')}
-            accessibilityLabel="Settings"
-            accessibilityRole="button"
-          >
-            <GlassView glassEffectStyle="regular" isInteractive style={styles.toolbarBtn}>
-              <Text style={styles.toolbarBtnText}>⚙</Text>
-            </GlassView>
-          </Pressable>
-        </View>
-
-        {sections.length === 0 ? (
+        {archived.length === 0 ? (
           <View style={styles.empty}>
             <Text style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
-              No active trips
+              No archived trips
             </Text>
           </View>
         ) : (
-          <SectionList
-            sections={sections}
+          <FlatList
+            data={archived}
             keyExtractor={(item) => item.id}
-            renderSectionHeader={({ section }) => (
-              <Text style={[styles.sectionHeader, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
-                {section.title}
-              </Text>
-            )}
             renderItem={({ item }) => (
-              <TripRow
+              <ArchivedRow
                 summary={item}
-                isFavorite={activeTripId === item.id}
-                canFav={canFavorite(item, today)}
-                onToggleFavorite={() => {
-                  if (activeTripId === item.id) clearFavorite();
-                  else setFavorite(item.id);
-                }}
                 onTap={() => {
-                  // ADR-0001: reuse the single page — set the Displayed Trip in
-                  // store state rather than pushing a /trip/[id] route. Dismiss
-                  // the whole sheet stack (trips + days) back to the bare map;
-                  // index.tsx re-presents the permanent days sheet on focus,
-                  // which remounts it at its 50% initial detent.
                   setDisplayedTrip(item.id);
                   router.dismissAll();
                 }}
@@ -128,7 +83,6 @@ export default function TripsSheet() {
               />
             )}
             contentContainerStyle={styles.list}
-            stickySectionHeadersEnabled={false}
           />
         )}
       </SafeAreaView>
@@ -136,37 +90,28 @@ export default function TripsSheet() {
   );
 }
 
-type TripRowProps = {
+type ArchivedRowProps = {
   summary: TripSummary;
-  isFavorite: boolean;
-  canFav: boolean;
-  onToggleFavorite: () => void;
   onTap: () => void;
   onExport: () => void;
   onDelete: () => void;
 };
 
-function TripRow({ summary, isFavorite, canFav, onToggleFavorite, onTap, onExport, onDelete }: TripRowProps) {
+function ArchivedRow({ summary, onTap, onExport, onDelete }: ArchivedRowProps) {
   const swipeRef = useRef<Swipeable>(null);
 
   function renderRightActions() {
     return (
       <View style={styles.swipeActions}>
         <Pressable
-          onPress={() => {
-            swipeRef.current?.close();
-            onExport();
-          }}
+          onPress={() => { swipeRef.current?.close(); onExport(); }}
           style={[styles.swipeAction, styles.swipeExport]}
           accessibilityLabel="Export"
         >
           <Text style={styles.swipeActionText}>Export</Text>
         </Pressable>
         <Pressable
-          onPress={() => {
-            swipeRef.current?.close();
-            onDelete();
-          }}
+          onPress={() => { swipeRef.current?.close(); onDelete(); }}
           style={[styles.swipeAction, styles.swipeDelete]}
           accessibilityLabel="Delete"
         >
@@ -182,13 +127,6 @@ function TripRow({ summary, isFavorite, canFav, onToggleFavorite, onTap, onExpor
     <Swipeable ref={swipeRef} renderRightActions={renderRightActions} friction={2} rightThreshold={40}>
       <Pressable
         onPress={onTap}
-        onLongPress={() =>
-          Alert.alert(summary.title, '', [
-            { text: 'Export', onPress: onExport },
-            { text: 'Delete', style: 'destructive', onPress: onDelete },
-            { text: 'Cancel', style: 'cancel' },
-          ])
-        }
         accessibilityRole="button"
         accessibilityLabel={summary.title}
         style={styles.row}
@@ -205,17 +143,6 @@ function TripRow({ summary, isFavorite, canFav, onToggleFavorite, onTap, onExpor
             <Text style={styles.rowTitle} numberOfLines={1}>{summary.title}</Text>
             <Text style={styles.rowDates}>{summary.startDate} — {summary.endDate}</Text>
           </View>
-
-          {canFav && (
-            <Pressable
-              onPress={onToggleFavorite}
-              accessibilityLabel={isFavorite ? 'Remove favorite' : 'Make favorite'}
-              accessibilityRole="button"
-              style={styles.starBtn}
-            >
-              <Text style={styles.starText}>{isFavorite ? '★' : '☆'}</Text>
-            </Pressable>
-          )}
         </View>
       </Pressable>
     </Swipeable>
@@ -225,31 +152,16 @@ function TripRow({ summary, isFavorite, canFav, onToggleFavorite, onTap, onExpor
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safe: { flex: 1 },
-
-  toolbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  toolbarBtn: {
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  toolbarBtnText: { fontSize: 15, fontWeight: '600', color: '#007AFF' },
-
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  heading: {
+    fontSize: 20,
+    fontWeight: '700',
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 6,
+    paddingBottom: 8,
   },
   list: { paddingBottom: 24 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontSize: 16 },
 
   row: {
     height: 100,
@@ -259,10 +171,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   rowFallback: { backgroundColor: '#3a3a3c' },
-  scrim: {
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    borderRadius: 14,
-  },
+  scrim: { backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 14 },
   rowContent: {
     flex: 1,
     flexDirection: 'row',
@@ -273,19 +182,9 @@ const styles = StyleSheet.create({
   rowTitle: { color: '#fff', fontSize: 17, fontWeight: '600' },
   rowDates: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 },
 
-  starBtn: { padding: 8 },
-  starText: { fontSize: 22, color: '#FFD60A' },
-
   swipeActions: { flexDirection: 'row', marginVertical: 4, marginRight: 16, borderRadius: 14, overflow: 'hidden' },
-  swipeAction: {
-    width: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  swipeAction: { width: 80, alignItems: 'center', justifyContent: 'center' },
   swipeExport: { backgroundColor: '#30d158' },
   swipeDelete: { backgroundColor: '#ff3b30' },
   swipeActionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontSize: 16 },
 });
