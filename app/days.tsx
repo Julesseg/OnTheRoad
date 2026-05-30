@@ -122,9 +122,7 @@ export default function DaysSheet() {
           </Text>
         </View>
         <Pressable
-          onPress={() => {
-            /* Trips sheet — implemented in slice #41 */
-          }}
+          onPress={() => router.push('/trips')}
           accessibilityRole="button"
           accessibilityLabel="Trips"
         >

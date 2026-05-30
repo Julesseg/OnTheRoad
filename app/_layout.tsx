@@ -33,8 +33,7 @@ export default function RootLayout() {
             options={{
               presentation: 'formSheet',
               sheetGrabberVisible: true,
-              sheetAllowedDetents: [0.5, 1.0],
-              sheetInitialDetentIndex: 1,
+              sheetAllowedDetents: [1.0],
             }}
           />
         </Stack>

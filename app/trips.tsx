@@ -25,7 +25,8 @@ import type { TripSummary } from '@/lib/schema';
 type Section = { title: string; data: TripSummary[] };
 
 export default function TripsSheet() {
-  const { trips, activeTripId, setFavorite, clearFavorite, removeTrip } = useTripStore();
+  const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
+    useTripStore();
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -114,8 +115,13 @@ export default function TripsSheet() {
                   else setFavorite(item.id);
                 }}
                 onTap={() => {
-                  router.dismiss();
-                  router.push(`/trip/${item.id}`);
+                  // ADR-0001: reuse the single page — set the Displayed Trip in
+                  // store state rather than pushing a /trip/[id] route. Dismiss
+                  // the whole sheet stack (trips + days) back to the bare map;
+                  // index.tsx re-presents the permanent days sheet on focus,
+                  // which remounts it at its 50% initial detent.
+                  setDisplayedTrip(item.id);
+                  router.dismissAll();
                 }}
                 onExport={() => onExport(item)}
                 onDelete={() => onDelete(item)}
