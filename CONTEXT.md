@@ -3,7 +3,7 @@
 The domain glossary for this repo. When code, issues, plans, or tests name a
 domain concept, use the term as defined here rather than a synonym. This is a
 single-context repo, so there is one `CONTEXT.md` at the root; architectural
-decisions live in `docs/adr/`.
+decisions live in `docs/adr/` ([0001](docs/adr/0001-single-page-displayed-trip.md)).
 
 On the Road is a local-first, iOS-only road-trip itinerary planner. A user
 builds a **Trip**, the app lays out one **Day** per calendar date, and the user
@@ -89,6 +89,14 @@ The global persisted state, stored in `state.json` separately from trip files:
 `activeTripId`, the array of [Trip Summaries](#trip-summary), the
 [preferred maps app](#preferred-maps-app), and `lastUpdated`. Defined by
 `AppStateSchema`.
+
+### Displayed Trip
+
+The trip currently shown on the home screen. Distinct from the
+[Favorite](#app-state) (the explicit pin) and from the resolved default (the
+trip the app opens on automatically). Selecting a trip from the sheet makes it
+the Displayed Trip; the app reverts to the resolved default on a cold start. See
+[ADR-0001](docs/adr/0001-single-page-displayed-trip.md).
 
 ### Trip status
 

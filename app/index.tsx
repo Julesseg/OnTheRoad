@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
 import { TripMap } from '@/components/trip-map';
@@ -30,15 +30,18 @@ export default function HomeScreen() {
     if (summary) loadTripById(summary.id);
   }, [summary?.id]);
 
-  // The /days sheet is permanent: present it once the store is ready and
-  // re-present it if it ever loses focus (e.g. after returning from a modal).
-  const presented = useRef(false);
-  useEffect(() => {
-    if (initialized && !presented.current) {
-      presented.current = true;
-      router.push('/days');
-    }
-  }, [initialized]);
+  // The /days sheet is permanent. Re-present it whenever the bare map regains
+  // focus — once at startup when the store is ready, and again after the trips
+  // sheet dismisses the whole stack to switch trips. Each fresh mount snaps the
+  // sheet back to its 50% initial detent: react-native-screens applies
+  // sheetInitialDetentIndex only on the sheet's first layout (RNSScreen.mm's
+  // one-shot _sheetHasInitialDetentSet guard) and exposes no imperative
+  // detent setter, so re-presenting is the only way to reset the detent.
+  useFocusEffect(
+    useCallback(() => {
+      if (initialized) router.push('/days');
+    }, [initialized]),
+  );
 
   const coords = trip ? tripRouteCoords(trip) : [];
   const viewport = framedViewport(coords, PANEL_FRACTION);

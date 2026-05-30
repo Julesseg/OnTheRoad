@@ -28,6 +28,14 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen name="trip" />
+          <Stack.Screen
+            name="trips"
+            options={{
+              presentation: 'formSheet',
+              sheetGrabberVisible: true,
+              sheetAllowedDetents: [1.0],
+            }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
