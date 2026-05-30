@@ -3,11 +3,11 @@ import { StyleSheet } from 'react-native';
 import { AppleMaps } from 'expo-maps';
 
 import type { Trip } from '@/lib/schema';
-import { tripRouteCoords, routeViewport } from '@/lib/trip-route';
+import { tripRouteCoords, routeViewport, type Viewport } from '@/lib/trip-route';
 
 const ACCENT = '#0a7ea4';
 
-export function TripMap({ trip }: { trip: Trip | null }) {
+export function TripMap({ trip, viewport: viewportProp }: { trip: Trip | null; viewport?: Viewport }) {
   const coords = trip ? tripRouteCoords(trip) : [];
   const markers = coords.map((c) => ({
     coordinates: { latitude: c.lat, longitude: c.lng },
@@ -24,7 +24,7 @@ export function TripMap({ trip }: { trip: Trip | null }) {
           },
         ]
       : [];
-  const viewport = routeViewport(coords);
+  const viewport = viewportProp ?? routeViewport(coords);
 
   // `cameraPosition` is honored once on mount, so re-fit imperatively whenever
   // the route coords change (e.g. the trip loads after the first null render).
