@@ -35,7 +35,6 @@ export default function RootLayout() {
               sheetGrabberVisible: true,
               sheetAllowedDetents: [0.5, 1.0],
               sheetInitialDetentIndex: 1,
-              gestureEnabled: true,
             }}
           />
         </Stack>

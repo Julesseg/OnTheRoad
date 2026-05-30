@@ -19,8 +19,7 @@ import { useTripStore } from '@/lib/store';
 import { partitionTrips } from '@/lib/trip-partition';
 import { canFavorite } from '@/lib/active-trip';
 import { todayString } from '@/lib/date-utils';
-import { wallpaperDisplayUri } from '@/lib/storage';
-import { exportTripAsFile } from '@/lib/storage';
+import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
 
 type Section = { title: string; data: TripSummary[] };
@@ -203,7 +202,7 @@ function TripRow({ summary, isFavorite, canFav, onToggleFavorite, onTap, onExpor
 
           {canFav && (
             <Pressable
-              onPress={(e) => { e.stopPropagation?.(); onToggleFavorite(); }}
+              onPress={onToggleFavorite}
               accessibilityLabel={isFavorite ? 'Remove favorite' : 'Make favorite'}
               accessibilityRole="button"
               style={styles.starBtn}
