@@ -3,7 +3,7 @@
 The domain glossary for this repo. When code, issues, plans, or tests name a
 domain concept, use the term as defined here rather than a synonym. This is a
 single-context repo, so there is one `CONTEXT.md` at the root; architectural
-decisions live in `docs/adr/`.
+decisions live in `docs/adr/` ([0001](docs/adr/0001-single-page-displayed-trip.md)).
 
 On the Road is a local-first, iOS-only road-trip itinerary planner. A user
 builds a **Trip**, the app lays out one **Day** per calendar date, and the user
@@ -89,6 +89,19 @@ The global persisted state, stored in `state.json` separately from trip files:
 `activeTripId`, the array of [Trip Summaries](#trip-summary), the
 [preferred maps app](#preferred-maps-app), and `lastUpdated`. Defined by
 `AppStateSchema`.
+
+### Displayed Trip
+
+The Trip the single home page is currently showing. Distinct from the
+[Favorite](#app-state) (`activeTripId`, the explicit pin) and from the resolved
+default the app opens on (`resolveActiveTrip` — favorite-if-valid, else
+current-or-next). On open the Displayed Trip equals that resolved default;
+selecting a Trip from the trips sheet swaps it, and "jump back to favorite"
+resets it. It is **ephemeral in-memory state** — never persisted, so a cold
+start always shows the resolved default again, not the last-browsed Trip. The
+page is reused, not re-pushed, when the Displayed Trip changes (see
+[ADR-0001](docs/adr/0001-single-page-displayed-trip.md)). Both the map and the
+days panel read `effectiveTripId = displayedTripId ?? resolveActiveTrip(...)`.
 
 ### Trip status
 
