@@ -92,16 +92,11 @@ The global persisted state, stored in `state.json` separately from trip files:
 
 ### Displayed Trip
 
-The Trip the single home page is currently showing. Distinct from the
-[Favorite](#app-state) (`activeTripId`, the explicit pin) and from the resolved
-default the app opens on (`resolveActiveTrip` — favorite-if-valid, else
-current-or-next). On open the Displayed Trip equals that resolved default;
-selecting a Trip from the trips sheet swaps it, and "jump back to favorite"
-resets it. It is **ephemeral in-memory state** — never persisted, so a cold
-start always shows the resolved default again, not the last-browsed Trip. The
-page is reused, not re-pushed, when the Displayed Trip changes (see
-[ADR-0001](docs/adr/0001-single-page-displayed-trip.md)). Both the map and the
-days panel read `effectiveTripId = displayedTripId ?? resolveActiveTrip(...)`.
+The trip currently shown on the home screen. Distinct from the
+[Favorite](#app-state) (the explicit pin) and from the resolved default (the
+trip the app opens on automatically). Selecting a trip from the sheet makes it
+the Displayed Trip; the app reverts to the resolved default on a cold start. See
+[ADR-0001](docs/adr/0001-single-page-displayed-trip.md).
 
 ### Trip status
 
