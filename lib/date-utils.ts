@@ -22,3 +22,22 @@ export function formatDayLabel(date: string): string {
     day: 'numeric',
   });
 }
+
+/**
+ * Format a YYYY-MM-DD start/end pair as a natural date range, collapsing
+ * shared month/year so they aren't repeated:
+ *   same month  → "Jun 1 – 15, 2026"
+ *   same year   → "Jun 28 – Jul 3, 2026"
+ *   otherwise   → "Dec 30, 2026 – Jan 2, 2027"
+ * Parses the Y-M-D parts as local time so days never drift across UTC.
+ */
+export function formatDateRange(start: string, end: string): string {
+  const [sy, sm, sd] = start.split('-').map(Number);
+  const [ey, em, ed] = end.split('-').map(Number);
+  const monthDay = (y: number, m: number, d: number) =>
+    new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (sy === ey && sm === em) return `${monthDay(sy, sm, sd)} – ${ed}, ${ey}`;
+  if (sy === ey) return `${monthDay(sy, sm, sd)} – ${monthDay(ey, em, ed)}, ${ey}`;
+  return `${monthDay(sy, sm, sd)}, ${sy} – ${monthDay(ey, em, ed)}, ${ey}`;
+}

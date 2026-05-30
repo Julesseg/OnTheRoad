@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Trip } from './schema';
-import { buildItineraryRows } from './itinerary-rows';
+import { buildItineraryRows, dayHeaderIndex } from './itinerary-rows';
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
   return {
@@ -30,6 +30,17 @@ describe('buildItineraryRows', () => {
     expect(headers[0]).toMatchObject({ kind: 'dayHeader', dayId: 'day-1', dayNumber: 1, date: '2026-07-01' });
     expect(headers[1]).toMatchObject({ kind: 'dayHeader', dayId: 'day-2', dayNumber: 2, date: '2026-07-02' });
     expect(headers[2]).toMatchObject({ kind: 'dayHeader', dayId: 'day-3', dayNumber: 3, date: '2026-07-03' });
+  });
+
+  it('flags only the day whose date matches `now` as today', () => {
+    const onJuly2 = new Date(2026, 6, 2, 9, 0);
+    const headers = buildItineraryRows(makeTrip(), onJuly2).filter((r) => r.kind === 'dayHeader');
+    expect(headers.map((h) => h.kind === 'dayHeader' && h.isToday)).toEqual([false, true, false]);
+  });
+
+  it('flags no day as today when `now` falls outside the trip', () => {
+    const headers = buildItineraryRows(makeTrip(), BEFORE_TRIP).filter((r) => r.kind === 'dayHeader');
+    expect(headers.every((h) => h.kind === 'dayHeader' && !h.isToday)).toBe(true);
   });
 
   it('includes day notes in the dayHeader', () => {
@@ -105,5 +116,33 @@ describe('buildItineraryRows', () => {
     const lateInDay = new Date(2026, 6, 2, 10, 0); // 10:00, breakfast at 08:00 has passed
     const rows = buildItineraryRows(trip, lateInDay);
     expect(rows.some((r) => r.kind === 'nextUp')).toBe(false);
+  });
+});
+
+describe('dayHeaderIndex', () => {
+  it('returns the row index of a day header, accounting for the nextUp row and earlier items', () => {
+    const trip = makeTrip({
+      days: [
+        {
+          id: 'day-1',
+          date: '2026-07-01',
+          items: [{ type: 'activity', id: 'a1', name: 'Lunch', time: '12:00' }],
+        },
+        {
+          id: 'day-2',
+          date: '2026-07-02',
+          items: [{ type: 'activity', id: 'a2', name: 'Dinner', time: '19:00' }],
+        },
+      ],
+    });
+    const inProgress = new Date(2026, 6, 1, 9, 0); // nextUp row present at index 0
+    const rows = buildItineraryRows(trip, inProgress);
+    // rows: [nextUp, day-1 header, a1, day-2 header, a2]
+    expect(dayHeaderIndex(rows, 'day-2')).toBe(3);
+  });
+
+  it('returns -1 when the day is not present', () => {
+    const rows = buildItineraryRows(makeTrip(), BEFORE_TRIP);
+    expect(dayHeaderIndex(rows, 'missing')).toBe(-1);
   });
 });

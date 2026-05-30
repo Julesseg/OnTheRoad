@@ -1,0 +1,408 @@
+{
+  "id": "6b30e5e9-e423-417d-a817-d88f3b34efad",
+  "schemaVersion": 2,
+  "title": "Slovenia Trip",
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-13",
+  "days": [
+    {
+      "id": "bdf260d0-da7f-4a87-8d74-ce6b7aa80999",
+      "date": "2026-06-01",
+      "items": [
+        {
+          "type": "activity",
+          "id": "0eac70bc-b1c4-4c2c-bd11-5cf4d3034a2a",
+          "name": "Bus Paris → Ljubljana",
+          "time": "16:40",
+          "notes": "€108.97 for two. Sleep on the bus."
+        },
+        {
+          "type": "note",
+          "id": "5bf77b27-6e3e-498b-b196-9a6506f53b9d",
+          "text": "Estimated budget ~€3000 for two: van rental (Jun 4–12) €1130, train/bus €325, fuel €200, food+sightseeing ~€600, parking/campsites ~€400 (€50/day x 8), Ljubljana lodging €258.72 (3 nights)."
+        }
+      ]
+    },
+    {
+      "id": "dca0ab8c-1e91-42b8-931d-2aacdde44856",
+      "date": "2026-06-02",
+      "items": [
+        {
+          "type": "activity",
+          "id": "cf9b3ce1-19bd-43a6-98c7-fc6abd962227",
+          "name": "Arrive in Ljubljana",
+          "time": "10:26",
+          "notes": "Drop backpacks at the apartment or in a locker."
+        },
+        {
+          "type": "activity",
+          "id": "98807658-9111-49d5-b86f-e853dcd219b5",
+          "name": "Explore Ljubljana",
+          "time": "12:00",
+          "notes": "Walk around or rent a bike."
+        },
+        {
+          "type": "accommodation",
+          "id": "40799793-35d6-4a1d-8c81-2689c5134637",
+          "name": "Katrca Bezigrad apartment",
+          "address": "Bežigrad, 1000 Ljubljana, Slovenia",
+          "checkIn": "15:00",
+          "notes": "Double room, €190.72. Bring cash for the tourist tax."
+        }
+      ]
+    },
+    {
+      "id": "320de1f1-9f00-437e-9d61-f5b174e40038",
+      "date": "2026-06-03",
+      "items": [
+        {
+          "type": "activity",
+          "id": "df6a53aa-dfb4-42a8-b07c-5dd45aebdf06",
+          "name": "Explore Ljubljana",
+          "time": "10:00",
+          "notes": "Walk around or rent a bike."
+        },
+        {
+          "type": "location",
+          "id": "a640f62c-f37a-43a4-86de-b0eacea6f4df",
+          "name": "Neboticnik rooftop",
+          "address": "Štefanova ulica 1, 1000 Ljubljana, Slovenia",
+          "lat": 46.05316,
+          "lng": 14.50359,
+          "time": "18:30",
+          "notes": "Grab a drink at the rooftop bar."
+        },
+        {
+          "type": "location",
+          "id": "5700707d-3918-4442-8605-b88f6a4e1da1",
+          "name": "Ljubljana Castle",
+          "address": "Grajska planota 1, 1000 Ljubljana, Slovenia",
+          "lat": 46.04878,
+          "lng": 14.50854,
+          "time": "14:00",
+          "notes": "Visit the castle."
+        },
+        {
+          "type": "accommodation",
+          "id": "8080d7ff-235c-4f61-9c40-6133655348ed",
+          "name": "Night in Ljubljana"
+        }
+      ]
+    },
+    {
+      "id": "9f9057c0-a299-412f-a699-5ef65cdc28f4",
+      "date": "2026-06-04",
+      "items": [
+        {
+          "type": "activity",
+          "id": "67b6cd39-8c99-4524-b5d3-8906a5e044ee",
+          "name": "Bus Ljubljana → Koper",
+          "time": "09:00",
+          "notes": "€11.50 per person. Tickets can be booked up to a month ahead."
+        },
+        {
+          "type": "activity",
+          "id": "208a127b-7e98-4ef7-9ef5-0f7932d99a78",
+          "name": "Pick up the van in Koper",
+          "time": "14:00",
+          "notes": "Van available from 2pm."
+        },
+        {
+          "type": "activity",
+          "id": "f8929be5-ca46-4042-be8c-3845aacd1828",
+          "name": "Grocery run in Koper",
+          "time": "15:30",
+          "notes": "Stock up for the first few days."
+        },
+        {
+          "type": "location",
+          "id": "e4af8f9b-8d01-4ba4-8cef-aa32c60c9b33",
+          "name": "Drive to Skocjan",
+          "address": "Škocjan, 6215 Divača, Slovenia",
+          "lat": 45.66314,
+          "lng": 13.98917,
+          "time": "16:30",
+          "notes": "Head toward Skocjan. Park overnight."
+        }
+      ]
+    },
+    {
+      "id": "d71b92be-07c2-4035-90ba-8c6c8280a344",
+      "date": "2026-06-05",
+      "items": [
+        {
+          "type": "activity",
+          "id": "7ca1b5b1-52d2-4262-9b21-687f833577cc",
+          "name": "Skocjan Caves",
+          "time": "10:00",
+          "notes": "18 min drive. €22 per person, allow 2.5–3h for the visit."
+        },
+        {
+          "type": "activity",
+          "id": "70a5f4df-e1d6-4579-b68a-b0297be2c925",
+          "name": "Lunch & short hike",
+          "time": "13:00",
+          "notes": "Around the Skocjan Caves."
+        },
+        {
+          "type": "activity",
+          "id": "20605111-208d-4cef-b84a-2cfea182f7f6",
+          "name": "Bear watching near Postojna",
+          "time": "18:20",
+          "notes": "30 min drive. 3h expedition, €95 per person."
+        },
+        {
+          "type": "accommodation",
+          "id": "6d856888-8aea-4190-9c19-7b7a12895d95",
+          "name": "Overnight parking, Postojna"
+        }
+      ]
+    },
+    {
+      "id": "ee1cf017-30c6-43f6-9b63-d20d3082cf63",
+      "date": "2026-06-06",
+      "items": [
+        {
+          "type": "location",
+          "id": "25b396a4-60a6-49e5-8aa2-49548541826c",
+          "name": "Predjama Castle",
+          "address": "Predjama 1, 6230 Postojna, Slovenia",
+          "lat": 45.81581,
+          "lng": 14.12677,
+          "time": "10:00",
+          "notes": "15 min drive. Visit the castle."
+        },
+        {
+          "type": "location",
+          "id": "2a627f6d-c408-4648-83bf-0a6e9c008164",
+          "name": "Viewpoint & church stops toward Bled",
+          "address": "Jamnik, 4205 Preddvor, Slovenia",
+          "lat": 46.27523,
+          "lng": 14.21411,
+          "time": "12:30",
+          "notes": "Sv. Lovrenc church (viewpoint, 15 min). Cerkev Sv Tomaz (1h20). St Thomas Church Viewpoint (8 min). Jamnik church and viewpoint (25 min)."
+        },
+        {
+          "type": "accommodation",
+          "id": "a7994249-4bfe-4f07-a655-1d7939d2a8e2",
+          "name": "Bled campsite",
+          "address": "Kidričeva cesta 10c, 4260 Bled, Slovenia",
+          "checkIn": "14:00",
+          "notes": "Check in before 6pm. €105.92 for two nights."
+        }
+      ]
+    },
+    {
+      "id": "cea74223-0b0e-4a2a-b285-ccfa188b0b34",
+      "date": "2026-06-07",
+      "items": [
+        {
+          "type": "activity",
+          "id": "478bc54e-3726-44af-beb0-7b3e39d5637f",
+          "name": "Day at Lake Bled",
+          "time": "09:30",
+          "notes": "Walk around the lake and town, Bled Castle, time on the water (rowboat, swimming…)."
+        },
+        {
+          "type": "accommodation",
+          "id": "984b568e-5bf8-4772-9e6c-0c2fa39b8af8",
+          "name": "Bled campsite",
+          "address": "Kidričeva cesta 10c, 4260 Bled, Slovenia"
+        }
+      ]
+    },
+    {
+      "id": "541b4b35-edcd-4bcc-9dd5-ed7ec5466717",
+      "date": "2026-06-08",
+      "items": [
+        {
+          "type": "activity",
+          "id": "82040f93-94eb-4f75-998e-445b9d9ac69a",
+          "name": "Vintgar Gorge",
+          "time": "09:00",
+          "notes": "15 min drive. €15 per person, about 2h walk."
+        },
+        {
+          "type": "activity",
+          "id": "f27a099d-904b-4c86-ac14-071633415708",
+          "name": "Pericnik Waterfall",
+          "time": "12:00",
+          "notes": "40 min drive. 1h walk, picnic on site."
+        },
+        {
+          "type": "location",
+          "id": "b3157923-bd75-4fda-9347-6169b686c8a9",
+          "name": "Lake Jasna",
+          "address": "Kranjska Gora, Slovenia",
+          "lat": 46.47414,
+          "lng": 13.78401,
+          "time": "15:00",
+          "notes": "30 min drive. Beach-like setup, view of Mount Triglav. Swimming, napping, paddleboarding…"
+        },
+        {
+          "type": "accommodation",
+          "id": "1d93946f-64cc-475f-9f00-dc5a7545c9b0",
+          "name": "Night in Kranjska Gora",
+          "notes": "Camper van area or wild campsite."
+        }
+      ]
+    },
+    {
+      "id": "42b845e5-0639-4c35-a4f3-eb3a4956a22f",
+      "date": "2026-06-09",
+      "items": [
+        {
+          "type": "location",
+          "id": "7c4de881-1d66-4153-8345-12f6ca66d68e",
+          "name": "Vrsic Pass & Soca Valley",
+          "address": "Vršič Pass, 4280 Kranjska Gora, Slovenia",
+          "lat": 46.43478,
+          "lng": 13.74371,
+          "time": "09:30",
+          "notes": "Drive the Vrsic Pass (49 hairpins). Stop at the Ruska Kapelica. Arrive at the Velika Korita gorge."
+        },
+        {
+          "type": "activity",
+          "id": "19adf7be-7d87-4466-8399-91106afe8995",
+          "name": "Rafting in Bovec",
+          "time": "15:00",
+          "notes": "In the afternoon. Company TBD."
+        },
+        {
+          "type": "accommodation",
+          "id": "356a5b8e-4d03-4b05-bc2a-6ac35f730e2c",
+          "name": "Bovec parking",
+          "notes": "Paid parking. Arrive before 9pm for the ticket desk."
+        }
+      ]
+    },
+    {
+      "id": "68055f7f-db70-45da-9215-c9635ce2ed02",
+      "date": "2026-06-10",
+      "items": [
+        {
+          "type": "activity",
+          "id": "74b5fdfe-e5cc-4e0a-85fb-f7e28f3b96ea",
+          "name": "Chill morning in Bovec",
+          "time": "09:30",
+          "notes": "Walk around Bovec or to Boka waterfall…"
+        },
+        {
+          "type": "location",
+          "id": "2f28cb9d-3c45-411c-a4d0-1bb026d9d304",
+          "name": "Stop in Kobarid",
+          "address": "Kobarid, Slovenia",
+          "lat": 46.24555,
+          "lng": 13.57917,
+          "time": "12:00"
+        },
+        {
+          "type": "location",
+          "id": "068ef9c3-8291-47a8-8281-f39dec0055ec",
+          "name": "Stop in Tolmin",
+          "address": "Tolmin, Slovenia",
+          "lat": 46.14373,
+          "lng": 13.78928,
+          "time": "14:00"
+        },
+        {
+          "type": "location",
+          "id": "4cae3f0a-bcd9-4763-8cc4-f0c02537bb5c",
+          "name": "Stop in Most na Soci",
+          "address": "Most na Soči, 5216 Most na Soči, Slovenia",
+          "lat": 46.15209,
+          "lng": 13.74402,
+          "time": "15:30"
+        },
+        {
+          "type": "accommodation",
+          "id": "6b298da9-38e2-437c-a7b2-a01e635fb6e2",
+          "name": "Campsite near Kanal",
+          "notes": "Secluded campsite by a lake."
+        }
+      ]
+    },
+    {
+      "id": "10813494-b4e1-4015-b0f8-08b379d63ff1",
+      "date": "2026-06-11",
+      "items": [
+        {
+          "type": "location",
+          "id": "1563c60a-8ad6-4224-af5c-abf74c07c0d4",
+          "name": "Stop in Trieste",
+          "address": "Trieste, Italy",
+          "lat": 45.64965,
+          "lng": 13.77728,
+          "time": "11:00",
+          "notes": "1h50 drive along the way."
+        },
+        {
+          "type": "location",
+          "id": "fca38034-dd62-471e-b4be-7b5f6da453b7",
+          "name": "Piran",
+          "address": "Piran, Slovenia",
+          "lat": 45.52849,
+          "lng": 13.56845,
+          "time": "15:00",
+          "notes": "Park at the campsite or camper area near town. Explore the town and walls on foot."
+        },
+        {
+          "type": "accommodation",
+          "id": "b6669323-3226-4f1e-9243-2a5322d046dd",
+          "name": "Camper van area, Piran",
+          "notes": "About €35 per night."
+        }
+      ]
+    },
+    {
+      "id": "49270c36-43b6-4754-bd4b-d94899d13bef",
+      "date": "2026-06-12",
+      "items": [
+        {
+          "type": "activity",
+          "id": "1590a216-39ef-4304-a6a9-763f77dbb5f4",
+          "name": "Morning in Piran",
+          "time": "09:00",
+          "notes": "More of Piran or the surroundings, depending on how we feel."
+        },
+        {
+          "type": "activity",
+          "id": "38541f20-e0ab-4ea2-9cd1-acaf1c4ae63b",
+          "name": "Return the van in Koper",
+          "time": "11:00",
+          "notes": "Before noon."
+        },
+        {
+          "type": "activity",
+          "id": "8b324e87-b977-4c22-b76b-8f538492a8c0",
+          "name": "Bus Koper → Ljubljana",
+          "time": "13:00",
+          "notes": "Chill in the capital: nap in the park, walk along the riverside…"
+        },
+        {
+          "type": "accommodation",
+          "id": "a49e075c-ae60-4937-aff0-1768ef32e3a0",
+          "name": "Capsule hostel, Ljubljana",
+          "address": "Ljubljana, Slovenia",
+          "checkIn": "16:00",
+          "notes": "€75. Bring cash for the tourist tax."
+        }
+      ]
+    },
+    {
+      "id": "4cc5bdd7-3ed5-4a74-87e3-5f7822cfef6f",
+      "date": "2026-06-13",
+      "items": [
+        {
+          "type": "activity",
+          "id": "9cdfa07d-dcd2-442e-ba36-782542495d4b",
+          "name": "Bus Ljubljana → Paris",
+          "time": "07:42",
+          "notes": "Arrive in Paris 20:42. €217.98."
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-05-29T12:00:00.000Z",
+  "updatedAt": "2026-05-29T12:00:00.000Z"
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { todayString, tripStatus, formatDayLabel } from './date-utils';
+import { todayString, tripStatus, formatDayLabel, formatDateRange } from './date-utils';
 import type { TripSummary } from './schema';
 
 function makeSummary(startDate: string, endDate: string): TripSummary {
@@ -57,5 +57,19 @@ describe('formatDayLabel', () => {
     // If parsed as UTC, '2026-01-01' would render as Dec 31 in negative-offset
     // time zones. Parsing the Y-M-D parts directly avoids that drift.
     expect(formatDayLabel('2026-01-01')).toBe('Thu, Jan 1');
+  });
+});
+
+describe('formatDateRange', () => {
+  it('collapses the shared month and year within a single month', () => {
+    expect(formatDateRange('2026-06-01', '2026-06-15')).toBe('Jun 1 – 15, 2026');
+  });
+
+  it('repeats the month but shares the year when crossing months', () => {
+    expect(formatDateRange('2026-06-28', '2026-07-03')).toBe('Jun 28 – Jul 3, 2026');
+  });
+
+  it('spells out both years when the range crosses a year boundary', () => {
+    expect(formatDateRange('2026-12-30', '2027-01-02')).toBe('Dec 30, 2026 – Jan 2, 2027');
   });
 });
