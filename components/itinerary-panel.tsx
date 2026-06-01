@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactElement } from 'react';
 import {
   View,
   StyleSheet,
-  ActionSheetIOS,
   Alert,
   useColorScheme,
   type LayoutChangeEvent,
@@ -102,7 +101,6 @@ export function ItineraryPanel({
   const onHeaderLayout = (e: LayoutChangeEvent) => setHeaderHeight(e.nativeEvent.layout.height);
 
   const deleteItem = useTripStore((s) => s.deleteItem);
-  const moveItem = useTripStore((s) => s.moveItem);
   const reorderItem = useTripStore((s) => s.reorderItem);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
 
@@ -133,19 +131,12 @@ export function ItineraryPanel({
     ]);
   }
 
+  // Open the calendar pop-up to move this item to another Day (a different date).
   function showMoveToDaySheet(fromDayId: string, itemId: string) {
-    const others = days.filter((d) => d.id !== fromDayId);
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: 'Move to day',
-        options: [...others.map((d) => `Day ${days.indexOf(d) + 1}`), 'Cancel'],
-        cancelButtonIndex: others.length,
-      },
-      (index) => {
-        const target = others[index];
-        if (target) moveItem(trip.id, fromDayId, target.id, itemId);
-      },
-    );
+    router.push({
+      pathname: '/trip/[id]/move',
+      params: { id: trip.id, fromDayId, itemId },
+    });
   }
 
   // Pick an item type for the day, then open the editor to create it.
