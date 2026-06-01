@@ -46,6 +46,31 @@ export function moveItemToDay(
   };
 }
 
+/** Reorder the items within `dayId` per SwiftUI's `onMove` semantics. Pure. */
+export function reorderItemInDay(
+  trip: Trip,
+  dayId: string,
+  sourceIndices: number[],
+  destination: number,
+  now: string,
+): Trip {
+  const sources = [...new Set(sourceIndices)].sort((a, b) => a - b);
+  const day = trip.days.find((d) => d.id === dayId);
+  if (!day) return trip;
+  const moved = sources.map((i) => day.items[i]);
+  const remaining = day.items.filter((_, i) => !sources.includes(i));
+  // SwiftUI's `destination` indexes the original array; shift it left by the
+  // number of moved items that sat before it so the drop lands where expected.
+  const insertAt = destination - sources.filter((i) => i < destination).length;
+  const items = [...remaining.slice(0, insertAt), ...moved, ...remaining.slice(insertAt)];
+  if (items.every((item, i) => item === day.items[i])) return trip;
+  return {
+    ...trip,
+    updatedAt: now,
+    days: trip.days.map((d) => (d.id === dayId ? { ...d, items } : d)),
+  };
+}
+
 /** Remove the item with `itemId` from `dayId`. Pure. */
 export function deleteItemFromTrip(trip: Trip, dayId: string, itemId: string, now: string): Trip {
   return {

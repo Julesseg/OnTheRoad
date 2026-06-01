@@ -27,9 +27,10 @@ vi.mock('@expo/ui/swift-ui', async () => {
   const ContextMenu = Object.assign(pass('div'), { Trigger, Items });
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
+  const ForEach = pass('div');
   return {
     Host: pass('div'),
-    List: pass('div'),
+    List: Object.assign(pass('div'), { ForEach }),
     Section,
     VStack: pass('div'),
     HStack: pass('div'),
@@ -72,12 +73,14 @@ vi.mock('@/lib/store', () => ({
       preferredMapsApp: string;
       deleteItem: () => void;
       moveItem: () => void;
+      reorderItem: () => void;
     }) => unknown,
   ) =>
     selector({
       preferredMapsApp: 'apple',
       deleteItem: vi.fn(),
       moveItem: vi.fn(),
+      reorderItem: vi.fn(),
     }),
 }));
 

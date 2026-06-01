@@ -103,6 +103,7 @@ export function ItineraryPanel({
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const moveItem = useTripStore((s) => s.moveItem);
+  const reorderItem = useTripStore((s) => s.reorderItem);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
 
   const today = localDateString(now);
@@ -275,7 +276,15 @@ export function ItineraryPanel({
                 </VStack>
               }
             >
-              {day.items.map((item) => renderItem(day.id, item))}
+              {/* List.ForEach bridges SwiftUI's drag-to-reorder; `onMove` fires within
+                  this Day only. Cross-day moves stay on the row's "Move to day" menu. */}
+              <List.ForEach
+                onMove={(sourceIndices, destination) =>
+                  reorderItem(trip.id, day.id, sourceIndices, destination)
+                }
+              >
+                {day.items.map((item) => renderItem(day.id, item))}
+              </List.ForEach>
             </Section>
           ))}
         </List>
