@@ -18,6 +18,7 @@ vi.mock('./maps', () => ({
 
 import * as storage from './storage';
 import { useTripStore } from './store';
+import type { TripSummary } from './schema';
 
 const initial = useTripStore.getState();
 
@@ -49,5 +50,38 @@ describe('Displayed Trip', () => {
       vi.useRealTimers();
     }
     expect(storage.saveState).not.toHaveBeenCalled();
+  });
+});
+
+const trip = (id: string): TripSummary => ({
+  id,
+  title: id,
+  startDate: '2026-07-01',
+  endDate: '2026-07-10',
+  wallpaperUri: undefined,
+});
+
+describe('removeTrip — Displayed Trip & favorite', () => {
+  it('resets the Displayed Trip when the trip being deleted is the one displayed', async () => {
+    useTripStore.setState({ trips: [trip('a'), trip('b')], displayedTripId: 'b' });
+    await useTripStore.getState().removeTrip('b');
+    expect(useTripStore.getState().displayedTripId).toBeNull();
+  });
+
+  it('clears the favorite when the trip being deleted is the favorite', async () => {
+    useTripStore.setState({ trips: [trip('a'), trip('b')], activeTripId: 'b' });
+    await useTripStore.getState().removeTrip('b');
+    expect(useTripStore.getState().activeTripId).toBeNull();
+  });
+
+  it('leaves the Displayed Trip and favorite untouched when an unrelated trip is deleted', async () => {
+    useTripStore.setState({
+      trips: [trip('a'), trip('b'), trip('c')],
+      displayedTripId: 'b',
+      activeTripId: 'a',
+    });
+    await useTripStore.getState().removeTrip('c');
+    expect(useTripStore.getState().displayedTripId).toBe('b');
+    expect(useTripStore.getState().activeTripId).toBe('a');
   });
 });
