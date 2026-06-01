@@ -2,12 +2,7 @@ import { create } from 'zustand';
 import { Item, MapsApp, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip, importTripFromFile } from './storage';
 import { getInstalledMapsApps, reconcilePreferredMapsApp } from './maps';
-import {
-  upsertItemInTrip,
-  deleteItemFromTrip,
-  reorderDayItems,
-  moveItemToDay,
-} from './trip-mutations';
+import { upsertItemInTrip, deleteItemFromTrip, moveItemToDay } from './trip-mutations';
 import { resolveActiveTrip } from './active-trip';
 import { todayString } from './date-utils';
 
@@ -17,7 +12,6 @@ interface TripStore {
   activeTripId: string | null;
   displayedTripId: string | null;
   preferredMapsApp: MapsApp;
-  installedMapsApps: MapsApp[];
   initialized: boolean;
   initializing: boolean;
 
@@ -28,7 +22,6 @@ interface TripStore {
   removeTrip: (id: string) => Promise<void>;
   upsertItem: (tripId: string, dayId: string, item: Item) => void;
   deleteItem: (tripId: string, dayId: string, itemId: string) => void;
-  reorderItems: (tripId: string, dayId: string, from: number, to: number) => void;
   moveItem: (tripId: string, fromDayId: string, toDayId: string, itemId: string) => void;
   setPreferredMapsApp: (app: MapsApp) => void;
   setFavorite: (id: string) => void;
@@ -81,7 +74,6 @@ export const useTripStore = create<TripStore>((set, get) => ({
   activeTripId: null,
   displayedTripId: null,
   preferredMapsApp: 'apple',
-  installedMapsApps: ['apple'],
   initialized: false,
   initializing: false,
 
@@ -106,7 +98,6 @@ export const useTripStore = create<TripStore>((set, get) => ({
     }
     getInstalledMapsApps()
       .then((apps) => {
-        set({ installedMapsApps: apps });
         const reconciled = reconcilePreferredMapsApp(get().preferredMapsApp, apps);
         if (reconciled !== get().preferredMapsApp) get().setPreferredMapsApp(reconciled);
       })
@@ -146,14 +137,6 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const trip = get().loadedTrips[tripId];
     if (!trip) return;
     const next = deleteItemFromTrip(trip, dayId, itemId, new Date().toISOString());
-    saveTrip(next);
-    set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
-  },
-
-  reorderItems(tripId: string, dayId: string, from: number, to: number) {
-    const trip = get().loadedTrips[tripId];
-    if (!trip || from === to) return;
-    const next = reorderDayItems(trip, dayId, from, to, new Date().toISOString());
     saveTrip(next);
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
   },

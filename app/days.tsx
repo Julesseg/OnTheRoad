@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loader: { marginTop: 24 },
 
-  header: { paddingTop: 16, paddingBottom: 4 },
+  header: { paddingTop: 16, paddingBottom: 4, paddingHorizontal: 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   headerText: { flex: 1 },
   badge: {

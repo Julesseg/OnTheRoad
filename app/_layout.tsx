@@ -18,7 +18,7 @@ export default function RootLayout() {
             name="days"
             options={{
               presentation: 'formSheet',
-              sheetAllowedDetents: [0.12, 0.5, 1],
+              sheetAllowedDetents: [0.128, 0.5, 1],
               sheetInitialDetentIndex: 1,
               // Largest index stays undimmed: the map shows through at every detent.
               sheetLargestUndimmedDetentIndex: 1,
