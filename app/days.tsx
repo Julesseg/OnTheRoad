@@ -16,12 +16,20 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useTripStore } from '@/lib/store';
 import { ItineraryPanel } from '@/components/itinerary-panel';
 import { effectiveTripId } from '@/lib/active-trip';
-import { selectTodayDay } from '@/lib/today';
-import { todayString, tripStatus, formatDateRange } from '@/lib/date-utils';
+import { tripCountdownBadge, approximateDuration, durationUnitWord } from '@/lib/trip-badge';
+import { todayString, formatDateRange } from '@/lib/date-utils';
 
 export default function DaysSheet() {
-  const { trips, loadedTrips, displayedTripId, activeTripId, initialized, loadTripById, importTrip } =
-    useTripStore();
+  const {
+    trips,
+    loadedTrips,
+    displayedTripId,
+    activeTripId,
+    initialized,
+    loadTripById,
+    importTrip,
+    setDisplayedTrip,
+  } = useTripStore();
   const colorScheme = useColorScheme();
   const text = colorScheme === 'dark' ? '#fff' : '#111';
   const subtext = colorScheme === 'dark' ? '#aaa' : '#666';
@@ -43,7 +51,10 @@ export default function DaysSheet() {
       });
       if (res.canceled) return;
       const uri = res.assets?.[0]?.uri;
-      if (uri) await importTrip(uri);
+      if (!uri) return;
+      // Open the freshly imported trip by making it the Displayed Trip.
+      const trip = await importTrip(uri);
+      setDisplayedTrip(trip.id);
     } catch (e) {
       Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
     }
@@ -86,30 +97,34 @@ export default function DaysSheet() {
     );
   }
 
-  const isInProgress = tripStatus(summary) === 'In progress';
-  let countdownDays: number | null = null;
-  if (!isInProgress) {
-    const sel = selectTodayDay(
-      { startDate: summary.startDate, endDate: summary.endDate, days: trip?.days ?? [] },
-      new Date(),
-    );
-    countdownDays = sel.daysAway ?? 0;
-  }
-  const dayWord = countdownDays === 1 ? 'day' : 'days';
+  // Badge: "Now" while the trip is in progress, "in N <unit>" before it starts,
+  // and "N <unit> ago" after it has ended — the unit coarsens to weeks/months/
+  // years so the count stays small and legible (e.g. "in 2 months").
+  const badge = tripCountdownBadge(summary, today);
+  const duration = badge.kind === 'now' ? null : approximateDuration(badge.days);
+  const unitWord = duration ? durationUnitWord(duration) : '';
+  const badgeLabel =
+    badge.kind === 'before'
+      ? `Starts in ${duration!.value} ${unitWord}`
+      : badge.kind === 'after'
+        ? `Ended ${duration!.value} ${unitWord} ago`
+        : 'In progress';
 
   const header = (
     <View style={styles.header}>
       <View style={styles.headerRow}>
-        <View
-          style={styles.badge}
-          accessible
-          accessibilityLabel={countdownDays != null ? `Starts in ${countdownDays} ${dayWord}` : 'In progress'}
-        >
-          {countdownDays != null ? (
+        <View style={styles.badge} accessible accessibilityLabel={badgeLabel}>
+          {badge.kind === 'before' && duration ? (
             <>
               <Text style={styles.badgeWord}>in</Text>
-              <Text style={styles.badgeNumber}>{countdownDays}</Text>
-              <Text style={styles.badgeWord}>{dayWord}</Text>
+              <Text style={styles.badgeNumber}>{duration.value}</Text>
+              <Text style={styles.badgeWord}>{unitWord}</Text>
+            </>
+          ) : badge.kind === 'after' && duration ? (
+            <>
+              <Text style={styles.badgeNumber}>{duration.value}</Text>
+              <Text style={styles.badgeWord}>{unitWord}</Text>
+              <Text style={styles.badgeWord}>ago</Text>
             </>
           ) : (
             <Text style={styles.badgeWord}>Now</Text>

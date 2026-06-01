@@ -36,6 +36,22 @@ export default function RootLayout() {
               sheetAllowedDetents: [1.0],
             }}
           />
+          <Stack.Screen
+            name="settings"
+            options={{
+              presentation: 'formSheet',
+              sheetGrabberVisible: true,
+              sheetAllowedDetents: [1.0],
+            }}
+          />
+          <Stack.Screen
+            name="archived"
+            options={{
+              presentation: 'formSheet',
+              sheetGrabberVisible: true,
+              sheetAllowedDetents: [1.0],
+            }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
