@@ -24,6 +24,7 @@ vi.mock('expo-image', () => ({
   Image: ({ accessibilityLabel }: { accessibilityLabel?: string }) =>
     React.createElement('img', { alt: accessibilityLabel }),
 }));
+vi.mock('expo-symbols', () => ({ SymbolView: () => React.createElement('span') }));
 
 import { useTripStore } from '@/lib/store';
 import { router } from 'expo-router';

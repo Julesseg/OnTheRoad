@@ -12,6 +12,7 @@ interface TripStore {
   activeTripId: string | null;
   displayedTripId: string | null;
   preferredMapsApp: MapsApp;
+  installedMapsApps: MapsApp[];
   initialized: boolean;
   initializing: boolean;
 
@@ -74,6 +75,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
   activeTripId: null,
   displayedTripId: null,
   preferredMapsApp: 'apple',
+  // Apple Maps always ships with iOS, so default to it until the probe resolves.
+  installedMapsApps: ['apple'],
   initialized: false,
   initializing: false,
 
@@ -98,6 +101,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     }
     getInstalledMapsApps()
       .then((apps) => {
+        set({ installedMapsApps: apps });
         const reconciled = reconcilePreferredMapsApp(get().preferredMapsApp, apps);
         if (reconciled !== get().preferredMapsApp) get().setPreferredMapsApp(reconciled);
       })

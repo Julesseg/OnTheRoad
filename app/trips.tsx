@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GlassView } from 'expo-glass-effect';
+import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
 import { Swipeable } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
@@ -70,22 +71,34 @@ export default function TripsSheet() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.toolbar}>
           <Pressable
-            onPress={() => router.push('/trip/new')}
-            accessibilityLabel="New trip"
-            accessibilityRole="button"
-          >
-            <GlassView glassEffectStyle="regular" isInteractive style={styles.toolbarBtn}>
-              <Text style={styles.toolbarBtnText}>New</Text>
-            </GlassView>
-          </Pressable>
-
-          <Pressable
             onPress={() => router.push('/settings')}
             accessibilityLabel="Settings"
             accessibilityRole="button"
           >
             <GlassView glassEffectStyle="regular" isInteractive style={styles.toolbarBtn}>
-              <Text style={styles.toolbarBtnText}>⚙</Text>
+              <SymbolView
+                name="gearshape"
+                tintColor="#007AFF"
+                resizeMode="scaleAspectFit"
+                style={styles.toolbarIcon}
+              />
+            </GlassView>
+          </Pressable>
+
+          <Text style={[styles.title, { color: isDark ? '#fff' : '#111' }]}>Trips</Text>
+
+          <Pressable
+            onPress={() => router.push('/trip/new')}
+            accessibilityLabel="New trip"
+            accessibilityRole="button"
+          >
+            <GlassView glassEffectStyle="regular" isInteractive style={styles.toolbarBtn}>
+              <SymbolView
+                name="plus"
+                tintColor="#007AFF"
+                resizeMode="scaleAspectFit"
+                style={styles.toolbarIcon}
+              />
             </GlassView>
           </Pressable>
         </View>
@@ -228,17 +241,21 @@ const styles = StyleSheet.create({
 
   toolbar: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 24,
     paddingBottom: 8,
   },
+  title: { fontSize: 20, fontWeight: '700' },
   toolbarBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  toolbarBtnText: { fontSize: 15, fontWeight: '600', color: '#007AFF' },
+  toolbarIcon: { width: 20, height: 20 },
 
   sectionHeader: {
     fontSize: 13,

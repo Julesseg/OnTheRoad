@@ -21,11 +21,9 @@ import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
 
 export default function ArchivedSheet() {
-  const { trips, setDisplayedTrip, removeTrip } = useTripStore((s) => ({
-    trips: s.trips,
-    setDisplayedTrip: s.setDisplayedTrip,
-    removeTrip: s.removeTrip,
-  }));
+  const trips = useTripStore((s) => s.trips);
+  const setDisplayedTrip = useTripStore((s) => s.setDisplayedTrip);
+  const removeTrip = useTripStore((s) => s.removeTrip);
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -156,7 +154,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 24,
     paddingBottom: 8,
   },
   list: { paddingBottom: 24 },
