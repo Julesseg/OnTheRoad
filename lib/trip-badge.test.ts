@@ -4,6 +4,8 @@ import {
   approximateDuration,
   durationUnitWord,
   countdownPill,
+  countdownPillLabel,
+  compactCountdownPillLabel,
 } from './trip-badge';
 
 const trip = { startDate: '2026-06-10', endDate: '2026-06-20' };
@@ -92,5 +94,37 @@ describe('durationUnitWord', () => {
 
   it('pluralises other values', () => {
     expect(durationUnitWord({ value: 3, unit: 'month' })).toBe('months');
+  });
+});
+
+describe('countdownPillLabel', () => {
+  it('reads "In progress" while the trip is happening', () => {
+    expect(countdownPillLabel({ kind: 'now' })).toBe('In progress');
+  });
+
+  it('counts down to the start with a coarsened, pluralised unit', () => {
+    expect(countdownPillLabel({ kind: 'before', days: 1 })).toBe('Starts in 1 day');
+    expect(countdownPillLabel({ kind: 'before', days: 60 })).toBe('Starts in 2 months');
+  });
+
+  it('counts up from the end with a coarsened, pluralised unit', () => {
+    expect(countdownPillLabel({ kind: 'after', days: 1 })).toBe('Ended 1 day ago');
+    expect(countdownPillLabel({ kind: 'after', days: 21 })).toBe('Ended 3 weeks ago');
+  });
+});
+
+describe('compactCountdownPillLabel', () => {
+  it('keeps "In progress" in the collapsed title', () => {
+    expect(compactCountdownPillLabel({ kind: 'now' })).toBe('In progress');
+  });
+
+  it('abbreviates the upcoming countdown', () => {
+    expect(compactCountdownPillLabel({ kind: 'before', days: 6 })).toBe('in 6d');
+    expect(compactCountdownPillLabel({ kind: 'before', days: 60 })).toBe('in 2mo');
+  });
+
+  it('abbreviates the elapsed countdown', () => {
+    expect(compactCountdownPillLabel({ kind: 'after', days: 21 })).toBe('3w ago');
+    expect(compactCountdownPillLabel({ kind: 'after', days: 400 })).toBe('1y ago');
   });
 });

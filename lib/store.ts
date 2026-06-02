@@ -173,7 +173,14 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const updatedTrips = get().trips.filter((t) => t.id !== id);
     set((s) => {
       const { [id]: _removed, ...rest } = s.loadedTrips;
-      return { trips: updatedTrips, loadedTrips: rest };
+      return {
+        trips: updatedTrips,
+        loadedTrips: rest,
+        // Deleting the Displayed Trip drops back to the resolved default; deleting
+        // the favorite clears it so the default re-resolves (ADR-0001).
+        displayedTripId: s.displayedTripId === id ? null : s.displayedTripId,
+        activeTripId: s.activeTripId === id ? null : s.activeTripId,
+      };
     });
     scheduleSave(() => snapshotOf(get));
   },

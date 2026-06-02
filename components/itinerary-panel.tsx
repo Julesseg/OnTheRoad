@@ -1,11 +1,5 @@
-import { useMemo, useState, type ReactElement } from 'react';
-import {
-  View,
-  StyleSheet,
-  Alert,
-  useColorScheme,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import { View, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import {
   Host,
@@ -26,13 +20,12 @@ import {
   font,
   foregroundStyle,
   listRowBackground,
-  listRowSeparator,
   listSectionSpacing,
   listSectionMargins,
-  frame,
   onTapGesture,
   scrollPosition,
   id,
+  type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
 
 import type { Trip, Item } from '@/lib/schema';
@@ -43,7 +36,6 @@ import { formatItem } from '@/lib/item-display';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
-import { ProgressiveBlurView } from './progressive-blur';
 import { MoveToDayOverlay } from './move-to-day-overlay';
 
 const TINT = '#007AFF';
@@ -74,31 +66,32 @@ function mapsTargetForItem(item: Item): MapsTarget | null {
 }
 
 /**
- * The itinerary rendered with a native SwiftUI `List`: an optional Next-up card,
- * then one `Section` per Day (header + its Item rows in stored order). Sections
- * give the system grouped-list separation between Days. Each row carries native
- * swipe actions (leading Edit, trailing Delete) and a long-press context menu;
- * tapping the Next-up card scrolls the List to that Day via `scrollPosition`.
+ * The itinerary rendered with a native SwiftUI `List`: an optional leading
+ * `titleRow`, an optional Next-up card, then one `Section` per Day (header + its
+ * Item rows in stored order). Sections give the system grouped-list separation
+ * between Days. Each Day's rows live in a `List.ForEach` so SwiftUI's
+ * drag-to-reorder works within the Day. Rows carry swipe actions only (no context
+ * menu — its long-press collides with the reorder gesture); tapping the Next-up
+ * card scrolls the List to that Day via `scrollPosition`.
  *
- * The trip `header` floats over the top of the List behind a progressive blur, so
- * Day rows scroll up underneath it and blur progressively. A transparent spacer
- * row the height of the header keeps the first rows clear of it at rest.
+ * `titleRow` is rendered as the List's first row so the large trip title scrolls
+ * away naturally under the native header (ADR-0002). `scrollModifier` lets the
+ * caller observe the List's scroll geometry (e.g. to cross-fade in a collapsed
+ * inline title as the large title scrolls under the bar).
  */
 export function ItineraryPanel({
   trip,
   now = new Date(),
-  header,
+  titleRow,
+  scrollModifier,
 }: {
   trip: Trip;
   now?: Date;
-  header?: ReactElement | null;
+  titleRow?: ReactNode;
+  scrollModifier?: BuiltInModifier | null;
 }) {
   const colorScheme = useColorScheme();
   const subtext = colorScheme === 'dark' ? '#9a9a9a' : '#888';
-
-  // Measured height of the floating header, used to inset the list's first rows.
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const onHeaderLayout = (e: LayoutChangeEvent) => setHeaderHeight(e.nativeEvent.layout.height);
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const reorderItem = useTripStore((s) => s.reorderItem);
@@ -204,21 +197,25 @@ export function ItineraryPanel({
     <View style={styles.container}>
       <Host style={styles.host} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
         <List
-          modifiers={[listStyle('insetGrouped'), scrollPosition(scrollTarget, { anchor: 'top' })]}
+          modifiers={[
+            listStyle('insetGrouped'),
+            scrollPosition(scrollTarget, { anchor: 'top' }),
+            ...(scrollModifier ? [scrollModifier] : []),
+          ]}
         >
-          {/* Transparent spacer so the first rows clear the floating header at rest.
-              Trimmed because the grouped list already reserves some top inset. */}
-          {headerHeight > 0 ? (
-            <Section modifiers={[listSectionSpacing(0)]}>
-              <VStack
-                modifiers={[
-                  frame({ height: Math.max(0, headerHeight - 64) }),
-                  listRowBackground(TRANSPARENT),
-                  listRowSeparator('hidden'),
-                ]}
-              >
-                <Spacer />
-              </VStack>
+          {/* Leading large title as the first row, so it scrolls away under the
+              native header instead of being pinned by `Stack.Title large`. The zeroed
+              section margin plus a negative top row inset pull the title flush to the
+              top, cancelling the inset-grouped list's residual leading gap. */}
+          {titleRow ? (
+            <Section
+              modifiers={[
+                listSectionSpacing(0),
+                listSectionMargins({ edges: 'top', length: 0 }),
+                listRowBackground(TRANSPARENT)
+              ]}
+            >
+              {titleRow}
             </Section>
           ) : null}
 
@@ -262,7 +259,7 @@ export function ItineraryPanel({
               }
             >
               {/* List.ForEach bridges SwiftUI's drag-to-reorder; `onMove` fires within
-                  this Day only. Cross-day moves stay on the row's "Move to day" menu. */}
+                  this Day only. Cross-day moves stay on the row's "Move to another day" swipe. */}
               <List.ForEach
                 onMove={(sourceIndices, destination) =>
                   reorderItem(trip.id, day.id, sourceIndices, destination)
@@ -274,12 +271,6 @@ export function ItineraryPanel({
           ))}
         </List>
       </Host>
-
-      {/* Floating header: progressive blur behind the trip header; rows scroll under it. */}
-      <View style={styles.headerOverlay} onLayout={onHeaderLayout} pointerEvents="box-none">
-        <ProgressiveBlurView intensity={20} layers={10} />
-        {header}
-      </View>
 
       {moveTarget ? (
         <MoveToDayOverlay
@@ -330,5 +321,4 @@ function renderNextUp(
 const styles = StyleSheet.create({
   container: { flex: 1 },
   host: { flex: 1 },
-  headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
 });

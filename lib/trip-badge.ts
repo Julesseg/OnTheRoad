@@ -64,3 +64,31 @@ export function countdownPill(
     ? `in ${duration.value} ${unit}`
     : `${duration.value} ${unit} ago`;
 }
+
+/**
+ * The countdown pill text shown on the expanded title's `dates · pill` line:
+ * "In progress" while the trip is happening, "Starts in N units" before it
+ * begins, and "Ended N units ago" after it ends, with the day count coarsened
+ * to the most legible unit.
+ */
+export function countdownPillLabel(badge: TripBadge): string {
+  if (badge.kind === 'now') return 'In progress';
+  const duration = approximateDuration(badge.days);
+  const unit = durationUnitWord(duration);
+  return badge.kind === 'before'
+    ? `Starts in ${duration.value} ${unit}`
+    : `Ended ${duration.value} ${unit} ago`;
+}
+
+const UNIT_ABBR: Record<DurationUnit, string> = { day: 'd', week: 'w', month: 'mo', year: 'y' };
+
+/**
+ * The shortened countdown pill for the collapsed inline title, where horizontal
+ * room between the button groups is tight: "In progress", "in 6d", "3w ago".
+ */
+export function compactCountdownPillLabel(badge: TripBadge): string {
+  if (badge.kind === 'now') return 'In progress';
+  const duration = approximateDuration(badge.days);
+  const abbr = `${duration.value}${UNIT_ABBR[duration.unit]}`;
+  return badge.kind === 'before' ? `in ${abbr}` : `${abbr} ago`;
+}
