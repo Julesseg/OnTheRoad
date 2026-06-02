@@ -43,3 +43,24 @@ export function approximateDuration(days: number): Duration {
 export function durationUnitWord(duration: Duration): string {
   return duration.value === 1 ? duration.unit : `${duration.unit}s`;
 }
+
+/**
+ * The inline countdown pill shown on a trip card's date line, total over every
+ * trip status: `"Now"` while in progress, `"in N <unit>"` before it starts, and
+ * `"N <unit> ago"` once it has ended — the unit coarsens to weeks/months/years
+ * so the count stays small (e.g. "in 2 months"). The trips list only renders
+ * in-progress + upcoming, so the "ago" form is unused there but keeps the helper
+ * safe to reuse for any trip.
+ */
+export function countdownPill(
+  summary: Pick<TripSummary, 'startDate' | 'endDate'>,
+  today: string,
+): string {
+  const badge = tripCountdownBadge(summary, today);
+  if (badge.kind === 'now') return 'Now';
+  const duration = approximateDuration(badge.days);
+  const unit = durationUnitWord(duration);
+  return badge.kind === 'before'
+    ? `in ${duration.value} ${unit}`
+    : `${duration.value} ${unit} ago`;
+}

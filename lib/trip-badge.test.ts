@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { tripCountdownBadge, approximateDuration, durationUnitWord } from './trip-badge';
+import {
+  tripCountdownBadge,
+  approximateDuration,
+  durationUnitWord,
+  countdownPill,
+} from './trip-badge';
 
 const trip = { startDate: '2026-06-10', endDate: '2026-06-20' };
 
@@ -50,6 +55,33 @@ describe('approximateDuration', () => {
   it('rounds to years from a year onward', () => {
     expect(approximateDuration(365)).toEqual({ value: 1, unit: 'year' });
     expect(approximateDuration(730)).toEqual({ value: 2, unit: 'year' });
+  });
+});
+
+describe('countdownPill', () => {
+  const trip = { startDate: '2026-06-10', endDate: '2026-06-20' };
+
+  it('reads "Now" while the trip is in progress', () => {
+    expect(countdownPill(trip, '2026-06-15')).toBe('Now');
+  });
+
+  it('reads "Now" on the start and end dates', () => {
+    expect(countdownPill(trip, '2026-06-10')).toBe('Now');
+    expect(countdownPill(trip, '2026-06-20')).toBe('Now');
+  });
+
+  it('counts down to an upcoming trip in coarsened units', () => {
+    expect(countdownPill(trip, '2026-06-04')).toBe('in 6 days');
+    expect(countdownPill(trip, '2026-05-27')).toBe('in 2 weeks');
+  });
+
+  it('singularises a one-unit countdown', () => {
+    expect(countdownPill(trip, '2026-06-09')).toBe('in 1 day');
+  });
+
+  it('counts up the days since an ended trip, coarsening the unit', () => {
+    expect(countdownPill(trip, '2026-06-25')).toBe('5 days ago');
+    expect(countdownPill(trip, '2026-07-11')).toBe('3 weeks ago');
   });
 });
 
