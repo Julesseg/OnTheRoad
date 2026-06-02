@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { upsertItemInTrip, deleteItemFromTrip, moveItemToDay } from './trip-mutations';
+import {
+  upsertItemInTrip,
+  deleteItemFromTrip,
+  moveItemToDay,
+  reorderItemInDay,
+} from './trip-mutations';
 import type { Trip, Item } from './schema';
 
 const NOW = '2026-06-01T12:00:00.000Z';
@@ -100,5 +105,42 @@ describe('moveItemToDay', () => {
     trip.days[0].items = notes('a', 'b');
     const next = moveItemToDay(trip, 'day-1', 'day-missing', 'a', NOW);
     expect(next).toBe(trip);
+  });
+});
+
+describe('reorderItemInDay', () => {
+  it('drags an item down to a later position (SwiftUI move semantics)', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b', 'c');
+    const next = reorderItemInDay(trip, 'day-1', [0], 2, NOW);
+    expect(next.days[0].items.map((i) => i.id)).toEqual(['b', 'a', 'c']);
+  });
+
+  it('drags an item up to an earlier position', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b', 'c');
+    const next = reorderItemInDay(trip, 'day-1', [2], 0, NOW);
+    expect(next.days[0].items.map((i) => i.id)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('returns the trip unchanged when the drop leaves the order intact', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b', 'c');
+    const next = reorderItemInDay(trip, 'day-1', [1], 2, NOW);
+    expect(next).toBe(trip);
+  });
+
+  it('returns the trip unchanged when the day is not in the trip', () => {
+    const trip = tripFixture();
+    const next = reorderItemInDay(trip, 'day-missing', [0], 1, NOW);
+    expect(next).toBe(trip);
+  });
+
+  it('bumps updatedAt and does not mutate the input trip', () => {
+    const trip = tripFixture();
+    trip.days[0].items = notes('a', 'b', 'c');
+    const next = reorderItemInDay(trip, 'day-1', [0], 2, NOW);
+    expect(next.updatedAt).toBe(NOW);
+    expect(trip.days[0].items.map((i) => i.id)).toEqual(['a', 'b', 'c']);
   });
 });

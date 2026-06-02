@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactElement } from 'react';
 import {
   View,
   StyleSheet,
-  ActionSheetIOS,
   Alert,
   useColorScheme,
   type LayoutChangeEvent,
@@ -20,7 +19,6 @@ import {
   Image,
   Menu,
   SwipeActions,
-  ContextMenu,
   useNativeState,
 } from '@expo/ui/swift-ui';
 import {
@@ -46,6 +44,7 @@ import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
 import { ProgressiveBlurView } from './progressive-blur';
+import { MoveToDayOverlay } from './move-to-day-overlay';
 
 const TINT = '#007AFF';
 const WHITE = '#ffffff';
@@ -102,8 +101,12 @@ export function ItineraryPanel({
   const onHeaderLayout = (e: LayoutChangeEvent) => setHeaderHeight(e.nativeEvent.layout.height);
 
   const deleteItem = useTripStore((s) => s.deleteItem);
+  const reorderItem = useTripStore((s) => s.reorderItem);
   const moveItem = useTripStore((s) => s.moveItem);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
+
+  // The Item whose "Move to day" calendar is open, or null when none is.
+  const [moveTarget, setMoveTarget] = useState<{ fromDayId: string; itemId: string } | null>(null);
 
   const today = localDateString(now);
   const days = useMemo(
@@ -132,19 +135,9 @@ export function ItineraryPanel({
     ]);
   }
 
+  // Open the floating calendar to move this item to another Day (a different date).
   function showMoveToDaySheet(fromDayId: string, itemId: string) {
-    const others = days.filter((d) => d.id !== fromDayId);
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: 'Move to day',
-        options: [...others.map((d) => `Day ${days.indexOf(d) + 1}`), 'Cancel'],
-        cancelButtonIndex: others.length,
-      },
-      (index) => {
-        const target = others[index];
-        if (target) moveItem(trip.id, fromDayId, target.id, itemId);
-      },
-    );
+    setMoveTarget({ fromDayId, itemId });
   }
 
   // Pick an item type for the day, then open the editor to create it.
@@ -166,39 +159,32 @@ export function ItineraryPanel({
       : null;
 
     return (
-      // Swipe leading→Edit. Swipe trailing→Open in Maps (full swipe) when the item has a
-      // destination, with Delete as the secondary button; otherwise trailing is just Delete.
-      // Long-press opens the context menu.
+      // No context menu: its long-press collides with the List's drag-to-reorder gesture, so
+      // every action lives on a swipe instead. Swipe leading reveals Edit (the full-swipe main
+      // action) and Move to another day when the trip spans more than one day. Swipe trailing
+      // reveals Open in Maps when the item has a destination, and Delete. Tapping the row edits it.
       <SwipeActions key={item.id}>
-        <ContextMenu>
-          <ContextMenu.Items>
-            <Button systemImage="pencil" label="Edit" onPress={edit} />
-            {days.length > 1 ? (
-              <Button
-                systemImage="calendar"
-                label="Move to day"
-                onPress={() => showMoveToDaySheet(dayId, item.id)}
-              />
-            ) : null}
-            <Button systemImage="trash" role="destructive" label="Delete" onPress={remove} />
-          </ContextMenu.Items>
-          <ContextMenu.Trigger>
-            <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
-              <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
-                {typeLabel.toUpperCase()}
-              </Text>
-              <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
-              {lines.map((line, i) => (
-                <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
-                  {line}
-                </Text>
-              ))}
-            </VStack>
-          </ContextMenu.Trigger>
-        </ContextMenu>
+        <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
+          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+            {typeLabel.toUpperCase()}
+          </Text>
+          <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
+          {lines.map((line, i) => (
+            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
+              {line}
+            </Text>
+          ))}
+        </VStack>
 
         <SwipeActions.Actions edge="leading">
           <Button systemImage="pencil" label="Edit" onPress={edit} />
+          {days.length > 1 ? (
+            <Button
+              systemImage="calendar"
+              label="Move to another day"
+              onPress={() => showMoveToDaySheet(dayId, item.id)}
+            />
+          ) : null}
         </SwipeActions.Actions>
         <SwipeActions.Actions edge="trailing">
           {openMaps ? (
@@ -275,7 +261,15 @@ export function ItineraryPanel({
                 </VStack>
               }
             >
-              {day.items.map((item) => renderItem(day.id, item))}
+              {/* List.ForEach bridges SwiftUI's drag-to-reorder; `onMove` fires within
+                  this Day only. Cross-day moves stay on the row's "Move to day" menu. */}
+              <List.ForEach
+                onMove={(sourceIndices, destination) =>
+                  reorderItem(trip.id, day.id, sourceIndices, destination)
+                }
+              >
+                {day.items.map((item) => renderItem(day.id, item))}
+              </List.ForEach>
             </Section>
           ))}
         </List>
@@ -286,6 +280,18 @@ export function ItineraryPanel({
         <ProgressiveBlurView intensity={20} layers={10} />
         {header}
       </View>
+
+      {moveTarget ? (
+        <MoveToDayOverlay
+          trip={trip}
+          fromDayId={moveTarget.fromDayId}
+          itemId={moveTarget.itemId}
+          onMove={(targetDayId) =>
+            moveItem(trip.id, moveTarget.fromDayId, targetDayId, moveTarget.itemId)
+          }
+          onClose={() => setMoveTarget(null)}
+        />
+      ) : null}
     </View>
   );
 }
