@@ -52,6 +52,8 @@ export interface TripFormProps {
   initialEndDate?: string;
   /** Display uri (file://) of an existing wallpaper, if any. */
   initialWallpaperUri?: string;
+  /** Focus the title field on mount so the keyboard opens immediately (create). */
+  autoFocusTitle?: boolean;
   submitting?: boolean;
   onSubmit: (result: TripFormResult) => void;
   onCancel: () => void;
@@ -64,6 +66,7 @@ export function TripForm({
   initialStartDate,
   initialEndDate,
   initialWallpaperUri,
+  autoFocusTitle = false,
   submitting = false,
   onSubmit,
   onCancel,
@@ -134,6 +137,7 @@ export function TripForm({
               value={title}
               onChangeText={setTitle}
               placeholder="e.g. Pacific Coast Highway"
+              autoFocus={autoFocusTitle}
               returnKeyType="done"
             />
 

@@ -40,8 +40,9 @@ export function reconcileDays(
   for (const d of existingDays) {
     if (!byDate.has(d.date)) byDate.set(d.date, d);
   }
-  const inRange = new Set(datesInRange(startDate, endDate));
-  const days = datesInRange(startDate, endDate).map(
+  const allDates = datesInRange(startDate, endDate);
+  const inRange = new Set(allDates);
+  const days = allDates.map(
     (date) => byDate.get(date) ?? { id: makeId(), date, items: [] },
   );
   // Days whose date no longer falls in range are dropped; flag any that still

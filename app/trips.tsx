@@ -363,8 +363,10 @@ const styles = StyleSheet.create({
   },
   swipeFavorite: { backgroundColor: FAVORITE_GOLD, marginLeft: 16 },
   rightActions: { flexDirection: 'row', marginRight: 16 },
-  swipeEdit: { backgroundColor: '#007AFF' },
-  swipeDelete: { backgroundColor: '#ff3b30' },
+  // Edit + Delete sit flush against each other; square their shared inner edge
+  // so only the outer corners stay rounded (no seam of rounded inner corners).
+  swipeEdit: { backgroundColor: '#007AFF', borderTopRightRadius: 0, borderBottomRightRadius: 0 },
+  swipeDelete: { backgroundColor: '#ff3b30', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
   swipeIcon: { width: 26, height: 26 },
   swipeActionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
@@ -78,7 +77,7 @@ export default function EditTripScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       {!trip ? (
         <ActivityIndicator style={styles.loader} size="large" />
       ) : (
@@ -96,7 +95,7 @@ export default function EditTripScreen() {
           onCancel={() => router.back()}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

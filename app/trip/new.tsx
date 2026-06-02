@@ -47,6 +47,7 @@ export default function NewTripScreen() {
     <TripForm
       heading="New Trip"
       submitLabel="Create"
+      autoFocusTitle
       submitting={submitting}
       onSubmit={handleSubmit}
       onCancel={() => router.back()}
