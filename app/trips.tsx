@@ -3,7 +3,7 @@ import {
   View,
   Text,
   Pressable,
-  SectionList,
+  FlatList,
   StyleSheet,
   Alert,
   useColorScheme,
@@ -18,12 +18,12 @@ import * as Sharing from 'expo-sharing';
 
 import { useTripStore } from '@/lib/store';
 import { partitionTrips } from '@/lib/trip-partition';
-import { canFavorite } from '@/lib/active-trip';
-import { todayString } from '@/lib/date-utils';
+import { countdownPill } from '@/lib/trip-badge';
+import { todayString, formatDateRange } from '@/lib/date-utils';
 import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
 
-type Section = { title: string; data: TripSummary[] };
+const FAVORITE_GOLD = '#FFD60A';
 
 export default function TripsSheet() {
   const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
@@ -32,11 +32,10 @@ export default function TripsSheet() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  // Flat, scannable list: in-progress trips first, then upcoming, each already
+  // sorted by start date. Archived/past trips stay hidden.
   const { active } = partitionTrips(trips, today);
-  const sections: Section[] = [
-    { title: 'In progress', data: active.inProgress },
-    { title: 'Upcoming', data: active.upcoming },
-  ].filter((s) => s.data.length > 0);
+  const visibleTrips = [...active.inProgress, ...active.upcoming];
 
   async function onExport(summary: TripSummary) {
     try {
@@ -103,26 +102,22 @@ export default function TripsSheet() {
           </Pressable>
         </View>
 
-        {sections.length === 0 ? (
+        {visibleTrips.length === 0 ? (
           <View style={styles.empty}>
             <Text style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
               No active trips
             </Text>
           </View>
         ) : (
-          <SectionList
-            sections={sections}
+          <FlatList
+            data={visibleTrips}
             keyExtractor={(item) => item.id}
-            renderSectionHeader={({ section }) => (
-              <Text style={[styles.sectionHeader, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
-                {section.title}
-              </Text>
-            )}
             renderItem={({ item }) => (
               <TripRow
                 summary={item}
+                today={today}
+                isDark={isDark}
                 isFavorite={activeTripId === item.id}
-                canFav={canFavorite(item, today)}
                 onToggleFavorite={() => {
                   if (activeTripId === item.id) clearFavorite();
                   else setFavorite(item.id);
@@ -141,7 +136,6 @@ export default function TripsSheet() {
               />
             )}
             contentContainerStyle={styles.list}
-            stickySectionHeadersEnabled={false}
           />
         )}
       </SafeAreaView>
@@ -151,48 +145,80 @@ export default function TripsSheet() {
 
 type TripRowProps = {
   summary: TripSummary;
+  today: string;
+  isDark: boolean;
   isFavorite: boolean;
-  canFav: boolean;
   onToggleFavorite: () => void;
   onTap: () => void;
   onExport: () => void;
   onDelete: () => void;
 };
 
-function TripRow({ summary, isFavorite, canFav, onToggleFavorite, onTap, onExport, onDelete }: TripRowProps) {
+function TripRow({
+  summary,
+  today,
+  isDark,
+  isFavorite,
+  onToggleFavorite,
+  onTap,
+  onExport,
+  onDelete,
+}: TripRowProps) {
   const swipeRef = useRef<Swipeable>(null);
 
+  // Left-swipe toggles the single persisted favorite; every visible row
+  // qualifies (all end today or later).
+  function renderLeftActions() {
+    return (
+      <Pressable
+        onPress={() => {
+          swipeRef.current?.close();
+          onToggleFavorite();
+        }}
+        style={[styles.swipeAction, styles.swipeFavorite]}
+        accessibilityRole="button"
+        accessibilityLabel={isFavorite ? 'Unfavorite' : 'Favorite'}
+      >
+        <SymbolView
+          name={isFavorite ? 'star.slash.fill' : 'star.fill'}
+          tintColor="#fff"
+          resizeMode="scaleAspectFit"
+          style={styles.swipeIcon}
+        />
+      </Pressable>
+    );
+  }
+
+  // Right-swipe is Delete only for now (Edit arrives with the edit-screen slice);
+  // Export lives in the long-press menu.
   function renderRightActions() {
     return (
-      <View style={styles.swipeActions}>
-        <Pressable
-          onPress={() => {
-            swipeRef.current?.close();
-            onExport();
-          }}
-          style={[styles.swipeAction, styles.swipeExport]}
-          accessibilityLabel="Export"
-        >
-          <Text style={styles.swipeActionText}>Export</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            swipeRef.current?.close();
-            onDelete();
-          }}
-          style={[styles.swipeAction, styles.swipeDelete]}
-          accessibilityLabel="Delete"
-        >
-          <Text style={styles.swipeActionText}>Delete</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        onPress={() => {
+          swipeRef.current?.close();
+          onDelete();
+        }}
+        style={[styles.swipeAction, styles.swipeDelete]}
+        accessibilityRole="button"
+        accessibilityLabel="Delete"
+      >
+        <Text style={styles.swipeActionText}>Delete</Text>
+      </Pressable>
     );
   }
 
   const wallpaperUri = summary.wallpaperUri ? wallpaperDisplayUri(summary.wallpaperUri) : null;
+  const pill = countdownPill(summary, today);
 
   return (
-    <Swipeable ref={swipeRef} renderRightActions={renderRightActions} friction={2} rightThreshold={40}>
+    <Swipeable
+      ref={swipeRef}
+      renderLeftActions={renderLeftActions}
+      renderRightActions={renderRightActions}
+      friction={2}
+      leftThreshold={40}
+      rightThreshold={40}
+    >
       <Pressable
         onPress={onTap}
         onLongPress={() =>
@@ -204,31 +230,47 @@ function TripRow({ summary, isFavorite, canFav, onToggleFavorite, onTap, onExpor
         }
         accessibilityRole="button"
         accessibilityLabel={summary.title}
-        style={styles.row}
+        accessibilityState={{ selected: isFavorite }}
+        aria-selected={isFavorite}
+        style={[
+          styles.row,
+          { backgroundColor: isDark ? '#2c2c2e' : '#fff' },
+          isFavorite && styles.rowFavorite,
+        ]}
       >
-        {wallpaperUri ? (
-          <Image source={{ uri: wallpaperUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.rowFallback]} />
-        )}
-        <View style={[StyleSheet.absoluteFill, styles.scrim]} />
-
-        <View style={styles.rowContent}>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitle} numberOfLines={1}>{summary.title}</Text>
-            <Text style={styles.rowDates}>{summary.startDate} — {summary.endDate}</Text>
-          </View>
-
-          {canFav && (
-            <Pressable
-              onPress={onToggleFavorite}
-              accessibilityLabel={isFavorite ? 'Remove favorite' : 'Make favorite'}
-              accessibilityRole="button"
-              style={styles.starBtn}
+        <View style={styles.thumb}>
+          {wallpaperUri ? (
+            <Image
+              source={{ uri: wallpaperUri }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+            />
+          ) : (
+            <View
+              style={[styles.thumbFallback, { backgroundColor: isDark ? '#3a3a3c' : '#e5e5ea' }]}
             >
-              <Text style={styles.starText}>{isFavorite ? '★' : '☆'}</Text>
-            </Pressable>
+              <SymbolView
+                name="map"
+                tintColor="#8e8e93"
+                resizeMode="scaleAspectFit"
+                style={styles.thumbIcon}
+              />
+            </View>
           )}
+        </View>
+
+        <View style={styles.rowText}>
+          <Text style={[styles.rowTitle, { color: isDark ? '#fff' : '#111' }]} numberOfLines={1}>
+            {summary.title}
+          </Text>
+          <View style={styles.datesRow}>
+            <Text style={[styles.rowDates, { color: isDark ? '#aeaeb2' : '#6d6d72' }]} numberOfLines={1}>
+              {formatDateRange(summary.startDate, summary.endDate)}
+            </Text>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{pill}</Text>
+            </View>
+          </View>
         </View>
       </Pressable>
     </Swipeable>
@@ -257,50 +299,53 @@ const styles = StyleSheet.create({
   },
   toolbarIcon: { width: 20, height: 20 },
 
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 6,
-  },
-  list: { paddingBottom: 24 },
+  list: { paddingVertical: 8 },
 
   row: {
-    height: 100,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  rowFallback: { backgroundColor: '#3a3a3c' },
-  scrim: {
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    borderRadius: 14,
-  },
-  rowContent: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    gap: 12,
+    height: 92,
+    marginHorizontal: 16,
+    marginVertical: 5,
+    padding: 10,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  rowText: { flex: 1 },
-  rowTitle: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  rowDates: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 },
+  rowFavorite: { borderColor: FAVORITE_GOLD },
 
-  starBtn: { padding: 8 },
-  starText: { fontSize: 22, color: '#FFD60A' },
+  thumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  thumbFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  thumbIcon: { width: 32, height: 32 },
 
-  swipeActions: { flexDirection: 'row', marginVertical: 4, marginRight: 16, borderRadius: 14, overflow: 'hidden' },
+  rowText: { flex: 1, justifyContent: 'center' },
+  rowTitle: { fontSize: 17, fontWeight: '600' },
+  datesRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  rowDates: { fontSize: 13, flexShrink: 1 },
+  pill: {
+    backgroundColor: '#007AFF',
+    borderRadius: 9,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  pillText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+
   swipeAction: {
     width: 80,
+    marginVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 16,
   },
-  swipeExport: { backgroundColor: '#30d158' },
-  swipeDelete: { backgroundColor: '#ff3b30' },
+  swipeFavorite: { backgroundColor: FAVORITE_GOLD, marginLeft: 16 },
+  swipeDelete: { backgroundColor: '#ff3b30', marginRight: 16 },
+  swipeIcon: { width: 26, height: 26 },
   swipeActionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
