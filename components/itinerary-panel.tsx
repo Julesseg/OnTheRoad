@@ -20,7 +20,6 @@ import {
   font,
   foregroundStyle,
   listRowBackground,
-  listRowSeparator,
   listSectionSpacing,
   listSectionMargins,
   onTapGesture,
@@ -205,15 +204,18 @@ export function ItineraryPanel({
           ]}
         >
           {/* Leading large title as the first row, so it scrolls away under the
-              native header instead of being pinned by `Stack.Title large`. */}
+              native header instead of being pinned by `Stack.Title large`. The zeroed
+              section margin plus a negative top row inset pull the title flush to the
+              top, cancelling the inset-grouped list's residual leading gap. */}
           {titleRow ? (
-            <Section modifiers={[listSectionSpacing(0)]}>
-              <VStack
-                alignment="leading"
-                modifiers={[listRowBackground(TRANSPARENT), listRowSeparator('hidden')]}
-              >
-                {titleRow}
-              </VStack>
+            <Section
+              modifiers={[
+                listSectionSpacing(0),
+                listSectionMargins({ edges: 'top', length: 0 }),
+                listRowBackground(TRANSPARENT)
+              ]}
+            >
+              {titleRow}
             </Section>
           ) : null}
 

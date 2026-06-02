@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, useColorScheme } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { VStack, HStack, Text as SwiftText } from '@expo/ui/swift-ui';
@@ -15,6 +15,7 @@ import {
 
 import { useTripStore } from '@/lib/store';
 import { ItineraryPanel } from '@/components/itinerary-panel';
+import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { tripHeaderModel } from '@/lib/trip-header';
 import {
   tripCountdownBadge,
@@ -26,6 +27,10 @@ import { exportTripAsFile } from '@/lib/storage';
 
 const TINT = '#007AFF';
 const WHITE = '#ffffff';
+// Height of the progressive-blur layer behind the transparent nav bar — the
+// screen content already starts at the safe-area top, so this spans just the
+// standard (collapsed) navigation bar, not the status-bar inset above it.
+const NAV_BAR_HEIGHT = 64;
 
 export default function DaysSheet() {
   const {
@@ -54,18 +59,30 @@ export default function DaysSheet() {
     if (summary) loadTripById(summary.id);
   }, [summary?.id]);
 
-  // The large title scrolls away as the List's first row; `collapsed` ramps 0→1
-  // as it passes under the bar, cross-fading in the compact inline title
-  // (ADR-0002). Driven on the UI thread by SwiftUI's scroll geometry.
+  // The large title scrolls away as the List's first row. Rather than tracking the
+  // scroll continuously, the inline title is a threshold toggle: once the large
+  // title has scrolled past the collapse point, `collapsed` animates 0→1 to
+  // completion on its own timing (and back when scrolled near the top), so the
+  // slide+fade is a discrete transition, not a scrub. Hysteresis (collapse at 20,
+  // expand below 6) keeps it from flickering when held right at the edge.
+  // (ADR-0002.) Driven on the UI thread by SwiftUI's scroll geometry.
   const collapsed = useSharedValue(0);
+  const isCollapsed = useSharedValue(false);
   const scrollModifier = useScrollGeometryChange((geometry) => {
     'worklet';
-    const start = 8;
-    const band = 56;
-    const progress = (geometry.contentOffsetY - start) / band;
-    collapsed.value = progress < 0 ? 0 : progress > 1 ? 1 : progress;
+    const y = geometry.contentOffsetY;
+    const next = isCollapsed.value ? y > 6 : y > 20;
+    if (next !== isCollapsed.value) {
+      isCollapsed.value = next;
+      collapsed.value = withTiming(next ? 1 : 0, { duration: 220 });
+    }
   });
-  const inlineTitleStyle = useAnimatedStyle(() => ({ opacity: collapsed.value }));
+  // Slide + fade: as the large title scrolls up and out, the inline title rises
+  // from 10pt below and fades in — Apple's large→inline cross-fade motion.
+  const inlineTitleStyle = useAnimatedStyle(() => ({
+    opacity: collapsed.value,
+    transform: [{ translateY: (1 - collapsed.value) * 20 }],
+  }));
 
   async function onExport() {
     if (!summary) return;
@@ -126,35 +143,45 @@ export default function DaysSheet() {
   const dateRange = formatDateRange(summary.startDate, summary.endDate);
 
   // The native navigation row: a leading back-arrow while browsing a non-default
-  // Trip, and a trailing group of the star (own glass capsule), Trips, and a `⋯`
-  // overflow Menu (Export / Delete) that share one glass background.
+  // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Make favorite /
+  // Export / Delete) that share one glass background.
   const chrome = (
     <>
-      <Stack.Header blurEffect="systemMaterial" />
+      {/* Transparent native bar — the progressive blur behind it is an RN overlay
+          (see the return below), since the native bar only does a uniform blur. */}
+      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       {model.showBackArrow ? (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
             icon="chevron.backward"
             accessibilityLabel="Back to default trip"
-            onPress={resetDisplayedTrip}
+            onPress={() => {
+              // Dismiss BEFORE mutating the store so the two motions run together.
+              // react-navigation marks this sheet for dismissal first, so the
+              // outgoing sheet slides away still showing the current trip rather
+              // than snapping in place to the default; the store reset then reframes
+              // the map concurrently, and the bare map's focus effect re-presents a
+              // fresh sheet (resetting detent + scroll — see index.tsx). Order matters:
+              // the reset must land before that re-present focus fires so the fresh
+              // sheet opens on the default trip. Mirrors the trips-sheet switch.
+              router.dismissAll();
+              resetDisplayedTrip();
+            }}
           />
         </Stack.Toolbar>
       ) : null}
       <Stack.Toolbar placement="right">
-        {model.showStar ? (
-          <Stack.Toolbar.Button
-            icon="star"
-            separateBackground
-            accessibilityLabel="Make favorite"
-            onPress={() => setFavorite(model.tripId)}
-          />
-        ) : null}
         <Stack.Toolbar.Button
           icon="list.bullet"
           accessibilityLabel="Trips"
           onPress={() => router.push('/trips')}
         />
         <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More">
+          {model.showStar ? (
+            <Stack.Toolbar.MenuAction icon="star" onPress={() => setFavorite(model.tripId)}>
+              Make favorite
+            </Stack.Toolbar.MenuAction>
+          ) : null}
           <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={onExport}>
             Export
           </Stack.Toolbar.MenuAction>
@@ -181,8 +208,8 @@ export default function DaysSheet() {
 
   // Expanded large title rendered as the List's first row (SwiftUI content).
   const titleRow = (
-    <VStack alignment="leading" spacing={6} modifiers={[padding({ vertical: 4 })]}>
-      <SwiftText modifiers={[font({ size: 34, weight: 'bold' }), foregroundStyle(text)]}>
+    <VStack alignment="leading" spacing={6} modifiers={[padding({ bottom: 4 })]}>
+      <SwiftText modifiers={[font({ size: 28, weight: 'bold' }), foregroundStyle(text)]}>
         {summary.title}
       </SwiftText>
       <HStack spacing={8}>
@@ -215,10 +242,16 @@ export default function DaysSheet() {
   }
 
   return (
-    <>
+    <View style={styles.sheet}>
       {chrome}
       <ItineraryPanel trip={trip} titleRow={titleRow} scrollModifier={scrollModifier} />
-    </>
+      {/* Progressive blur behind the transparent nav bar: full strength at the top
+          edge, easing to clear by the bar's bottom so list content stays sharp. It
+          renders within RN content, i.e. beneath the native toolbar buttons/title. */}
+      <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
+        <ProgressiveBlurView intensity={20} layers={10} />
+      </View>
+    </View>
   );
 }
 
@@ -226,10 +259,11 @@ const styles = StyleSheet.create({
   sheet: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loader: { marginTop: 24 },
+  navBlur: { position: 'absolute', top: 0, left: 0, right: 0 },
 
-  inlineTitle: { alignItems: 'center', justifyContent: 'center' },
+  inlineTitle: { justifyContent: 'center' },
   inlineTitleText: { fontSize: 16, fontWeight: '700' },
-  inlineSubtitle: { fontSize: 11, marginTop: 1 },
+  inlineSubtitle: { fontSize: 11, marginTop: 1, alignSelf: 'flex-start' },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyTitle: { fontSize: 34, fontWeight: '700' },
