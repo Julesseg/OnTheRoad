@@ -19,7 +19,6 @@ import {
   Image,
   Menu,
   SwipeActions,
-  ContextMenu,
   useNativeState,
 } from '@expo/ui/swift-ui';
 import {
@@ -160,39 +159,32 @@ export function ItineraryPanel({
       : null;
 
     return (
-      // Swipe leading→Edit. Swipe trailing→Open in Maps (full swipe) when the item has a
-      // destination, with Delete as the secondary button; otherwise trailing is just Delete.
-      // Long-press opens the context menu.
+      // No context menu: its long-press collides with the List's drag-to-reorder gesture, so
+      // every action lives on a swipe instead. Swipe leading reveals Edit (the full-swipe main
+      // action) and Move to another day when the trip spans more than one day. Swipe trailing
+      // reveals Open in Maps when the item has a destination, and Delete. Tapping the row edits it.
       <SwipeActions key={item.id}>
-        <ContextMenu>
-          <ContextMenu.Items>
-            <Button systemImage="pencil" label="Edit" onPress={edit} />
-            {days.length > 1 ? (
-              <Button
-                systemImage="calendar"
-                label="Move to another day"
-                onPress={() => showMoveToDaySheet(dayId, item.id)}
-              />
-            ) : null}
-            <Button systemImage="trash" role="destructive" label="Delete" onPress={remove} />
-          </ContextMenu.Items>
-          <ContextMenu.Trigger>
-            <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
-              <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
-                {typeLabel.toUpperCase()}
-              </Text>
-              <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
-              {lines.map((line, i) => (
-                <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
-                  {line}
-                </Text>
-              ))}
-            </VStack>
-          </ContextMenu.Trigger>
-        </ContextMenu>
+        <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
+          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+            {typeLabel.toUpperCase()}
+          </Text>
+          <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
+          {lines.map((line, i) => (
+            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
+              {line}
+            </Text>
+          ))}
+        </VStack>
 
         <SwipeActions.Actions edge="leading">
           <Button systemImage="pencil" label="Edit" onPress={edit} />
+          {days.length > 1 ? (
+            <Button
+              systemImage="calendar"
+              label="Move to another day"
+              onPress={() => showMoveToDaySheet(dayId, item.id)}
+            />
+          ) : null}
         </SwipeActions.Actions>
         <SwipeActions.Actions edge="trailing">
           {openMaps ? (

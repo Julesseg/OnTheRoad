@@ -22,9 +22,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
     React.createElement('div', null, header, children);
   const Button = ({ label, onPress }: { label?: string; onPress?: () => void }) =>
     label ? React.createElement('button', { onClick: onPress }, label) : null;
-  const Trigger = pass('div');
-  const Items = pass('div');
-  const ContextMenu = Object.assign(pass('div'), { Trigger, Items });
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
   const ForEach = pass('div');
@@ -40,7 +37,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
     Menu: pass('div'),
     Button,
     SwipeActions,
-    ContextMenu,
     useNativeState: () => ({ value: null }),
   };
 });
