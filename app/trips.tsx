@@ -133,6 +133,7 @@ export default function TripsSheet() {
                   setDisplayedTrip(item.id);
                   router.dismissAll();
                 }}
+                onEdit={() => router.push(`/trip/${item.id}/edit`)}
                 onExport={() => onExport(item)}
                 onDelete={() => onDelete(item)}
               />
@@ -152,6 +153,7 @@ type TripRowProps = {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onTap: () => void;
+  onEdit: () => void;
   onExport: () => void;
   onDelete: () => void;
 };
@@ -163,6 +165,7 @@ function TripRow({
   isFavorite,
   onToggleFavorite,
   onTap,
+  onEdit,
   onExport,
   onDelete,
 }: TripRowProps) {
@@ -191,21 +194,33 @@ function TripRow({
     );
   }
 
-  // Right-swipe is Delete only for now (Edit arrives with the edit-screen slice);
-  // Export lives in the long-press menu.
+  // Right-swipe exposes Edit + Delete; Export lives in the long-press menu.
   function renderRightActions() {
     return (
-      <Pressable
-        onPress={() => {
-          swipeRef.current?.close();
-          onDelete();
-        }}
-        style={[styles.swipeAction, styles.swipeDelete]}
-        accessibilityRole="button"
-        accessibilityLabel="Delete"
-      >
-        <Text style={styles.swipeActionText}>Delete</Text>
-      </Pressable>
+      <View style={styles.rightActions}>
+        <Pressable
+          onPress={() => {
+            swipeRef.current?.close();
+            onEdit();
+          }}
+          style={[styles.swipeAction, styles.swipeEdit]}
+          accessibilityRole="button"
+          accessibilityLabel="Edit"
+        >
+          <Text style={styles.swipeActionText}>Edit</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            swipeRef.current?.close();
+            onDelete();
+          }}
+          style={[styles.swipeAction, styles.swipeDelete]}
+          accessibilityRole="button"
+          accessibilityLabel="Delete"
+        >
+          <Text style={styles.swipeActionText}>Delete</Text>
+        </Pressable>
+      </View>
     );
   }
 
@@ -347,7 +362,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   swipeFavorite: { backgroundColor: FAVORITE_GOLD, marginLeft: 16 },
-  swipeDelete: { backgroundColor: '#ff3b30', marginRight: 16 },
+  rightActions: { flexDirection: 'row', marginRight: 16 },
+  swipeEdit: { backgroundColor: '#007AFF' },
+  swipeDelete: { backgroundColor: '#ff3b30' },
   swipeIcon: { width: 26, height: 26 },
   swipeActionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 

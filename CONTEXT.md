@@ -52,9 +52,14 @@ cached in the store's `loadedTrips`.
 ### Day
 
 A single calendar **date** within a trip. Holds an ordered list of `items` and
-optional free-form `notes`. When a trip is created, one day is generated for
-every date from `startDate` through `endDate` inclusive (`buildDays` in
-`app/trip/new.tsx`). A day is identified by its own `id`, not by its date.
+optional free-form `notes`. Days are generated and kept in sync by
+`reconcileDays` (`lib/trip-days.ts`): on create it builds one empty day for
+every date from `startDate` through `endDate` inclusive, and when a trip's dates
+change it is **calendar-anchored** — in-range days are kept intact, newly
+in-range dates are added as empty days, and out-of-range days are dropped (it
+also reports any dropped day that still holds items so the edit flow can warn
+before discarding, since items are never auto-moved). A day is identified by its
+own `id`, not by its date.
 
 Prefer **Day** over "leg" or "stage".
 

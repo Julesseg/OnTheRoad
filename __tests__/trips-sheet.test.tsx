@@ -231,6 +231,17 @@ describe('TripsSheet', () => {
     expect(state.removeTrip).toHaveBeenCalledWith('desert');
   });
 
+  it('right-swipe exposes Edit, which opens the trip edit screen', async () => {
+    storeWith({ trips: allTrips });
+    await renderSheet();
+
+    const card = screen.getByRole('button', { name: 'Desert Loop' });
+    const row = card.parentElement as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit' }));
+
+    expect(router.push).toHaveBeenCalledWith('/trip/desert/edit');
+  });
+
   it('long-press exposes Export and Delete', async () => {
     vi.useFakeTimers();
     const { Alert } = await import('react-native');
