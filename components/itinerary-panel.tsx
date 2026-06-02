@@ -45,6 +45,7 @@ import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
 import { ProgressiveBlurView } from './progressive-blur';
+import { MoveToDayOverlay } from './move-to-day-overlay';
 
 const TINT = '#007AFF';
 const WHITE = '#ffffff';
@@ -102,7 +103,11 @@ export function ItineraryPanel({
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const reorderItem = useTripStore((s) => s.reorderItem);
+  const moveItem = useTripStore((s) => s.moveItem);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
+
+  // The Item whose "Move to day" calendar is open, or null when none is.
+  const [moveTarget, setMoveTarget] = useState<{ fromDayId: string; itemId: string } | null>(null);
 
   const today = localDateString(now);
   const days = useMemo(
@@ -131,12 +136,9 @@ export function ItineraryPanel({
     ]);
   }
 
-  // Open the calendar pop-up to move this item to another Day (a different date).
+  // Open the floating calendar to move this item to another Day (a different date).
   function showMoveToDaySheet(fromDayId: string, itemId: string) {
-    router.push({
-      pathname: '/trip/[id]/move',
-      params: { id: trip.id, fromDayId, itemId },
-    });
+    setMoveTarget({ fromDayId, itemId });
   }
 
   // Pick an item type for the day, then open the editor to create it.
@@ -168,7 +170,7 @@ export function ItineraryPanel({
             {days.length > 1 ? (
               <Button
                 systemImage="calendar"
-                label="Move to day"
+                label="Move to another day"
                 onPress={() => showMoveToDaySheet(dayId, item.id)}
               />
             ) : null}
@@ -286,6 +288,18 @@ export function ItineraryPanel({
         <ProgressiveBlurView intensity={20} layers={10} />
         {header}
       </View>
+
+      {moveTarget ? (
+        <MoveToDayOverlay
+          trip={trip}
+          fromDayId={moveTarget.fromDayId}
+          itemId={moveTarget.itemId}
+          onMove={(targetDayId) =>
+            moveItem(trip.id, moveTarget.fromDayId, targetDayId, moveTarget.itemId)
+          }
+          onClose={() => setMoveTarget(null)}
+        />
+      ) : null}
     </View>
   );
 }
