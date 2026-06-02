@@ -24,6 +24,8 @@ import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
 
 const FAVORITE_GOLD = '#FFD60A';
+const NOW_GREEN = '#34C759'; // in-progress trip — "Now"
+const UPCOMING_BLUE = '#007AFF'; // upcoming trip — "in N"
 
 export default function TripsSheet() {
   const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
@@ -209,6 +211,9 @@ function TripRow({
 
   const wallpaperUri = summary.wallpaperUri ? wallpaperDisplayUri(summary.wallpaperUri) : null;
   const pill = countdownPill(summary, today);
+  // Visible rows always end today or later, so an early start date means the
+  // trip is live now — give that pill a distinct green vs. the blue countdown.
+  const isNow = summary.startDate <= today;
 
   return (
     <Swipeable
@@ -230,7 +235,6 @@ function TripRow({
         }
         accessibilityRole="button"
         accessibilityLabel={summary.title}
-        accessibilityState={{ selected: isFavorite }}
         aria-selected={isFavorite}
         style={[
           styles.row,
@@ -267,7 +271,7 @@ function TripRow({
             <Text style={[styles.rowDates, { color: isDark ? '#aeaeb2' : '#6d6d72' }]} numberOfLines={1}>
               {formatDateRange(summary.startDate, summary.endDate)}
             </Text>
-            <View style={styles.pill}>
+            <View style={[styles.pill, { backgroundColor: isNow ? NOW_GREEN : UPCOMING_BLUE }]}>
               <Text style={styles.pillText}>{pill}</Text>
             </View>
           </View>
@@ -329,7 +333,6 @@ const styles = StyleSheet.create({
   datesRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   rowDates: { fontSize: 13, flexShrink: 1 },
   pill: {
-    backgroundColor: '#007AFF',
     borderRadius: 9,
     paddingHorizontal: 8,
     paddingVertical: 2,

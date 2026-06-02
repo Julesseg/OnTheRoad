@@ -78,6 +78,10 @@ describe('countdownPill', () => {
   it('singularises a one-unit countdown', () => {
     expect(countdownPill(trip, '2026-06-09')).toBe('in 1 day');
   });
+
+  it('throws for an ended trip rather than mislabelling it "Now"', () => {
+    expect(() => countdownPill(trip, '2026-06-25')).toThrow();
+  });
 });
 
 describe('durationUnitWord', () => {

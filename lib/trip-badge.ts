@@ -47,15 +47,19 @@ export function durationUnitWord(duration: Duration): string {
 /**
  * The inline countdown pill shown on a trip card's date line: `"Now"` while the
  * trip is in progress and `"in N <unit>"` (coarsened to weeks/months/years)
- * before it starts. The trips list only shows in-progress + upcoming trips, so
- * the past ("ago") case never arises and is folded into `"Now"`.
+ * before it starts. The trips list only renders in-progress + upcoming trips, so
+ * an ended ("after") trip is out of contract and throws rather than silently
+ * mislabelling itself as `"Now"`.
  */
 export function countdownPill(
   summary: Pick<TripSummary, 'startDate' | 'endDate'>,
   today: string,
 ): string {
   const badge = tripCountdownBadge(summary, today);
-  if (badge.kind !== 'before') return 'Now';
+  if (badge.kind === 'after') {
+    throw new Error('countdownPill: trip has already ended (in-progress or upcoming only)');
+  }
+  if (badge.kind === 'now') return 'Now';
   const duration = approximateDuration(badge.days);
   return `in ${duration.value} ${durationUnitWord(duration)}`;
 }

@@ -145,6 +145,14 @@ describe('TripsSheet', () => {
     expect(screen.getByText('in 2 weeks')).toBeInTheDocument(); // Mountain Pass, 2026-06-16
   });
 
+  it('gives the in-progress "Now" pill a distinct color from the upcoming countdown', async () => {
+    storeWith({ trips: allTrips });
+    await renderSheet();
+
+    expect(screen.getByText('Now').parentElement).toHaveStyle({ backgroundColor: '#34C759' });
+    expect(screen.getByText('in 3 days').parentElement).toHaveStyle({ backgroundColor: '#007AFF' });
+  });
+
   it('never renders a star button', async () => {
     storeWith({ trips: allTrips, activeTripId: 'coast' });
     await renderSheet();
