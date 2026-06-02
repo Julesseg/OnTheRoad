@@ -45,21 +45,22 @@ export function durationUnitWord(duration: Duration): string {
 }
 
 /**
- * The inline countdown pill shown on a trip card's date line: `"Now"` while the
- * trip is in progress and `"in N <unit>"` (coarsened to weeks/months/years)
- * before it starts. The trips list only renders in-progress + upcoming trips, so
- * an ended ("after") trip is out of contract and throws rather than silently
- * mislabelling itself as `"Now"`.
+ * The inline countdown pill shown on a trip card's date line, total over every
+ * trip status: `"Now"` while in progress, `"in N <unit>"` before it starts, and
+ * `"N <unit> ago"` once it has ended — the unit coarsens to weeks/months/years
+ * so the count stays small (e.g. "in 2 months"). The trips list only renders
+ * in-progress + upcoming, so the "ago" form is unused there but keeps the helper
+ * safe to reuse for any trip.
  */
 export function countdownPill(
   summary: Pick<TripSummary, 'startDate' | 'endDate'>,
   today: string,
 ): string {
   const badge = tripCountdownBadge(summary, today);
-  if (badge.kind === 'after') {
-    throw new Error('countdownPill: trip has already ended (in-progress or upcoming only)');
-  }
   if (badge.kind === 'now') return 'Now';
   const duration = approximateDuration(badge.days);
-  return `in ${duration.value} ${durationUnitWord(duration)}`;
+  const unit = durationUnitWord(duration);
+  return badge.kind === 'before'
+    ? `in ${duration.value} ${unit}`
+    : `${duration.value} ${unit} ago`;
 }

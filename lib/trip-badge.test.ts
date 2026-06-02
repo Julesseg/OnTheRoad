@@ -79,8 +79,9 @@ describe('countdownPill', () => {
     expect(countdownPill(trip, '2026-06-09')).toBe('in 1 day');
   });
 
-  it('throws for an ended trip rather than mislabelling it "Now"', () => {
-    expect(() => countdownPill(trip, '2026-06-25')).toThrow();
+  it('counts up the days since an ended trip, coarsening the unit', () => {
+    expect(countdownPill(trip, '2026-06-25')).toBe('5 days ago');
+    expect(countdownPill(trip, '2026-07-11')).toBe('3 weeks ago');
   });
 });
 
