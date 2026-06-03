@@ -24,13 +24,20 @@ vi.mock('@expo/ui/swift-ui', async () => {
     label,
     systemImage,
     onPress,
+    children,
   }: {
     label?: string;
     systemImage?: string;
     onPress?: () => void;
+    children?: React.ReactNode;
   }) =>
-    label || systemImage
-      ? React.createElement('button', { onClick: onPress, 'aria-label': label || systemImage }, label)
+    label || systemImage || children
+      ? React.createElement(
+          'button',
+          { onClick: onPress, 'aria-label': label || systemImage },
+          label,
+          children,
+        )
       : null;
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
@@ -43,7 +50,9 @@ vi.mock('@expo/ui/swift-ui', async () => {
     HStack: pass('div'),
     Spacer: () => null,
     Text: pass('span'),
-    Image: () => null,
+    // Surface the SF Symbol name so an icon-only Button (plus) stays queryable.
+    Image: ({ systemName }: { systemName?: string }) =>
+      React.createElement('span', { 'aria-label': systemName }),
     Menu: pass('div'),
     Button,
     SwipeActions,

@@ -10,6 +10,7 @@ import {
   Spacer,
   Text,
   Button,
+  Image,
   SwipeActions,
   useNativeState,
 } from '@expo/ui/swift-ui';
@@ -257,9 +258,10 @@ export function ItineraryPanel({
                     </Text>
                     <Spacer />
                     <Button
-                      systemImage="plus"
                       onPress={() => setAddTarget({ dayId: day.id, dayNumber: index + 1 })}
-                    />
+                    >
+                      <Image systemName="plus" size={20} />
+                    </Button>
                   </HStack>
                   {day.notes ? (
                     <Text modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
