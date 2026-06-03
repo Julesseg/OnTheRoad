@@ -29,6 +29,15 @@ function parseLocalDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** Human-friendly label for a YYYY-MM-DD string, e.g. "Jun 1, 2026". */
+function formatDisplayDate(s: string): string {
+  return parseLocalDate(s).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 /** The trip's cover photo as the form currently holds it. `existing` is an
  * already-saved wallpaper (shown by its display uri), `picked` is a freshly
  * chosen local image awaiting save, and `none` means no cover. */
@@ -78,6 +87,21 @@ export function TripForm({
   const [cover, setCover] = useState<TripFormCover>(
     initialWallpaperUri ? { kind: 'existing', displayUri: initialWallpaperUri } : { kind: 'none' },
   );
+  // Which endpoint the single calendar is currently editing.
+  const [editing, setEditing] = useState<'start' | 'end'>('start');
+
+  // The calendar drives one endpoint at a time. Moving an endpoint past the
+  // other drags that other one along, so the range stays valid (start <= end).
+  function handleDateChange(d: Date) {
+    const value = formatLocalDate(d);
+    if (editing === 'start') {
+      setStartDate(value);
+      if (value > endDate) setEndDate(value);
+    } else {
+      setEndDate(value);
+      if (value < startDate) setStartDate(value);
+    }
+  }
 
   async function pickCover() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -141,22 +165,33 @@ export function TripForm({
               returnKeyType="done"
             />
 
-            <Text style={styles.label}>Start Date</Text>
-            <Host matchContents style={styles.picker}>
+            <Text style={styles.label}>Dates</Text>
+            <View style={styles.segment}>
+              <TouchableOpacity
+                style={[styles.segmentItem, editing === 'start' && styles.segmentItemActive]}
+                onPress={() => setEditing('start')}
+                accessibilityLabel="Edit start date"
+                accessibilityState={{ selected: editing === 'start' }}
+              >
+                <Text style={styles.segmentCaption}>Start</Text>
+                <Text style={styles.segmentValue}>{formatDisplayDate(startDate)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segmentItem, editing === 'end' && styles.segmentItemActive]}
+                onPress={() => setEditing('end')}
+                accessibilityLabel="Edit end date"
+                accessibilityState={{ selected: editing === 'end' }}
+              >
+                <Text style={styles.segmentCaption}>End</Text>
+                <Text style={styles.segmentValue}>{formatDisplayDate(endDate)}</Text>
+              </TouchableOpacity>
+            </View>
+            {/* Remount on toggle so the calendar jumps to the active endpoint's month. */}
+            <Host key={editing} style={styles.picker}>
               <DatePicker
-                selection={parseLocalDate(startDate)}
+                selection={parseLocalDate(editing === 'start' ? startDate : endDate)}
                 displayedComponents={['date']}
-                onDateChange={(d) => setStartDate(formatLocalDate(d))}
-                modifiers={[datePickerStyle('graphical')]}
-              />
-            </Host>
-
-            <Text style={styles.label}>End Date</Text>
-            <Host matchContents style={styles.picker}>
-              <DatePicker
-                selection={parseLocalDate(endDate)}
-                displayedComponents={['date']}
-                onDateChange={(d) => setEndDate(formatLocalDate(d))}
+                onDateChange={handleDateChange}
                 modifiers={[datePickerStyle('graphical')]}
               />
             </Host>
@@ -224,7 +259,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
-  picker: { alignSelf: 'stretch' },
+  // The graphical (inline calendar) date picker has a large intrinsic height
+  // that Host's matchContents fails to measure, so the hosts collapse and the
+  // calendars overlap. Pin an explicit height matching the iOS inline calendar.
+  picker: { alignSelf: 'stretch', height: 360 },
+  segment: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  segmentItem: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  segmentItemActive: {
+    borderColor: '#007AFF',
+    backgroundColor: '#007AFF14',
+  },
+  segmentCaption: { fontSize: 12, fontWeight: '600', color: '#888' },
+  segmentValue: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginTop: 2 },
   coverButton: {
     borderWidth: 1,
     borderColor: '#007AFF',

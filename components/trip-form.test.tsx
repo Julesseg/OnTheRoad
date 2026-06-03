@@ -1,15 +1,24 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import * as ImagePicker from 'expo-image-picker';
 import { TripForm } from '@/components/trip-form';
 
-// The SwiftUI graphical DatePicker is native-only; render its host transparently
-// and drop the picker (dates are driven through props in these specs).
+// The SwiftUI graphical DatePicker is native-only. Render the host transparently
+// and capture the active picker's props so specs can drive date changes the way
+// a tap on the calendar would, and assert which endpoint it is bound to.
+const picker = vi.hoisted(() => ({
+  onDateChange: undefined as ((d: Date) => void) | undefined,
+  selection: undefined as Date | undefined,
+}));
 vi.mock('@expo/ui/swift-ui', () => ({
   Host: ({ children }: { children?: React.ReactNode }) =>
     React.createElement('div', null, children),
-  DatePicker: () => null,
+  DatePicker: (props: { onDateChange?: (d: Date) => void; selection?: Date }) => {
+    picker.onDateChange = props.onDateChange;
+    picker.selection = props.selection;
+    return null;
+  },
 }));
 vi.mock('@expo/ui/swift-ui/modifiers', () => ({ datePickerStyle: vi.fn(() => ({})) }));
 vi.mock('react-native-safe-area-context', () => ({
@@ -154,6 +163,48 @@ describe('TripForm', () => {
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ cover: { kind: 'none' } }),
+    );
+  });
+
+  it('binds the shared calendar to the start date until End is selected', () => {
+    renderForm({ initialTitle: 'Coast', initialStartDate: '2026-07-01', initialEndDate: '2026-07-03' });
+
+    // Defaults to editing the start endpoint.
+    expect(picker.selection).toEqual(new Date(2026, 6, 1));
+
+    fireEvent.click(screen.getByLabelText('Edit end date'));
+    expect(picker.selection).toEqual(new Date(2026, 6, 3));
+  });
+
+  it('edits whichever endpoint the calendar is bound to', () => {
+    const { onSubmit } = renderForm({
+      initialTitle: 'Coast',
+      initialStartDate: '2026-07-01',
+      initialEndDate: '2026-07-03',
+    });
+
+    fireEvent.click(screen.getByLabelText('Edit end date'));
+    act(() => picker.onDateChange!(new Date(2026, 6, 10)));
+    fireEvent.click(screen.getByLabelText('Create'));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ startDate: '2026-07-01', endDate: '2026-07-10' }),
+    );
+  });
+
+  it('drags the end date along when the start moves past it', () => {
+    const { onSubmit } = renderForm({
+      initialTitle: 'Coast',
+      initialStartDate: '2026-07-01',
+      initialEndDate: '2026-07-03',
+    });
+
+    // Editing the start by default; push it beyond the current end.
+    act(() => picker.onDateChange!(new Date(2026, 6, 20)));
+    fireEvent.click(screen.getByLabelText('Create'));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ startDate: '2026-07-20', endDate: '2026-07-20' }),
     );
   });
 
