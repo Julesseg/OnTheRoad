@@ -1,31 +1,54 @@
-import React, { useRef } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  FlatList,
-  StyleSheet,
-  Alert,
-  useColorScheme,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { GlassView } from 'expo-glass-effect';
-import { SymbolView } from 'expo-symbols';
-import { Image } from 'expo-image';
-import { Swipeable } from 'react-native-gesture-handler';
-import { router } from 'expo-router';
+import { View, Text as RNText, StyleSheet, Alert, useColorScheme } from 'react-native';
+import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
+import {
+  Host,
+  List,
+  Section,
+  VStack,
+  HStack,
+  Spacer,
+  Text,
+  Image,
+  Button,
+  SwipeActions,
+} from '@expo/ui/swift-ui';
+import {
+  listStyle,
+  font,
+  foregroundStyle,
+  frame,
+  clipShape,
+  background,
+  padding,
+  lineLimit,
+  onTapGesture,
+  tint,
+  glassEffect,
+  shapes,
+  animation,
+  Animation,
+} from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
+import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { partitionTrips } from '@/lib/trip-partition';
-import { countdownPill } from '@/lib/trip-badge';
+import { tripCountdownBadge, countdownPillLabel } from '@/lib/trip-badge';
 import { todayString, formatDateRange } from '@/lib/date-utils';
 import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
 
 const FAVORITE_GOLD = '#FFD60A';
-const NOW_GREEN = '#34C759'; // in-progress trip — "Now"
-const UPCOMING_BLUE = '#007AFF'; // upcoming trip — "in N"
+const EDIT_BLUE = '#007AFF';
+const EXPORT_GREEN = '#34C759';
+const DELETE_RED = '#FF3B30';
+// The countdown pill mirrors the days sheet: one blue glass capsule across every
+// status, never a green/blue split (the label itself carries the distinction).
+const PILL_TINT = '#007AFF';
+const WHITE = '#ffffff';
+// Height of the progressive-blur band behind the transparent nav bar — spans the
+// standard (collapsed) navigation bar at the top of the sheet (mirrors days.tsx).
+const NAV_BAR_HEIGHT = 64;
 
 export default function TripsSheet() {
   const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
@@ -33,6 +56,7 @@ export default function TripsSheet() {
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const subtext = isDark ? '#aeaeb2' : '#6d6d72';
 
   // Flat, scannable list: in-progress trips first, then upcoming, each already
   // sorted by start date. Archived/past trips stay hidden.
@@ -59,297 +83,186 @@ export default function TripsSheet() {
   function onDelete(summary: TripSummary) {
     Alert.alert('Delete trip', `Delete "${summary.title}"? This can't be undone.`, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => removeTrip(summary.id),
-      },
+      { text: 'Delete', style: 'destructive', onPress: () => removeTrip(summary.id) },
     ]);
   }
 
-  return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.toolbar}>
-          <Pressable
-            onPress={() => router.push('/settings')}
-            accessibilityLabel="Settings"
-            accessibilityRole="button"
-          >
-            <GlassView glassEffectStyle="regular" isInteractive style={styles.toolbarBtn}>
-              <SymbolView
-                name="gearshape"
-                tintColor="#007AFF"
-                resizeMode="scaleAspectFit"
-                style={styles.toolbarIcon}
-              />
-            </GlassView>
-          </Pressable>
-
-          <Text style={[styles.title, { color: isDark ? '#fff' : '#111' }]}>Trips</Text>
-
-          <Pressable
-            onPress={() => router.push('/trip/new')}
-            accessibilityLabel="New trip"
-            accessibilityRole="button"
-          >
-            <GlassView glassEffectStyle="regular" isInteractive style={styles.toolbarBtn}>
-              <SymbolView
-                name="plus"
-                tintColor="#007AFF"
-                resizeMode="scaleAspectFit"
-                style={styles.toolbarIcon}
-              />
-            </GlassView>
-          </Pressable>
-        </View>
-
-        {visibleTrips.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
-              No active trips
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={visibleTrips}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TripRow
-                summary={item}
-                today={today}
-                isDark={isDark}
-                isFavorite={activeTripId === item.id}
-                onToggleFavorite={() => {
-                  if (activeTripId === item.id) clearFavorite();
-                  else setFavorite(item.id);
-                }}
-                onTap={() => {
-                  // ADR-0001: reuse the single page — set the Displayed Trip in
-                  // store state rather than pushing a /trip/[id] route. Dismiss
-                  // the whole sheet stack (trips + days) back to the bare map;
-                  // index.tsx re-presents the permanent days sheet on focus,
-                  // which remounts it at its 50% initial detent.
-                  setDisplayedTrip(item.id);
-                  router.dismissAll();
-                }}
-                onExport={() => onExport(item)}
-                onDelete={() => onDelete(item)}
-              />
-            )}
-            contentContainerStyle={styles.list}
-          />
-        )}
-      </SafeAreaView>
-    </View>
-  );
-}
-
-type TripRowProps = {
-  summary: TripSummary;
-  today: string;
-  isDark: boolean;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
-  onTap: () => void;
-  onExport: () => void;
-  onDelete: () => void;
-};
-
-function TripRow({
-  summary,
-  today,
-  isDark,
-  isFavorite,
-  onToggleFavorite,
-  onTap,
-  onExport,
-  onDelete,
-}: TripRowProps) {
-  const swipeRef = useRef<Swipeable>(null);
-
-  // Left-swipe toggles the single persisted favorite; every visible row
-  // qualifies (all end today or later).
-  function renderLeftActions() {
-    return (
-      <Pressable
-        onPress={() => {
-          swipeRef.current?.close();
-          onToggleFavorite();
-        }}
-        style={[styles.swipeAction, styles.swipeFavorite]}
-        accessibilityRole="button"
-        accessibilityLabel={isFavorite ? 'Unfavorite' : 'Favorite'}
-      >
-        <SymbolView
-          name={isFavorite ? 'star.slash.fill' : 'star.fill'}
-          tintColor="#fff"
-          resizeMode="scaleAspectFit"
-          style={styles.swipeIcon}
-        />
-      </Pressable>
-    );
+  function onEdit(summary: TripSummary) {
+    router.push(`/trip/${summary.id}/edit`);
   }
 
-  // Right-swipe is Delete only for now (Edit arrives with the edit-screen slice);
-  // Export lives in the long-press menu.
-  function renderRightActions() {
-    return (
-      <Pressable
-        onPress={() => {
-          swipeRef.current?.close();
-          onDelete();
-        }}
-        style={[styles.swipeAction, styles.swipeDelete]}
-        accessibilityRole="button"
-        accessibilityLabel="Delete"
-      >
-        <Text style={styles.swipeActionText}>Delete</Text>
-      </Pressable>
-    );
+  function onTap(summary: TripSummary) {
+    // ADR-0001: reuse the single page — set the Displayed Trip in store state
+    // rather than pushing a /trip/[id] route. Dismiss the whole sheet stack
+    // (trips + days) back to the bare map; index.tsx re-presents the permanent
+    // days sheet on focus, which remounts it at its 50% initial detent.
+    setDisplayedTrip(summary.id);
+    router.dismissAll();
   }
 
-  const wallpaperUri = summary.wallpaperUri ? wallpaperDisplayUri(summary.wallpaperUri) : null;
-  const pill = countdownPill(summary, today);
-  // Visible rows always end today or later, so an early start date means the
-  // trip is live now — give that pill a distinct green vs. the blue countdown.
-  const isNow = summary.startDate <= today;
+  function onToggleFavorite(summary: TripSummary) {
+    if (activeTripId === summary.id) clearFavorite();
+    else setFavorite(summary.id);
+  }
 
-  return (
-    <Swipeable
-      ref={swipeRef}
-      renderLeftActions={renderLeftActions}
-      renderRightActions={renderRightActions}
-      friction={2}
-      leftThreshold={40}
-      rightThreshold={40}
-    >
-      <Pressable
-        onPress={onTap}
-        onLongPress={() =>
-          Alert.alert(summary.title, '', [
-            { text: 'Export', onPress: onExport },
-            { text: 'Delete', style: 'destructive', onPress: onDelete },
-            { text: 'Cancel', style: 'cancel' },
-          ])
-        }
-        accessibilityRole="button"
-        accessibilityLabel={summary.title}
-        aria-selected={isFavorite}
-        style={[
-          styles.row,
-          { backgroundColor: isDark ? '#2c2c2e' : '#fff' },
-          isFavorite && styles.rowFavorite,
-        ]}
-      >
-        <View style={styles.thumb}>
+  // A trip row as a native SwiftUI list row with swipe actions: leading swipe
+  // exposes Edit and the single persisted favorite toggle; trailing swipe exposes
+  // Export and Delete. Tapping the row opens the trip.
+  function renderRow(summary: TripSummary) {
+    const wallpaperUri = summary.wallpaperUri ? wallpaperDisplayUri(summary.wallpaperUri) : null;
+    const badge = tripCountdownBadge(summary, today);
+    const pill = countdownPillLabel(badge);
+    const isFavorite = activeTripId === summary.id;
+
+    return (
+      <SwipeActions key={summary.id}>
+        <HStack spacing={12} modifiers={[onTapGesture(() => onTap(summary))]}>
           {wallpaperUri ? (
             <Image
-              source={{ uri: wallpaperUri }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
+              uiImage={wallpaperUri}
+              modifiers={[frame({ width: 56, height: 56 }), clipShape('roundedRectangle', 12)]}
             />
           ) : (
-            <View
-              style={[styles.thumbFallback, { backgroundColor: isDark ? '#3a3a3c' : '#e5e5ea' }]}
-            >
-              <SymbolView
-                name="map"
-                tintColor="#8e8e93"
-                resizeMode="scaleAspectFit"
-                style={styles.thumbIcon}
-              />
-            </View>
+            <Image
+              systemName="map"
+              size={26}
+              color="#8e8e93"
+              modifiers={[
+                frame({ width: 56, height: 56 }),
+                background(
+                  isDark ? '#3a3a3c' : '#e5e5ea',
+                  shapes.roundedRectangle({ cornerRadius: 12 }),
+                ),
+              ]}
+            />
           )}
-        </View>
 
-        <View style={styles.rowText}>
-          <Text style={[styles.rowTitle, { color: isDark ? '#fff' : '#111' }]} numberOfLines={1}>
-            {summary.title}
-          </Text>
-          <View style={styles.datesRow}>
-            <Text style={[styles.rowDates, { color: isDark ? '#aeaeb2' : '#6d6d72' }]} numberOfLines={1}>
-              {formatDateRange(summary.startDate, summary.endDate)}
-            </Text>
-            <View style={[styles.pill, { backgroundColor: isNow ? NOW_GREEN : UPCOMING_BLUE }]}>
-              <Text style={styles.pillText}>{pill}</Text>
-            </View>
-          </View>
+          <VStack alignment="leading" spacing={4}>
+            <HStack spacing={5}>
+              {isFavorite ? <Image systemName="star.fill" size={12} color={FAVORITE_GOLD} /> : null}
+              <Text modifiers={[font({ size: 17, weight: 'semibold' }), lineLimit(1)]}>
+                {summary.title}
+              </Text>
+            </HStack>
+            <HStack spacing={8}>
+              <Text modifiers={[font({ size: 13 }), foregroundStyle(subtext), lineLimit(1)]}>
+                {formatDateRange(summary.startDate, summary.endDate)}
+              </Text>
+              <Text
+                modifiers={[
+                  font({ size: 12, weight: 'semibold' }),
+                  foregroundStyle(WHITE),
+                  padding({ horizontal: 10, vertical: 2 }),
+                  glassEffect({ glass: { variant: 'regular', tint: PILL_TINT }, shape: 'capsule' }),
+                  clipShape('capsule'),
+                ]}
+              >
+                {pill}
+              </Text>
+            </HStack>
+          </VStack>
+
+          <Spacer />
+        </HStack>
+
+        {/* Trailing edge disables full-swipe (allowsFullSwipe={false}) so a long
+            swipe can't auto-trigger Delete; the Delete button itself also drops
+            role="destructive" (see below) so a plain tap doesn't pre-remove the
+            row before the confirm alert. Trailing buttons lay out from the edge
+            inward, so [Delete, Export] reads "Export, Delete" left-to-right. */}
+        <SwipeActions.Actions edge="leading">
+          <Button
+            systemImage="pencil"
+            label="Edit"
+            onPress={() => onEdit(summary)}
+            modifiers={[tint(EDIT_BLUE)]}
+          />
+          <Button
+            systemImage={isFavorite ? 'star.slash.fill' : 'star.fill'}
+            label={isFavorite ? 'Unfavorite' : 'Favorite'}
+            onPress={() => onToggleFavorite(summary)}
+            modifiers={[tint(FAVORITE_GOLD)]}
+          />
+        </SwipeActions.Actions>
+        <SwipeActions.Actions edge="trailing" allowsFullSwipe={false}>
+          {/* No role="destructive": a destructive swipe button plays SwiftUI's
+              row-removal animation the instant it's tapped, before our confirm
+              alert resolves — so cancelling left the row gone while the store
+              still held the trip. Tinting red keeps the destructive look without
+              the auto-removal; the row stays until removeTrip actually runs. */}
+          <Button
+            systemImage="trash"
+            label="Delete"
+            onPress={() => onDelete(summary)}
+            modifiers={[tint(DELETE_RED)]}
+          />
+          <Button
+            systemImage="square.and.arrow.up"
+            label="Export"
+            onPress={() => onExport(summary)}
+            modifiers={[tint(EXPORT_GREEN)]}
+          />
+        </SwipeActions.Actions>
+      </SwipeActions>
+    );
+  }
+
+  // The native navigation bar mirrors the days sheet's Stack.Toolbar chrome:
+  // a Settings button on the left, the title, and a New trip button on the right.
+  // The bar itself is transparent — list content scrolls under it and a
+  // progressive-blur RN overlay (below) provides the variable-radius frost, since
+  // the native bar can only do a uniform blur.
+  return (
+    <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
+      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+      <Stack.Title>Trips</Stack.Title>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          icon="gearshape"
+          accessibilityLabel="Settings"
+          onPress={() => router.push('/settings')}
+        />
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon="plus"
+          accessibilityLabel="New trip"
+          onPress={() => router.push('/trip/new')}
+        />
+      </Stack.Toolbar>
+
+      {visibleTrips.length === 0 ? (
+        <View style={styles.empty}>
+          <RNText style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
+            No active trips
+          </RNText>
         </View>
-      </Pressable>
-    </Swipeable>
+      ) : (
+        <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'}>
+          {/* Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
+              row count. Removing role="destructive" took away the swipe's built-in
+              delete animation, so we drive it here — when removeTrip drops the count
+              the row slides out instead of vanishing. */}
+          <List modifiers={[listStyle('insetGrouped'), animation(Animation.default, visibleTrips.length)]}>
+            <Section>{visibleTrips.map((summary) => renderRow(summary))}</Section>
+          </List>
+        </Host>
+      )}
+
+      {/* Progressive blur behind the transparent nav bar: full strength at the top
+          edge, easing to clear by the bar's bottom so list content stays sharp. It
+          renders within RN content, i.e. beneath the native toolbar buttons/title. */}
+      <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
+        <ProgressiveBlurView intensity={20} layers={10} />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  safe: { flex: 1 },
-
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 8,
-  },
-  title: { fontSize: 20, fontWeight: '700' },
-  toolbarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolbarIcon: { width: 20, height: 20 },
-
-  list: { paddingVertical: 8 },
-
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    height: 92,
-    marginHorizontal: 16,
-    marginVertical: 5,
-    padding: 10,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  rowFavorite: { borderColor: FAVORITE_GOLD },
-
-  thumb: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  thumbFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  thumbIcon: { width: 32, height: 32 },
-
-  rowText: { flex: 1, justifyContent: 'center' },
-  rowTitle: { fontSize: 17, fontWeight: '600' },
-  datesRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  rowDates: { fontSize: 13, flexShrink: 1 },
-  pill: {
-    borderRadius: 9,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  pillText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-
-  swipeAction: {
-    width: 80,
-    marginVertical: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-  },
-  swipeFavorite: { backgroundColor: FAVORITE_GOLD, marginLeft: 16 },
-  swipeDelete: { backgroundColor: '#ff3b30', marginRight: 16 },
-  swipeIcon: { width: 26, height: 26 },
-  swipeActionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  host: { flex: 1 },
+  navBlur: { position: 'absolute', top: 0, left: 0, right: 0 },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 16 },

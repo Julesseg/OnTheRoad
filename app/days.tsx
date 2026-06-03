@@ -143,8 +143,8 @@ export default function DaysSheet() {
   const dateRange = formatDateRange(summary.startDate, summary.endDate);
 
   // The native navigation row: a leading back-arrow while browsing a non-default
-  // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Make favorite /
-  // Export / Delete) that share one glass background.
+  // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Edit / Make
+  // favorite / Export / Delete) that share one glass background.
   const chrome = (
     <>
       {/* Transparent native bar — the progressive blur behind it is an RN overlay
@@ -177,6 +177,12 @@ export default function DaysSheet() {
           onPress={() => router.push('/trips')}
         />
         <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More">
+          <Stack.Toolbar.MenuAction
+            icon="pencil"
+            onPress={() => router.push(`/trip/${summary.id}/edit`)}
+          >
+            Edit
+          </Stack.Toolbar.MenuAction>
           {model.showStar ? (
             <Stack.Toolbar.MenuAction icon="star" onPress={() => setFavorite(model.tripId)}>
               Make favorite

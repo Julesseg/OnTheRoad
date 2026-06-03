@@ -3,14 +3,23 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { TripSummary } from '@/lib/schema';
 
-vi.mock('expo-router', () => ({ router: { push: vi.fn(), dismissAll: vi.fn() } }));
+// The native chrome is expo-router's Stack.Header / Stack.Title; Header renders
+// nothing and Title renders its text so it stays queryable under jsdom.
+/* eslint-disable react/display-name -- inline passthrough stand-ins for native views */
+vi.mock('expo-router', async () => {
+  const React = await import('react');
+  const Stack: any = () => null;
+  Stack.Header = () => null;
+  Stack.Title = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement('span', null, children);
+  return { router: { push: vi.fn(), dismissAll: vi.fn() }, Stack };
+});
 vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn(), shareAsync: vi.fn() }));
 vi.mock('@/lib/storage', () => ({ wallpaperDisplayUri: vi.fn(), exportTripAsFile: vi.fn() }));
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
-vi.mock('react-native-safe-area-context', () => ({
-  SafeAreaView: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('div', null, children),
-}));
+// The progressive-blur overlay pulls native modules (expo-blur, masked-view) that
+// can't mount under jsdom; stub it out.
+vi.mock('@/components/progressive-blur', () => ({ ProgressiveBlurView: () => null }));
 vi.mock('react-native-gesture-handler', () => ({
   Swipeable: ({ children }: { children?: React.ReactNode }) =>
     React.createElement('div', null, children),

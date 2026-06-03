@@ -23,6 +23,7 @@ interface TripStore {
 
   initialize: () => Promise<void>;
   addTrip: (trip: Trip) => Promise<void>;
+  updateTrip: (trip: Trip) => void;
   importTrip: (uri: string) => Promise<Trip>;
   loadTripById: (id: string) => Promise<void>;
   removeTrip: (id: string) => Promise<void>;
@@ -119,6 +120,16 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const summary = toSummary(trip);
     const updatedTrips = get().trips.concat(summary);
     set((s) => ({ trips: updatedTrips, loadedTrips: { ...s.loadedTrips, [trip.id]: trip } }));
+    scheduleSave(() => snapshotOf(get));
+  },
+
+  updateTrip(trip: Trip) {
+    saveTrip(trip);
+    const summary = toSummary(trip);
+    set((s) => ({
+      trips: s.trips.map((t) => (t.id === trip.id ? summary : t)),
+      loadedTrips: { ...s.loadedTrips, [trip.id]: trip },
+    }));
     scheduleSave(() => snapshotOf(get));
   },
 

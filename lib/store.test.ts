@@ -18,13 +18,78 @@ vi.mock('./maps', () => ({
 
 import * as storage from './storage';
 import { useTripStore } from './store';
-import type { TripSummary } from './schema';
+import type { Trip, TripSummary } from './schema';
 
 const initial = useTripStore.getState();
 
 beforeEach(() => {
   useTripStore.setState(initial, true);
   vi.clearAllMocks();
+});
+
+function tripFixture(over: Partial<Trip> = {}): Trip {
+  return {
+    id: 'trip-1',
+    schemaVersion: 2,
+    title: 'Coast',
+    startDate: '2026-07-01',
+    endDate: '2026-07-02',
+    days: [
+      { id: 'd1', date: '2026-07-01', items: [] },
+      { id: 'd2', date: '2026-07-02', items: [] },
+    ],
+    createdAt: '2026-05-01T00:00:00.000Z',
+    updatedAt: '2026-05-01T00:00:00.000Z',
+    ...over,
+  };
+}
+
+describe('updateTrip', () => {
+  it('persists the trip and replaces it in loadedTrips', () => {
+    const trip = tripFixture();
+    useTripStore.setState({
+      trips: [
+        { id: 'trip-1', title: 'Coast', startDate: '2026-07-01', endDate: '2026-07-02', wallpaperUri: undefined },
+      ],
+      loadedTrips: { 'trip-1': trip },
+    });
+
+    const edited = tripFixture({ title: 'Coast Run', updatedAt: '2026-06-01T00:00:00.000Z' });
+    useTripStore.getState().updateTrip(edited);
+
+    expect(storage.saveTrip).toHaveBeenCalledWith(edited);
+    expect(useTripStore.getState().loadedTrips['trip-1']).toBe(edited);
+  });
+
+  it('refreshes the matching trip summary (title, dates, wallpaper)', () => {
+    const trip = tripFixture();
+    useTripStore.setState({
+      trips: [
+        { id: 'trip-1', title: 'Coast', startDate: '2026-07-01', endDate: '2026-07-02', wallpaperUri: undefined },
+        { id: 'other', title: 'Other', startDate: '2026-08-01', endDate: '2026-08-02', wallpaperUri: undefined },
+      ],
+      loadedTrips: { 'trip-1': trip },
+    });
+
+    const edited = tripFixture({
+      title: 'Coast Run',
+      startDate: '2026-07-01',
+      endDate: '2026-07-05',
+      wallpaperUri: 'trips/trip-1/wallpaper.jpg',
+    });
+    useTripStore.getState().updateTrip(edited);
+
+    const summaries = useTripStore.getState().trips;
+    expect(summaries.find((t) => t.id === 'trip-1')).toEqual({
+      id: 'trip-1',
+      title: 'Coast Run',
+      startDate: '2026-07-01',
+      endDate: '2026-07-05',
+      wallpaperUri: 'trips/trip-1/wallpaper.jpg',
+    });
+    // Other trips are untouched.
+    expect(summaries.find((t) => t.id === 'other')?.title).toBe('Other');
+  });
 });
 
 describe('Displayed Trip', () => {
