@@ -1,42 +1,29 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { Alert, useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Host, DatePicker } from '@expo/ui/swift-ui';
-import { datePickerStyle } from '@expo/ui/swift-ui/modifiers';
+import { useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Host,
+  Form,
+  Section,
+  Text,
+  TextField,
+  DatePicker,
+  Button,
+  Image,
+  useNativeState,
+} from '@expo/ui/swift-ui';
+import { datePickerStyle, font, frame, foregroundStyle } from '@expo/ui/swift-ui/modifiers';
 
-/** Format a Date as a local YYYY-MM-DD string (no UTC drift). */
-function formatLocalDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`;
-}
-
-/** Parse a YYYY-MM-DD string into a local-midnight Date. */
-function parseLocalDate(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-/** Human-friendly label for a YYYY-MM-DD string, e.g. "Jun 1, 2026". */
-function formatDisplayDate(s: string): string {
-  return parseLocalDate(s).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
+import {
+  tripFormSchema,
+  type TripFormValues,
+  formatLocalDate,
+  parseLocalDate,
+  clampRange,
+} from '@/lib/trip-form';
 
 /** The trip's cover photo as the form currently holds it. `existing` is an
  * already-saved wallpaper (shown by its display uri), `picked` is a freshly
@@ -68,6 +55,18 @@ export interface TripFormProps {
   onCancel: () => void;
 }
 
+/** Warm, rounded-font section header (matches the native-form direction of ADR-0003). */
+function SectionHeader({ children }: { children: string }) {
+  return (
+    <Text modifiers={[font({ design: 'rounded', weight: 'semibold', size: 15 })]}>{children}</Text>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <Text modifiers={[font({ size: 13 }), foregroundStyle('#d11')]}>{message}</Text>;
+}
+
 export function TripForm({
   heading,
   submitLabel,
@@ -81,27 +80,43 @@ export function TripForm({
   onCancel,
 }: TripFormProps) {
   const today = formatLocalDate(new Date());
-  const [title, setTitle] = useState(initialTitle);
-  const [startDate, setStartDate] = useState(initialStartDate ?? today);
-  const [endDate, setEndDate] = useState(initialEndDate ?? today);
+  const colorScheme = useColorScheme();
+  // Native two-way binding seeds the field's initial text (edit path); the
+  // mirror into react-hook-form below keeps validation in sync.
+  const titleState = useNativeState(initialTitle);
   const [cover, setCover] = useState<TripFormCover>(
     initialWallpaperUri ? { kind: 'existing', displayUri: initialWallpaperUri } : { kind: 'none' },
   );
-  // Which endpoint the single calendar is currently editing.
-  const [editing, setEditing] = useState<'start' | 'end'>('start');
 
-  // The calendar drives one endpoint at a time. Moving an endpoint past the
-  // other drags that other one along, so the range stays valid (start <= end).
-  function handleDateChange(d: Date) {
-    const value = formatLocalDate(d);
-    if (editing === 'start') {
-      setStartDate(value);
-      if (value > endDate) setEndDate(value);
-    } else {
-      setEndDate(value);
-      if (value < startDate) setStartDate(value);
-    }
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<TripFormValues>({
+    resolver: zodResolver(tripFormSchema),
+    defaultValues: {
+      title: initialTitle,
+      startDate: initialStartDate ?? today,
+      endDate: initialEndDate ?? today,
+    },
+    mode: 'onSubmit',
+  });
+
+  const startDate = useWatch({ control, name: 'startDate' });
+  const endDate = useWatch({ control, name: 'endDate' });
+
+  // Each calendar drives one endpoint; moving it past the other drags that other
+  // one along so the range stays valid (start <= end).
+  function changeDate(endpoint: 'start' | 'end', d: Date) {
+    const next = clampRange(endpoint, formatLocalDate(d), { startDate, endDate });
+    setValue('startDate', next.startDate);
+    setValue('endDate', next.endDate);
   }
+
+  const submit = handleSubmit((data) =>
+    onSubmit({ title: data.title, startDate: data.startDate, endDate: data.endDate, cover }),
+  );
 
   async function pickCover() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -118,180 +133,75 @@ export function TripForm({
     if (uri) setCover({ kind: 'picked', uri });
   }
 
-  function handleSubmit() {
-    if (!title.trim()) {
-      Alert.alert('Validation', 'Please enter a trip title.');
-      return;
-    }
-    if (endDate < startDate) {
-      Alert.alert('Validation', 'End date must be on or after start date.');
-      return;
-    }
-    onSubmit({ title: title.trim(), startDate, endDate, cover });
-  }
-
   const coverPreviewUri =
     cover.kind === 'existing' ? cover.displayUri : cover.kind === 'picked' ? cover.uri : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onCancel} accessibilityLabel="Cancel">
-              <Text style={styles.cancel}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.heading}>{heading}</Text>
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={submitting}
-              accessibilityLabel={submitLabel}
-            >
-              <Text style={[styles.save, submitting && styles.disabled]}>{submitLabel}</Text>
-            </TouchableOpacity>
-          </View>
+    <>
+      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+      <Stack.Title>{heading}</Stack.Title>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onCancel}>
+          Cancel
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel={submitLabel}
+          variant="prominent"
+          disabled={submitting}
+          onPress={submit}
+        >
+          {submitLabel}
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Title</Text>
-            <TextInput
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
+      <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+        <Form>
+          <Section header={<SectionHeader>What should we call it?</SectionHeader>} footer={<FieldError message={errors.title?.message} />}>
+            <TextField
+              text={titleState}
               placeholder="e.g. Pacific Coast Highway"
               autoFocus={autoFocusTitle}
-              returnKeyType="done"
+              onTextChange={(t) => setValue('title', t)}
             />
+          </Section>
 
-            <Text style={styles.label}>Dates</Text>
-            <View style={styles.segment}>
-              <TouchableOpacity
-                style={[styles.segmentItem, editing === 'start' && styles.segmentItemActive]}
-                onPress={() => setEditing('start')}
-                accessibilityLabel="Edit start date"
-                accessibilityState={{ selected: editing === 'start' }}
-              >
-                <Text style={styles.segmentCaption}>Start</Text>
-                <Text style={styles.segmentValue}>{formatDisplayDate(startDate)}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.segmentItem, editing === 'end' && styles.segmentItemActive]}
-                onPress={() => setEditing('end')}
-                accessibilityLabel="Edit end date"
-                accessibilityState={{ selected: editing === 'end' }}
-              >
-                <Text style={styles.segmentCaption}>End</Text>
-                <Text style={styles.segmentValue}>{formatDisplayDate(endDate)}</Text>
-              </TouchableOpacity>
-            </View>
-            {/* Remount on toggle so the calendar jumps to the active endpoint's month. */}
-            <Host key={editing} style={styles.picker}>
-              <DatePicker
-                selection={parseLocalDate(editing === 'start' ? startDate : endDate)}
-                displayedComponents={['date']}
-                onDateChange={handleDateChange}
-                modifiers={[datePickerStyle('graphical')]}
-              />
-            </Host>
+          <Section header={<SectionHeader>When are you going?</SectionHeader>} footer={<FieldError message={errors.endDate?.message} />}>
+            <DatePicker
+              title="Start"
+              selection={parseLocalDate(startDate)}
+              displayedComponents={['date']}
+              onDateChange={(d) => changeDate('start', d)}
+              modifiers={[datePickerStyle('compact')]}
+            />
+            <DatePicker
+              title="End"
+              selection={parseLocalDate(endDate)}
+              displayedComponents={['date']}
+              onDateChange={(d) => changeDate('end', d)}
+              modifiers={[datePickerStyle('compact')]}
+            />
+          </Section>
 
-            <Text style={styles.label}>Cover Photo</Text>
+          <Section header={<SectionHeader>Cover photo</SectionHeader>}>
             {coverPreviewUri ? (
-              <View style={styles.coverWrap}>
-                <Image
-                  source={{ uri: coverPreviewUri }}
-                  style={styles.coverPreview}
-                  contentFit="cover"
+              <>
+                <Image uiImage={coverPreviewUri} modifiers={[frame({ height: 160 })]} />
+                <Button label="Change" systemImage="photo" onPress={pickCover} />
+                <Button
+                  label="Remove"
+                  systemImage="trash"
+                  role="destructive"
+                  onPress={() => setCover({ kind: 'none' })}
                 />
-                <View style={styles.coverActions}>
-                  <TouchableOpacity onPress={pickCover} accessibilityLabel="Change cover photo">
-                    <Text style={styles.coverAction}>Change</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setCover({ kind: 'none' })}
-                    accessibilityLabel="Remove cover photo"
-                  >
-                    <Text style={[styles.coverAction, styles.coverRemove]}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              </>
             ) : (
-              <TouchableOpacity
-                style={styles.coverButton}
-                onPress={pickCover}
-                accessibilityLabel="Add cover photo"
-              >
-                <Text style={styles.coverButtonText}>Add cover photo</Text>
-              </TouchableOpacity>
+              <Button label="Add cover photo" systemImage="photo.badge.plus" onPress={pickCover} />
             )}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </Section>
+        </Form>
+      </Host>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  flex: { flex: 1 },
-  scroll: { flexGrow: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
-  },
-  heading: { fontSize: 17, fontWeight: '600' },
-  cancel: { fontSize: 17, color: '#007AFF' },
-  save: { fontSize: 17, color: '#007AFF', fontWeight: '600' },
-  disabled: { opacity: 0.4 },
-  form: { padding: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: '#555', marginTop: 20, marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  // The graphical (inline calendar) date picker has a large intrinsic height
-  // that Host's matchContents fails to measure, so the hosts collapse and the
-  // calendars overlap. Pin an explicit height matching the iOS inline calendar.
-  picker: { alignSelf: 'stretch', height: 360 },
-  segment: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  segmentItem: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  segmentItemActive: {
-    borderColor: '#007AFF',
-    backgroundColor: '#007AFF14',
-  },
-  segmentCaption: { fontSize: 12, fontWeight: '600', color: '#888' },
-  segmentValue: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', marginTop: 2 },
-  coverButton: {
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  coverButtonText: { color: '#007AFF', fontSize: 16, fontWeight: '600' },
-  coverWrap: { gap: 10 },
-  coverPreview: { width: '100%', height: 160, borderRadius: 10 },
-  coverActions: { flexDirection: 'row', gap: 20 },
-  coverAction: { color: '#007AFF', fontSize: 15, fontWeight: '600' },
-  coverRemove: { color: '#FF3B30' },
-});
