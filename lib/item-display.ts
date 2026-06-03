@@ -1,4 +1,5 @@
 import type { Item } from './schema';
+import { itemTypeIdentity } from './item-type-identity';
 
 export type ItemDisplay = {
   typeLabel: string;
@@ -7,13 +8,15 @@ export type ItemDisplay = {
 };
 
 export function formatItem(item: Item): ItemDisplay {
+  // The type's warm label (Place/Stay/Activity/Note) comes from the shared identity.
+  const typeLabel = itemTypeIdentity(item.type).label;
   switch (item.type) {
     case 'location': {
       const lines: string[] = [];
       if (item.address) lines.push(item.address);
       if (item.time) lines.push(`At ${item.time}`);
       if (item.notes) lines.push(item.notes);
-      return { typeLabel: 'Location', title: item.name, lines };
+      return { typeLabel, title: item.name, lines };
     }
     case 'accommodation': {
       const lines: string[] = [];
@@ -22,17 +25,17 @@ export function formatItem(item: Item): ItemDisplay {
       if (item.checkOut) lines.push(`Check-out ${item.checkOut}`);
       if (item.confirmationNumber) lines.push(`Confirmation ${item.confirmationNumber}`);
       if (item.notes) lines.push(item.notes);
-      return { typeLabel: 'Accommodation', title: item.name, lines };
+      return { typeLabel, title: item.name, lines };
     }
     case 'activity': {
       const lines: string[] = [];
       if (item.time) lines.push(`At ${item.time}`);
       if (item.duration != null) lines.push(`${item.duration} min`);
       if (item.notes) lines.push(item.notes);
-      return { typeLabel: 'Activity', title: item.name, lines };
+      return { typeLabel, title: item.name, lines };
     }
     case 'note':
-      return { typeLabel: 'Note', title: 'Note', lines: [item.text] };
+      return { typeLabel, title: 'Note', lines: [item.text] };
   }
 }
 

@@ -6,7 +6,7 @@ describe('formatItem — location', () => {
   it('uses the name as title and shows no lines when only required fields are set', () => {
     const item: Item = { type: 'location', id: 'a', name: 'Golden Gate Bridge' };
     const display = formatItem(item);
-    expect(display.typeLabel).toBe('Location');
+    expect(display.typeLabel).toBe('Place');
     expect(display.title).toBe('Golden Gate Bridge');
     expect(display.lines).toEqual([]);
   });
@@ -38,7 +38,7 @@ describe('formatItem — accommodation', () => {
       notes: 'Ask for an ocean view',
     };
     const display = formatItem(item);
-    expect(display.typeLabel).toBe('Accommodation');
+    expect(display.typeLabel).toBe('Stay');
     expect(display.title).toBe('Sea Cliff Inn');
     expect(display.lines).toEqual([
       '5 Ocean Ave',

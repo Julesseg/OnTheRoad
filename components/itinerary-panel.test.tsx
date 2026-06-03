@@ -20,8 +20,18 @@ vi.mock('@expo/ui/swift-ui', async () => {
       React.createElement(tag, null, children);
   const Section = ({ header, children }: { header?: React.ReactNode; children?: React.ReactNode }) =>
     React.createElement('div', null, header, children);
-  const Button = ({ label, onPress }: { label?: string; onPress?: () => void }) =>
-    label ? React.createElement('button', { onClick: onPress }, label) : null;
+  const Button = ({
+    label,
+    systemImage,
+    onPress,
+  }: {
+    label?: string;
+    systemImage?: string;
+    onPress?: () => void;
+  }) =>
+    label || systemImage
+      ? React.createElement('button', { onClick: onPress, 'aria-label': label || systemImage }, label)
+      : null;
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
   const ForEach = pass('div');
@@ -65,6 +75,30 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
 // The progressive-blur header pulls native modules (expo-blur, masked-view) that
 // can't mount under jsdom; stub it out.
 vi.mock('@/components/progressive-blur', () => ({ ProgressiveBlurView: () => null }));
+
+// The type picker is exercised by its own test; here it stands in as a passthrough
+// that surfaces the day it was opened for and lets a card selection / dismiss fire.
+vi.mock('@/components/item-type-picker', async () => {
+  const React = await import('react');
+  return {
+    ItemTypePicker: ({
+      dayNumber,
+      onSelect,
+      onClose,
+    }: {
+      dayNumber: number;
+      onSelect: (type: string) => void;
+      onClose: () => void;
+    }) =>
+      React.createElement(
+        'div',
+        null,
+        React.createElement('span', null, `picker for Day ${dayNumber}`),
+        React.createElement('button', { onClick: () => onSelect('accommodation') }, 'pick Stay'),
+        React.createElement('button', { onClick: onClose }, 'dismiss picker'),
+      ),
+  };
+});
 
 vi.mock('@/lib/store', () => ({
   useTripStore: (
@@ -138,5 +172,22 @@ describe('ItineraryPanel', () => {
     expect(screen.getByText('Next up')).toBeInTheDocument();
     // The item title appears in both the Next-up card and its day's item row.
     expect(screen.getAllByText('Lunch').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("tapping a day's + opens the type picker for that day", () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    expect(screen.queryByText('picker for Day 1')).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByLabelText('plus')[0]);
+    expect(screen.getByText('picker for Day 1')).toBeInTheDocument();
+  });
+
+  it('selecting a card routes to the item editor with the canonical type and day', () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    fireEvent.click(screen.getAllByLabelText('plus')[0]);
+    fireEvent.click(screen.getByText('pick Stay'));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/trip/[id]/item',
+      params: { id: 'trip-1', dayId: 'day-1', type: 'accommodation' },
+    });
   });
 });

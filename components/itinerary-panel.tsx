@@ -10,8 +10,6 @@ import {
   Spacer,
   Text,
   Button,
-  Image,
-  Menu,
   SwipeActions,
   useNativeState,
 } from '@expo/ui/swift-ui';
@@ -38,22 +36,15 @@ import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
-import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
+import { openInMaps, type MapsTarget } from '@/lib/maps';
 import { MoveToDayOverlay } from './move-to-day-overlay';
+import { ItemTypePicker } from './item-type-picker';
 
 const TINT = '#007AFF';
 const ORANGE = '#FF9500'; // "Move to another day" swipe action
 const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
-
-// Item types offered when adding to a day, paired with their action-sheet labels.
-const ADD_ITEM_OPTIONS: { type: ItemType; label: string }[] = [
-  { type: 'location', label: 'Location' },
-  { type: 'accommodation', label: 'Accommodation' },
-  { type: 'activity', label: 'Activity' },
-  { type: 'note', label: 'Note' },
-];
 
 // The map destination an item exposes, if any — coordinates and/or an address.
 // Only Locations and Accommodations carry one.
@@ -106,6 +97,10 @@ export function ItineraryPanel({
   // The Item whose "Move to day" calendar is open, or null when none is.
   const [moveTarget, setMoveTarget] = useState<{ fromDayId: string; itemId: string } | null>(null);
 
+  // The Day whose "add item" type picker is open, or null when none is. `dayNumber`
+  // is the 1-based position used to title the picker sheet ("Add to Day N").
+  const [addTarget, setAddTarget] = useState<{ dayId: string; dayNumber: number } | null>(null);
+
   const today = localDateString(now);
   const days = useMemo(
     () => [...trip.days].sort((a, b) => a.date.localeCompare(b.date)),
@@ -140,8 +135,9 @@ export function ItineraryPanel({
     setMoveTarget({ fromDayId, itemId });
   }
 
-  // Pick an item type for the day, then open the editor to create it.
+  // A type was picked for the day: close the picker and open the editor to create it.
   function addItemToDay(dayId: string, type: ItemType) {
+    setAddTarget(null);
     router.push({
       pathname: '/trip/[id]/item',
       params: { id: trip.id, dayId, type },
@@ -260,15 +256,12 @@ export function ItineraryPanel({
                       {formatDayLabel(day.date)}
                     </Text>
                     <Spacer />
-                    <Menu label={<Image systemName="plus" size={20} />}>
-                      {ADD_ITEM_OPTIONS.map((o) => (
-                        <Button
-                          key={o.type}
-                          label={o.label}
-                          onPress={() => addItemToDay(day.id, o.type)}
-                        />
-                      ))}
-                    </Menu>
+                    {/* "+" opens the colorful 2×2 card-grid type picker (rendered
+                        below) in place of the old plain native Menu. */}
+                    <Button
+                      systemImage="plus"
+                      onPress={() => setAddTarget({ dayId: day.id, dayNumber: index + 1 })}
+                    />
                   </HStack>
                   {day.notes ? (
                     <Text modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
@@ -291,6 +284,14 @@ export function ItineraryPanel({
           ))}
         </List>
       </Host>
+
+      {addTarget ? (
+        <ItemTypePicker
+          dayNumber={addTarget.dayNumber}
+          onSelect={(type) => addItemToDay(addTarget.dayId, type)}
+          onClose={() => setAddTarget(null)}
+        />
+      ) : null}
 
       {moveTarget ? (
         <MoveToDayOverlay
