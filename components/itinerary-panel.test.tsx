@@ -20,8 +20,22 @@ vi.mock('@expo/ui/swift-ui', async () => {
       React.createElement(tag, null, children);
   const Section = ({ header, children }: { header?: React.ReactNode; children?: React.ReactNode }) =>
     React.createElement('div', null, header, children);
-  const Button = ({ label, onPress }: { label?: string; onPress?: () => void }) =>
-    label ? React.createElement('button', { onClick: onPress }, label) : null;
+  const Button = ({
+    label,
+    onPress,
+    systemImage,
+  }: {
+    label?: string;
+    onPress?: () => void;
+    systemImage?: string;
+  }) =>
+    label
+      ? React.createElement(
+          'button',
+          { onClick: onPress, 'data-system-image': systemImage },
+          label,
+        )
+      : null;
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
   const ForEach = pass('div');
@@ -130,6 +144,16 @@ describe('ItineraryPanel', () => {
       pathname: '/trip/[id]/item',
       params: { id: 'trip-1', dayId: 'day-1', itemId: 'a1' },
     });
+  });
+
+  it('renders each add-item option with its own SF Symbol icon next to its label', () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    const iconFor = (label: string) =>
+      screen.getAllByRole('button', { name: label })[0].getAttribute('data-system-image');
+    expect(iconFor('Location')).toBe('mappin.and.ellipse');
+    expect(iconFor('Accommodation')).toBe('bed.double');
+    expect(iconFor('Activity')).toBe('figure.walk');
+    expect(iconFor('Note')).toBe('note.text');
   });
 
   it('renders a Next-up card naming the next item when In progress', () => {
