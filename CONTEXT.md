@@ -80,6 +80,13 @@ item types:
 Prefer **Item** over "entry", "event", or "stop" (a stop is specifically a
 Location).
 
+Each type carries a fixed visual identity — an SF Symbol and an accent color —
+used consistently in the type picker, section headers, and form accents
+(Location = terracotta, Accommodation = indigo, Activity = green, Note = warm
+gray). In user-facing copy the types are labelled **Place** (Location), **Stay**
+(Accommodation), **Activity**, and **Note**; the canonical terms above remain
+the names used in code, the schema, and this glossary.
+
 ### Item time
 
 The single comparable time an item happens at, used for ordering and for picking
