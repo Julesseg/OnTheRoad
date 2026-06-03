@@ -36,6 +36,25 @@ export function emptyForm(): ItemFormValues {
 /** Parse a free-typed "lat, lng" pair; delegates to the shared coords parser. */
 export const parseCoords = parseLatLng;
 
+/**
+ * Split a stored duration (whole minutes, held as the flat form string) into the
+ * hours and minutes the wheel picker selects on. Returns `null` when unset so the
+ * editor can show its "not set" affordance. An odd, non-5-minute legacy value
+ * (e.g. `7`) is preserved faithfully — the wheel only snaps to 5-minute steps once
+ * the traveller actually edits it.
+ */
+export function durationToHm(duration: string): { hours: number; minutes: number } | null {
+  const trimmed = duration.trim();
+  if (trimmed === '' || !/^\d+$/.test(trimmed)) return null;
+  const total = Number(trimmed);
+  return { hours: Math.floor(total / 60), minutes: total % 60 };
+}
+
+/** Recombine wheel hours + minutes back into total whole minutes (the flat form string). */
+export function hmToDuration(hours: number, minutes: number): string {
+  return String(hours * 60 + minutes);
+}
+
 const required = (msg = 'Required') => z.string().trim().min(1, msg);
 const optionalTime = z
   .string()

@@ -30,10 +30,9 @@ import {
   Animation,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
-import type { SFSymbol } from 'sf-symbols-typescript';
-
 import type { Trip, Item } from '@/lib/schema';
 import type { ItemType } from '@/lib/item-form';
+import { itemIdentity } from '@/lib/item-identity';
 import { useTripStore } from '@/lib/store';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
@@ -48,14 +47,10 @@ const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
 
-// Item types offered when adding to a day, paired with their action-sheet labels
-// and an SF Symbol so the four types are distinguishable at a glance in the menu.
-const ADD_ITEM_OPTIONS: { type: ItemType; label: string; systemName: SFSymbol }[] = [
-  { type: 'location', label: 'Location', systemName: 'mappin.and.ellipse' },
-  { type: 'accommodation', label: 'Accommodation', systemName: 'bed.double' },
-  { type: 'activity', label: 'Activity', systemName: 'figure.walk' },
-  { type: 'note', label: 'Note', systemName: 'note.text' },
-];
+// Item types offered when adding to a day, in canonical order. Each option's warm
+// label and SF Symbol come from the shared item-identity module so the menu stays in
+// lockstep with the editor and any other surface that names a type.
+const ADD_ITEM_TYPES: ItemType[] = ['location', 'accommodation', 'activity', 'note'];
 
 // The map destination an item exposes, if any — coordinates and/or an address.
 // Only Locations and Accommodations carry one.
@@ -263,14 +258,17 @@ export function ItineraryPanel({
                     </Text>
                     <Spacer />
                     <Menu label={<Image systemName="plus" size={20} />}>
-                      {ADD_ITEM_OPTIONS.map((o) => (
-                        <Button
-                          key={o.type}
-                          label={o.label}
-                          systemImage={o.systemName}
-                          onPress={() => addItemToDay(day.id, o.type)}
-                        />
-                      ))}
+                      {ADD_ITEM_TYPES.map((t) => {
+                        const identity = itemIdentity(t);
+                        return (
+                          <Button
+                            key={t}
+                            label={identity.label}
+                            systemImage={identity.symbol}
+                            onPress={() => addItemToDay(day.id, t)}
+                          />
+                        );
+                      })}
                     </Menu>
                   </HStack>
                   {day.notes ? (

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
@@ -54,25 +53,26 @@ export default function ItemEditorScreen() {
     ]);
   }
 
+  if (!trip) {
+    return <ActivityIndicator style={styles.loader} size="large" />;
+  }
+  if (!day || !editorType) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.emptyText}>This item could not be found.</Text>
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {!trip ? (
-        <ActivityIndicator style={styles.loader} size="large" />
-      ) : !day || !editorType ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>This item could not be found.</Text>
-        </View>
-      ) : (
-        <ItemEditor
-          type={editorType}
-          itemId={existing ? existing.id : newItemId}
-          initialItem={existing ?? undefined}
-          onSubmit={handleSubmit}
-          onDelete={existing ? handleDelete : undefined}
-          onCancel={() => router.back()}
-        />
-      )}
-    </SafeAreaView>
+    <ItemEditor
+      type={editorType}
+      itemId={existing ? existing.id : newItemId}
+      initialItem={existing ?? undefined}
+      onSubmit={handleSubmit}
+      onDelete={existing ? handleDelete : undefined}
+      onCancel={() => router.back()}
+    />
   );
 }
 
@@ -81,7 +81,6 @@ function itemTitle(item: Item): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
   loader: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyText: { fontSize: 16, color: '#666' },

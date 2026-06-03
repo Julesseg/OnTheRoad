@@ -1,6 +1,38 @@
 import { describe, it, expect } from 'vitest';
-import { formToItem, itemToForm, emptyForm, itemFormSchema } from './item-form';
+import {
+  formToItem,
+  itemToForm,
+  emptyForm,
+  itemFormSchema,
+  durationToHm,
+  hmToDuration,
+} from './item-form';
 import type { Item } from './schema';
+
+describe('duration ↔ hours/minutes', () => {
+  it('splits stored whole minutes into hours and minutes (90 → 1h 30m)', () => {
+    expect(durationToHm('90')).toEqual({ hours: 1, minutes: 30 });
+  });
+
+  it('treats an empty duration as unset (null)', () => {
+    expect(durationToHm('')).toBeNull();
+    expect(durationToHm('   ')).toBeNull();
+  });
+
+  it('preserves an odd, non-5-minute legacy value faithfully (7 → 0h 7m)', () => {
+    expect(durationToHm('7')).toEqual({ hours: 0, minutes: 7 });
+  });
+
+  it('recombines hours and minutes into total whole minutes (1h 30m → 90)', () => {
+    expect(hmToDuration(1, 30)).toBe('90');
+    expect(hmToDuration(0, 5)).toBe('5');
+    expect(hmToDuration(2, 0)).toBe('120');
+  });
+
+  it('round-trips a stored value through h/m and back unchanged', () => {
+    expect(hmToDuration(durationToHm('90')!.hours, durationToHm('90')!.minutes)).toBe('90');
+  });
+});
 
 describe('formToItem', () => {
   it('builds a location item, parsing "lat, lng" into numbers and dropping empty fields', () => {
