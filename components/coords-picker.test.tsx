@@ -46,6 +46,9 @@ describe('CoordsPicker', () => {
 
     await screen.findByText('47.6062, -122.3321');
 
+    // Let the async parse's setState fully settle so the confirm handler closes
+    // over the parsed coords rather than the pre-parse null.
+    await act(async () => {});
     fireEvent.click(screen.getByLabelText('Use these coordinates'));
     expect(onConfirm).toHaveBeenCalledWith({ lat: 47.6062, lng: -122.3321 });
   });
@@ -60,6 +63,7 @@ describe('CoordsPicker', () => {
     fireEvent.click(screen.getByLabelText('Parse'));
     await screen.findByText('40, -3');
 
+    await act(async () => {});
     fireEvent.click(screen.getByLabelText('Use these coordinates'));
     expect(onConfirm).toHaveBeenCalledWith({ lat: 40.0, lng: -3.0 });
   });
@@ -81,6 +85,7 @@ describe('CoordsPicker', () => {
     fireEvent.click(screen.getByLabelText('Parse'));
 
     await screen.findByText('47.6097, -122.3422');
+    await act(async () => {});
     fireEvent.click(screen.getByLabelText('Use these coordinates'));
     expect(onConfirm).toHaveBeenCalledWith({ lat: 47.6097, lng: -122.3422 });
   });
