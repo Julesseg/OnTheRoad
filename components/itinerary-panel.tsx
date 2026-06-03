@@ -30,6 +30,7 @@ import {
   Animation,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
+import type { SFSymbol } from 'sf-symbols-typescript';
 
 import type { Trip, Item } from '@/lib/schema';
 import type { ItemType } from '@/lib/item-form';
@@ -47,12 +48,13 @@ const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
 
-// Item types offered when adding to a day, paired with their action-sheet labels.
-const ADD_ITEM_OPTIONS: { type: ItemType; label: string }[] = [
-  { type: 'location', label: 'Location' },
-  { type: 'accommodation', label: 'Accommodation' },
-  { type: 'activity', label: 'Activity' },
-  { type: 'note', label: 'Note' },
+// Item types offered when adding to a day, paired with their action-sheet labels
+// and an SF Symbol so the four types are distinguishable at a glance in the menu.
+const ADD_ITEM_OPTIONS: { type: ItemType; label: string; systemName: SFSymbol }[] = [
+  { type: 'location', label: 'Location', systemName: 'mappin.and.ellipse' },
+  { type: 'accommodation', label: 'Accommodation', systemName: 'bed.double' },
+  { type: 'activity', label: 'Activity', systemName: 'figure.walk' },
+  { type: 'note', label: 'Note', systemName: 'note.text' },
 ];
 
 // The map destination an item exposes, if any — coordinates and/or an address.
@@ -265,6 +267,7 @@ export function ItineraryPanel({
                         <Button
                           key={o.type}
                           label={o.label}
+                          systemImage={o.systemName}
                           onPress={() => addItemToDay(day.id, o.type)}
                         />
                       ))}
