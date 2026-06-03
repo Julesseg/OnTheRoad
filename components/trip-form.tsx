@@ -63,7 +63,7 @@ function SectionHeader({ children }: { children: string }) {
 }
 
 function FieldError({ message }: { message?: string }) {
-  if (!message) return undefined;
+  if (!message) return null;
   return <Text modifiers={[font({ size: 13 }), foregroundStyle('#d11')]}>{message}</Text>;
 }
 
