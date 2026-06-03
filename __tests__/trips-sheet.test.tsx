@@ -56,6 +56,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   glassEffect: () => ({}),
   background: (color: string) => ({ __bg: color }),
   onTapGesture: (handler: () => void) => ({ __onTap: handler }),
+  animation: () => ({}),
+  Animation: { default: {} },
   shapes: { roundedRectangle: () => ({}), capsule: () => ({}) },
 }));
 

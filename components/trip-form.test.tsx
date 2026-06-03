@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import * as ImagePicker from 'expo-image-picker';
 import { TripForm } from '@/components/trip-form';
 
@@ -141,8 +141,11 @@ describe('TripForm', () => {
     const { onSubmit } = renderForm({ initialTitle: 'Coast' });
 
     fireEvent.click(screen.getByLabelText('Add cover photo'));
-    // Picking is async (permission + library); wait for the preview to appear.
-    await waitFor(() => screen.getByLabelText('Change cover photo'));
+    // Picking is async (permission + library); wait for the preview to appear,
+    // then flush pending work so the Create handler closes over the picked cover
+    // rather than the pre-pick state.
+    await screen.findByLabelText('Change cover photo');
+    await act(async () => {});
     fireEvent.click(screen.getByLabelText('Create'));
 
     expect(onSubmit).toHaveBeenCalledWith(
