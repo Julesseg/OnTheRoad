@@ -25,6 +25,7 @@ import {
   onTapGesture,
   scrollPosition,
   id,
+  tint,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -39,6 +40,7 @@ import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
 import { MoveToDayOverlay } from './move-to-day-overlay';
 
 const TINT = '#007AFF';
+const ORANGE = '#FF9500'; // "Move to another day" swipe action
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
 
@@ -170,12 +172,13 @@ export function ItineraryPanel({
         </VStack>
 
         <SwipeActions.Actions edge="leading">
-          <Button systemImage="pencil" label="Edit" onPress={edit} />
+          <Button systemImage="pencil" label="Edit" onPress={edit} modifiers={[tint(TINT)]} />
           {days.length > 1 ? (
             <Button
               systemImage="calendar"
-              label="Move to another day"
+              label="Change day"
               onPress={() => showMoveToDaySheet(dayId, item.id)}
+              modifiers={[tint(ORANGE)]}
             />
           ) : null}
         </SwipeActions.Actions>
@@ -183,8 +186,9 @@ export function ItineraryPanel({
           {openMaps ? (
             <Button
               systemImage="map"
-              label={`Open in ${MAPS_APP_LABELS[preferredMapsApp]}`}
+              label="Navigate"
               onPress={openMaps}
+              modifiers={[tint(TINT)]}
             />
           ) : null}
           <Button systemImage="trash" role="destructive" label="Delete" onPress={remove} />

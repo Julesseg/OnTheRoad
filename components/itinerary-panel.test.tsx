@@ -56,6 +56,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
     onTapGesture: noop,
     scrollPosition: noop,
     id: noop,
+    tint: noop,
   };
 });
 
