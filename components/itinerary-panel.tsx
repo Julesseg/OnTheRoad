@@ -256,8 +256,6 @@ export function ItineraryPanel({
                       {formatDayLabel(day.date)}
                     </Text>
                     <Spacer />
-                    {/* "+" opens the colorful 2×2 card-grid type picker (rendered
-                        below) in place of the old plain native Menu. */}
                     <Button
                       systemImage="plus"
                       onPress={() => setAddTarget({ dayId: day.id, dayNumber: index + 1 })}

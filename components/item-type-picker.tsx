@@ -6,16 +6,7 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import type { ItemType } from '@/lib/item-form';
 import { ITEM_TYPE_ORDER, itemTypeIdentity } from '@/lib/item-type-identity';
 
-/**
- * A floating glass sheet for adding an Item to a Day — the colorful replacement
- * for the plain native "+" Menu. Shows a 2×2 grid of cards, one per item type,
- * each with the type's SF Symbol in its accent color and its warm label
- * (Place / Stay / Activity / Note). Selecting a card reports the **canonical**
- * type (location/accommodation/activity/note) so routing is unchanged.
- *
- * Mirrors MoveToDayOverlay: a window-level `Modal` with sibling backdrop and
- * card, so a tap outside the card dismisses while taps on a card select.
- */
+/** Glass sheet for adding an Item to a Day: a 2×2 grid of type cards reporting the canonical type. */
 export function ItemTypePicker({
   dayNumber,
   onSelect,

@@ -190,4 +190,11 @@ describe('ItineraryPanel', () => {
       params: { id: 'trip-1', dayId: 'day-1', type: 'accommodation' },
     });
   });
+
+  it('dismissing the picker closes it', () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    fireEvent.click(screen.getAllByLabelText('plus')[0]);
+    fireEvent.click(screen.getByText('dismiss picker'));
+    expect(screen.queryByText('picker for Day 1')).not.toBeInTheDocument();
+  });
 });

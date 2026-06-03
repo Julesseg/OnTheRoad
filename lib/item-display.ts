@@ -8,7 +8,6 @@ export type ItemDisplay = {
 };
 
 export function formatItem(item: Item): ItemDisplay {
-  // The type's warm label (Place/Stay/Activity/Note) comes from the shared identity.
   const typeLabel = itemTypeIdentity(item.type).label;
   switch (item.type) {
     case 'location': {
