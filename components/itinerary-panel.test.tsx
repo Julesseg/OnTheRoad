@@ -57,6 +57,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
     scrollPosition: noop,
     id: noop,
     tint: noop,
+    animation: noop,
+    Animation: { default: {} },
   };
 });
 
