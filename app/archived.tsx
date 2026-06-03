@@ -8,17 +8,21 @@ import {
   Alert,
   useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Swipeable } from 'react-native-gesture-handler';
-import { router } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 
 import { useTripStore } from '@/lib/store';
+import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { partitionTrips } from '@/lib/trip-partition';
 import { todayString } from '@/lib/date-utils';
 import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
+
+// Height of the progressive-blur band behind the transparent nav bar (mirrors
+// the trips and days sheets).
+const NAV_BAR_HEIGHT = 64;
 
 export default function ArchivedSheet() {
   const trips = useTripStore((s) => s.trips);
@@ -54,36 +58,42 @@ export default function ArchivedSheet() {
     ]);
   }
 
+  // Same chrome as the trips/days sheets: a transparent native nav bar with the
+  // title, plus a progressive-blur RN overlay that frosts content scrolling under it.
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <Text style={[styles.heading, { color: isDark ? '#fff' : '#111' }]}>Archived trips</Text>
+      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+      <Stack.Title>Archived trips</Stack.Title>
 
-        {archived.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
-              No archived trips
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={archived}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <ArchivedRow
-                summary={item}
-                onTap={() => {
-                  setDisplayedTrip(item.id);
-                  router.dismissAll();
-                }}
-                onExport={() => onExport(item)}
-                onDelete={() => onDelete(item)}
-              />
-            )}
-            contentContainerStyle={styles.list}
-          />
-        )}
-      </SafeAreaView>
+      {archived.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
+            No archived trips
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={archived}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ArchivedRow
+              summary={item}
+              onTap={() => {
+                setDisplayedTrip(item.id);
+                router.dismissAll();
+              }}
+              onExport={() => onExport(item)}
+              onDelete={() => onDelete(item)}
+            />
+          )}
+          contentContainerStyle={styles.list}
+        />
+      )}
+
+      {/* Progressive blur behind the transparent nav bar (mirrors days/trips). */}
+      <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
+        <ProgressiveBlurView intensity={20} layers={10} />
+      </View>
     </View>
   );
 }
@@ -149,14 +159,7 @@ function ArchivedRow({ summary, onTap, onExport, onDelete }: ArchivedRowProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  safe: { flex: 1 },
-  heading: {
-    fontSize: 20,
-    fontWeight: '700',
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 8,
-  },
+  navBlur: { position: 'absolute', top: 0, left: 0, right: 0 },
   list: { paddingBottom: 24 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 16 },
