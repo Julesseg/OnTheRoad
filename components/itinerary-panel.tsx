@@ -26,6 +26,8 @@ import {
   scrollPosition,
   id,
   tint,
+  animation,
+  Animation,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -41,6 +43,7 @@ import { MoveToDayOverlay } from './move-to-day-overlay';
 
 const TINT = '#007AFF';
 const ORANGE = '#FF9500'; // "Move to another day" swipe action
+const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
 
@@ -109,6 +112,8 @@ export function ItineraryPanel({
     [trip.days],
   );
   const nextUp = useMemo(() => resolveNextUp(trip, now), [trip, now]);
+  // Total item count across all days — the value the list's removal animation keys off.
+  const itemCount = useMemo(() => days.reduce((n, d) => n + d.items.length, 0), [days]);
 
   // Drives SwiftUI's `.scrollPosition(id:)` — writing a Day id scrolls the List to it.
   const scrollTarget = useNativeState<string | null>(null);
@@ -158,6 +163,9 @@ export function ItineraryPanel({
       // every action lives on a swipe instead. Swipe leading reveals Edit (the full-swipe main
       // action) and Move to another day when the trip spans more than one day. Swipe trailing
       // reveals Open in Maps when the item has a destination, and Delete. Tapping the row edits it.
+      // The trailing edge disables full-swipe (allowsFullSwipe={false}) so a long swipe can't
+      // auto-trigger Delete, and the Delete button drops role="destructive" (see below) so even a
+      // plain tap doesn't pre-remove the row before the confirm alert resolves.
       <SwipeActions key={item.id}>
         <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
           <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
@@ -182,7 +190,7 @@ export function ItineraryPanel({
             />
           ) : null}
         </SwipeActions.Actions>
-        <SwipeActions.Actions edge="trailing">
+        <SwipeActions.Actions edge="trailing" allowsFullSwipe={false}>
           {openMaps ? (
             <Button
               systemImage="map"
@@ -191,7 +199,10 @@ export function ItineraryPanel({
               modifiers={[tint(TINT)]}
             />
           ) : null}
-          <Button systemImage="trash" role="destructive" label="Delete" onPress={remove} />
+          {/* No role="destructive": it plays SwiftUI's row-removal animation on tap,
+              before the confirm alert resolves, so cancelling left the row gone. Red
+              tint keeps the look; the row stays until deleteItem actually runs. */}
+          <Button systemImage="trash" label="Delete" onPress={remove} modifiers={[tint(DELETE_RED)]} />
         </SwipeActions.Actions>
       </SwipeActions>
     );
@@ -204,6 +215,11 @@ export function ItineraryPanel({
           modifiers={[
             listStyle('insetGrouped'),
             scrollPosition(scrollTarget, { anchor: 'top' }),
+            // Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
+            // total item count. Dropping role="destructive" removed the swipe's built-in
+            // delete animation, so we drive it here — when deleteItem lowers the count
+            // the row slides out instead of vanishing.
+            animation(Animation.default, itemCount),
             ...(scrollModifier ? [scrollModifier] : []),
           ]}
         >

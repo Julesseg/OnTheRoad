@@ -26,6 +26,8 @@ import {
   tint,
   glassEffect,
   shapes,
+  animation,
+  Animation,
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
@@ -39,6 +41,7 @@ import type { TripSummary } from '@/lib/schema';
 const FAVORITE_GOLD = '#FFD60A';
 const EDIT_BLUE = '#007AFF';
 const EXPORT_GREEN = '#34C759';
+const DELETE_RED = '#FF3B30';
 // The countdown pill mirrors the days sheet: one blue glass capsule across every
 // status, never a green/blue split (the label itself carries the distinction).
 const PILL_TINT = '#007AFF';
@@ -162,11 +165,11 @@ export default function TripsSheet() {
           <Spacer />
         </HStack>
 
-        {/* Full-swipe enabled on both edges: the first (edge-most) button on each
-            edge is the default a long swipe triggers — Edit leading, Delete
-            trailing (Delete still confirms via an alert before removing). Trailing
-            buttons lay out from the edge inward, so [Delete, Export] reads
-            "Export, Delete" left-to-right with Delete as the edge-most default. */}
+        {/* Trailing edge disables full-swipe (allowsFullSwipe={false}) so a long
+            swipe can't auto-trigger Delete; the Delete button itself also drops
+            role="destructive" (see below) so a plain tap doesn't pre-remove the
+            row before the confirm alert. Trailing buttons lay out from the edge
+            inward, so [Delete, Export] reads "Export, Delete" left-to-right. */}
         <SwipeActions.Actions edge="leading">
           <Button
             systemImage="pencil"
@@ -181,12 +184,17 @@ export default function TripsSheet() {
             modifiers={[tint(FAVORITE_GOLD)]}
           />
         </SwipeActions.Actions>
-        <SwipeActions.Actions edge="trailing">
+        <SwipeActions.Actions edge="trailing" allowsFullSwipe={false}>
+          {/* No role="destructive": a destructive swipe button plays SwiftUI's
+              row-removal animation the instant it's tapped, before our confirm
+              alert resolves — so cancelling left the row gone while the store
+              still held the trip. Tinting red keeps the destructive look without
+              the auto-removal; the row stays until removeTrip actually runs. */}
           <Button
             systemImage="trash"
-            role="destructive"
             label="Delete"
             onPress={() => onDelete(summary)}
+            modifiers={[tint(DELETE_RED)]}
           />
           <Button
             systemImage="square.and.arrow.up"
@@ -231,7 +239,11 @@ export default function TripsSheet() {
         </View>
       ) : (
         <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'}>
-          <List modifiers={[listStyle('insetGrouped')]}>
+          {/* Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
+              row count. Removing role="destructive" took away the swipe's built-in
+              delete animation, so we drive it here — when removeTrip drops the count
+              the row slides out instead of vanishing. */}
+          <List modifiers={[listStyle('insetGrouped'), animation(Animation.default, visibleTrips.length)]}>
             <Section>{visibleTrips.map((summary) => renderRow(summary))}</Section>
           </List>
         </Host>
