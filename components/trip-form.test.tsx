@@ -1,34 +1,96 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import * as ImagePicker from 'expo-image-picker';
 import { TripForm } from '@/components/trip-form';
 
-// The SwiftUI graphical DatePicker is native-only. Render the host transparently
-// and capture the active picker's props so specs can drive date changes the way
-// a tap on the calendar would, and assert which endpoint it is bound to.
-const picker = vi.hoisted(() => ({
-  onDateChange: undefined as ((d: Date) => void) | undefined,
-  selection: undefined as Date | undefined,
+// The native SwiftUI DatePickers are native-only. Capture each row's props,
+// keyed by its title ("Start"/"End"), so specs can drive a date change the way a
+// tap on the calendar would and assert which endpoint each row is bound to.
+const pickers = vi.hoisted(
+  () => ({}) as Record<string, { onDateChange?: (d: Date) => void; selection?: Date }>,
+);
+
+/* eslint-disable react/display-name -- inline passthrough stand-ins for native views */
+vi.mock('@expo/ui/swift-ui', async () => {
+  const React = await import('react');
+  const pass =
+    (t: string) =>
+    ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(t, null, children);
+  return {
+    Host: pass('div'),
+    Form: pass('div'),
+    // Render the footer so inline validation errors are queryable.
+    Section: ({ children, footer }: { children?: React.ReactNode; footer?: React.ReactNode }) =>
+      React.createElement('div', null, children, footer),
+    Text: pass('span'),
+    useNativeState: (initial: string) => ({ value: initial }),
+    TextField: ({
+      text,
+      placeholder,
+      onTextChange,
+    }: {
+      text?: { value: string };
+      placeholder?: string;
+      onTextChange?: (t: string) => void;
+    }) =>
+      React.createElement('input', {
+        placeholder,
+        defaultValue: text?.value,
+        onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
+      }),
+    DatePicker: (props: { title?: string; onDateChange?: (d: Date) => void; selection?: Date }) => {
+      if (props.title) {
+        pickers[props.title] = { onDateChange: props.onDateChange, selection: props.selection };
+      }
+      return null;
+    },
+    Button: ({
+      label,
+      onPress,
+      disabled,
+    }: {
+      label?: string;
+      onPress?: () => void;
+      disabled?: boolean;
+    }) =>
+      label ? React.createElement('button', { onClick: onPress, disabled }, label) : null,
+    Image: ({ uiImage }: { uiImage?: string }) =>
+      React.createElement('img', { alt: 'cover', src: uiImage }),
+  };
+});
+vi.mock('@expo/ui/swift-ui/modifiers', () => ({
+  datePickerStyle: vi.fn(() => ({})),
+  frame: vi.fn(() => ({})),
+  font: vi.fn(() => ({})),
+  foregroundStyle: vi.fn(() => ({})),
 }));
-vi.mock('@expo/ui/swift-ui', () => ({
-  Host: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('div', null, children),
-  DatePicker: (props: { onDateChange?: (d: Date) => void; selection?: Date }) => {
-    picker.onDateChange = props.onDateChange;
-    picker.selection = props.selection;
-    return null;
-  },
-}));
-vi.mock('@expo/ui/swift-ui/modifiers', () => ({ datePickerStyle: vi.fn(() => ({})) }));
-vi.mock('react-native-safe-area-context', () => ({
-  SafeAreaView: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('div', null, children),
-}));
-vi.mock('expo-image', () => ({
-  Image: ({ source }: { source?: { uri?: string } }) =>
-    React.createElement('img', { alt: 'cover', src: source?.uri }),
-}));
+
+// The form drives Cancel/Save through expo-router's native Stack toolbar.
+vi.mock('expo-router', async () => {
+  const React = await import('react');
+  const Stack: any = () => null;
+  Stack.Header = () => null;
+  Stack.Title = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement('span', null, children);
+  Stack.Toolbar = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement('div', null, children);
+  Stack.Toolbar.Button = ({
+    children,
+    onPress,
+    disabled,
+    accessibilityLabel,
+  }: {
+    children?: React.ReactNode;
+    onPress?: () => void;
+    disabled?: boolean;
+    accessibilityLabel?: string;
+  }) =>
+    React.createElement('button', { onClick: onPress, disabled, 'aria-label': accessibilityLabel }, children);
+  return { Stack };
+});
+
 vi.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: vi.fn(),
   launchImageLibraryAsync: vi.fn(),
@@ -39,6 +101,7 @@ const granted = { granted: true } as Awaited<
 >;
 
 beforeEach(() => {
+  for (const k of Object.keys(pickers)) delete pickers[k];
   vi.mocked(ImagePicker.requestMediaLibraryPermissionsAsync).mockResolvedValue(granted);
 });
 
@@ -62,74 +125,74 @@ function renderForm(props: Partial<React.ComponentProps<typeof TripForm>> = {}) 
 }
 
 describe('TripForm', () => {
-  it('warns and does not submit when the title is empty', async () => {
-    const { Alert } = await import('react-native');
-    const alertSpy = vi.spyOn(Alert, 'alert');
+  it('shows an inline error and does not submit when the title is empty', async () => {
     const { onSubmit } = renderForm({ initialTitle: '   ' });
 
-    fireEvent.click(screen.getByLabelText('Create'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/title/i)).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('warns and does not submit when the end date precedes the start date', async () => {
-    const { Alert } = await import('react-native');
-    const alertSpy = vi.spyOn(Alert, 'alert');
+  it('shows an inline error and does not submit when the end date precedes the start', async () => {
     const { onSubmit } = renderForm({
       initialTitle: 'Coast',
       initialStartDate: '2026-07-10',
       initialEndDate: '2026-07-05',
     });
 
-    fireEvent.click(screen.getByLabelText('Create'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/before the start/i)).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('submits a trimmed title and the chosen dates with no cover', () => {
+  it('submits a trimmed title and the chosen dates with no cover', async () => {
     const { onSubmit } = renderForm();
     fireEvent.change(screen.getByPlaceholderText(/Pacific Coast Highway/), {
       target: { value: '  Coast Run  ' },
     });
 
-    fireEvent.click(screen.getByLabelText('Create'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(onSubmit).toHaveBeenCalledWith({
-      title: 'Coast Run',
-      startDate: '2026-07-01',
-      endDate: '2026-07-03',
-      cover: { kind: 'none' },
-    });
-  });
-
-  it('keeps an existing wallpaper unchanged when it is not touched', () => {
-    const { onSubmit } = renderForm({
-      initialTitle: 'Coast',
-      initialWallpaperUri: 'file://display/wallpaper.jpg',
-    });
-
-    fireEvent.click(screen.getByLabelText('Create'));
-
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cover: { kind: 'existing', displayUri: 'file://display/wallpaper.jpg' },
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        title: 'Coast Run',
+        startDate: '2026-07-01',
+        endDate: '2026-07-03',
+        cover: { kind: 'none' },
       }),
     );
   });
 
-  it('submits cover "none" after the existing wallpaper is removed', () => {
+  it('keeps an existing wallpaper unchanged when it is not touched', async () => {
     const { onSubmit } = renderForm({
       initialTitle: 'Coast',
       initialWallpaperUri: 'file://display/wallpaper.jpg',
     });
 
-    fireEvent.click(screen.getByLabelText('Remove cover photo'));
-    fireEvent.click(screen.getByLabelText('Create'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ cover: { kind: 'none' } }),
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cover: { kind: 'existing', displayUri: 'file://display/wallpaper.jpg' },
+        }),
+      ),
+    );
+  });
+
+  it('submits cover "none" after the existing wallpaper is removed', async () => {
+    const { onSubmit } = renderForm({
+      initialTitle: 'Coast',
+      initialWallpaperUri: 'file://display/wallpaper.jpg',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /remove/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ cover: { kind: 'none' } })),
     );
   });
 
@@ -140,16 +203,18 @@ describe('TripForm', () => {
     } as Awaited<ReturnType<typeof ImagePicker.launchImageLibraryAsync>>);
     const { onSubmit } = renderForm({ initialTitle: 'Coast' });
 
-    fireEvent.click(screen.getByLabelText('Add cover photo'));
-    // Picking is async (permission + library); wait for the preview to appear,
+    fireEvent.click(screen.getByRole('button', { name: /add cover photo/i }));
+    // Picking is async (permission + library); wait for the change action to appear,
     // then flush pending work so the Create handler closes over the picked cover
     // rather than the pre-pick state.
-    await screen.findByLabelText('Change cover photo');
+    await screen.findByRole('button', { name: /change/i });
     await act(async () => {});
-    fireEvent.click(screen.getByLabelText('Create'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ cover: { kind: 'picked', uri: 'file://picked.jpg' } }),
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ cover: { kind: 'picked', uri: 'file://picked.jpg' } }),
+      ),
     );
   });
 
@@ -160,60 +225,59 @@ describe('TripForm', () => {
     } as Awaited<ReturnType<typeof ImagePicker.launchImageLibraryAsync>>);
     const { onSubmit } = renderForm({ initialTitle: 'Coast' });
 
-    fireEvent.click(screen.getByLabelText('Add cover photo'));
+    fireEvent.click(screen.getByRole('button', { name: /add cover photo/i }));
     await Promise.resolve();
-    fireEvent.click(screen.getByLabelText('Create'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ cover: { kind: 'none' } }),
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ cover: { kind: 'none' } })),
     );
   });
 
-  it('binds the shared calendar to the start date until End is selected', () => {
+  it('binds the two date rows to the start and end endpoints', () => {
     renderForm({ initialTitle: 'Coast', initialStartDate: '2026-07-01', initialEndDate: '2026-07-03' });
 
-    // Defaults to editing the start endpoint.
-    expect(picker.selection).toEqual(new Date(2026, 6, 1));
-
-    fireEvent.click(screen.getByLabelText('Edit end date'));
-    expect(picker.selection).toEqual(new Date(2026, 6, 3));
+    expect(pickers['Start'].selection).toEqual(new Date(2026, 6, 1));
+    expect(pickers['End'].selection).toEqual(new Date(2026, 6, 3));
   });
 
-  it('edits whichever endpoint the calendar is bound to', () => {
+  it('edits the end endpoint independently of the start', async () => {
     const { onSubmit } = renderForm({
       initialTitle: 'Coast',
       initialStartDate: '2026-07-01',
       initialEndDate: '2026-07-03',
     });
 
-    fireEvent.click(screen.getByLabelText('Edit end date'));
-    act(() => picker.onDateChange!(new Date(2026, 6, 10)));
-    fireEvent.click(screen.getByLabelText('Create'));
+    act(() => pickers['End'].onDateChange!(new Date(2026, 6, 10)));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ startDate: '2026-07-01', endDate: '2026-07-10' }),
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: '2026-07-01', endDate: '2026-07-10' }),
+      ),
     );
   });
 
-  it('drags the end date along when the start moves past it', () => {
+  it('drags the end date along when the start moves past it', async () => {
     const { onSubmit } = renderForm({
       initialTitle: 'Coast',
       initialStartDate: '2026-07-01',
       initialEndDate: '2026-07-03',
     });
 
-    // Editing the start by default; push it beyond the current end.
-    act(() => picker.onDateChange!(new Date(2026, 6, 20)));
-    fireEvent.click(screen.getByLabelText('Create'));
+    act(() => pickers['Start'].onDateChange!(new Date(2026, 6, 20)));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ startDate: '2026-07-20', endDate: '2026-07-20' }),
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: '2026-07-20', endDate: '2026-07-20' }),
+      ),
     );
   });
 
   it('invokes onCancel when Cancel is pressed', () => {
     const { onCancel } = renderForm({ initialTitle: 'Coast' });
-    fireEvent.click(screen.getByLabelText('Cancel'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onCancel).toHaveBeenCalled();
   });
 });
