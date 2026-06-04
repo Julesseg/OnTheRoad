@@ -67,6 +67,8 @@ vi.mock('@expo/ui/swift-ui', async () => {
       },
     ),
     DatePicker: (props: { title?: string; onDateChange?: (d: Date) => void; selection?: Date }) => {
+      // The picker's own label is hidden (.labelsHidden) but the title is still set for
+      // accessibility, so tests key on it as before.
       if (props.title) dpickers[props.title] = { onDateChange: props.onDateChange, selection: props.selection };
       return null;
     },
@@ -79,10 +81,21 @@ vi.mock('@expo/ui/swift-ui', async () => {
       if (props.label) pickers[props.label] = { onSelectionChange: props.onSelectionChange, selection: props.selection };
       return null;
     },
-    Button: ({ label, onPress }: { label?: string; onPress?: () => void }) =>
-      typeof label === 'string'
-        ? React.createElement('button', { onClick: onPress, 'aria-label': label }, label)
-        : null,
+    Button: ({
+      label,
+      onPress,
+      modifiers,
+    }: {
+      label?: string;
+      onPress?: () => void;
+      modifiers?: { __accessibilityLabel?: string }[];
+    }) => {
+      // An icon-only button (label "") carries its name via an accessibilityLabel modifier.
+      const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
+      return typeof label === 'string'
+        ? React.createElement('button', { onClick: onPress, 'aria-label': a11y ?? label }, label)
+        : null;
+    },
   };
 });
 vi.mock('@expo/ui/swift-ui/modifiers', () => ({
@@ -91,6 +104,12 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   datePickerStyle: vi.fn(() => ({})),
   pickerStyle: vi.fn(() => ({})),
   tag: vi.fn(() => ({})),
+  labelsHidden: vi.fn(() => ({})),
+  frame: vi.fn(() => ({})),
+  tint: vi.fn(() => ({})),
+  onTapGesture: vi.fn(() => ({})),
+  // Carry the label so the Button mock can expose it as the accessible name.
+  accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
 }));
 
 // The editor drives Cancel/Save through expo-router's native Stack toolbar.
@@ -215,26 +234,29 @@ describe('ItemEditor', () => {
     );
   });
 
-  it('clears a duration back to unset', async () => {
+  it('defaults a new activity duration to 0h 0m and omits it when left at zero', async () => {
     const onSubmit = vi.fn();
-    const initial: Item = { type: 'activity', id: 'act-3', name: 'Hike', duration: 90 };
-    render(<ItemEditor type="activity" itemId="act-3" initialItem={initial} onSubmit={onSubmit} />);
+    render(<ItemEditor type="activity" itemId="act-3" onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear duration' }));
+    expect(pickers['Hours'].selection).toBe(0);
+    expect(pickers['Minutes'].selection).toBe(0);
+
     save();
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({ type: 'activity', id: 'act-3', name: 'Hike' }),
     );
   });
 
-  it('flips a duration wheeled down to 0h 0m back to unset rather than an unsaveable 0', async () => {
+  it('clears a set duration by wheeling it to 0h 0m, leaving the wheels at zero', async () => {
     const onSubmit = vi.fn();
     const initial: Item = { type: 'activity', id: 'act-4', name: 'Hike', duration: 60 };
     render(<ItemEditor type="activity" itemId="act-4" initialItem={initial} onSubmit={onSubmit} />);
 
-    // 1h 0m → wheel hours to 0, total would be 0 → editor clears to unset.
+    // 1h 0m → wheel hours to 0, total 0 → duration unset; the wheels stay visible at 0h 0m.
     act(() => pickers['Hours'].onSelectionChange!(0));
-    expect(screen.getByRole('button', { name: 'Add a duration' })).toBeInTheDocument();
+    expect(pickers['Hours'].selection).toBe(0);
+    expect(pickers['Minutes'].selection).toBe(0);
 
     save();
     await waitFor(() =>
@@ -332,5 +354,17 @@ describe('ItemEditor', () => {
   it('omits the Delete control when creating a new item', () => {
     render(<ItemEditor type="note" itemId="n2" onSubmit={() => {}} onDelete={() => {}} />);
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+  });
+
+  it('surfaces a tappable link for a URL typed into a note', () => {
+    const initial: Item = { type: 'note', id: 'n3', text: 'book at https://example.com/rooms' };
+    render(<ItemEditor type="note" itemId="n3" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByText('https://example.com/rooms')).toBeInTheDocument();
+  });
+
+  it('surfaces a tappable link for a URL in another type\'s notes field', () => {
+    const initial: Item = { type: 'activity', id: 'a3', name: 'Hike', notes: 'trailhead www.alltrails.com' };
+    render(<ItemEditor type="activity" itemId="a3" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByText('www.alltrails.com')).toBeInTheDocument();
   });
 });

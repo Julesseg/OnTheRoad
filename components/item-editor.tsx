@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Modal, useColorScheme } from 'react-native';
+import { Linking, Modal, useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +24,10 @@ import {
   datePickerStyle,
   pickerStyle,
   tag,
+  accessibilityLabel,
+  labelsHidden,
+  frame,
+  onTapGesture,
 } from '@expo/ui/swift-ui/modifiers';
 
 import {
@@ -38,6 +42,7 @@ import {
   hmToDuration,
 } from '@/lib/item-form';
 import { itemIdentity, type ItemIdentity } from '@/lib/item-identity';
+import { extractLinks } from '@/lib/links';
 import { CoordsPicker } from '@/components/coords-picker';
 import type { Item } from '@/lib/schema';
 
@@ -52,6 +57,8 @@ export interface ItemEditorProps {
 
 const LABEL_GRAY = '#8A8580';
 const ERROR_RED = '#d11';
+const DELETE_RED = '#FF3B30';
+const LINK_BLUE = '#007AFF';
 
 // Wheel options. Hours cover a full day so any stored duration round-trips; minutes
 // step by 5 per the brief. A legacy value off the 5-minute grid (e.g. 7) is preserved
@@ -99,6 +106,33 @@ function FieldError({ message }: { message?: string }) {
   return <Text modifiers={[font({ size: 13 }), foregroundStyle(ERROR_RED)]}>{message}</Text>;
 }
 
+/** Tappable rows for any URLs typed into a notes field — the field itself is plain,
+ *  editable text, so we surface its links underneath as something openable. */
+function NoteLinks({ text }: { text: string }) {
+  const links = useMemo(() => extractLinks(text), [text]);
+  if (links.length === 0) return null;
+  return (
+    <VStack alignment="leading" spacing={6}>
+      {links.map((link) => (
+        <HStack
+          key={link.url}
+          spacing={6}
+          modifiers={[
+            frame({ maxWidth: Infinity, alignment: 'leading' }),
+            accessibilityLabel(`Open ${link.label}`),
+            onTapGesture(() => {
+              void Linking.openURL(link.url).catch(() => {});
+            }),
+          ]}
+        >
+          <Image systemName="link" color={LINK_BLUE} size={13} />
+          <Text modifiers={[font({ size: 14 }), foregroundStyle(LINK_BLUE)]}>{link.label}</Text>
+        </HStack>
+      ))}
+    </VStack>
+  );
+}
+
 /** A native compact time picker that keeps an "unset" state in the surrounding row:
  *  a placeholder Button when unset, the picker + an inline Clear once a time is set. */
 function TimeRow({
@@ -115,28 +149,38 @@ function TimeRow({
   if (!value) {
     return (
       <FieldRow label={label} error={error}>
-        <Button label={`Add ${label.toLowerCase()}`} onPress={() => onChange('09:00')} />
+        <HStack modifiers={[frame({ maxWidth: Infinity, alignment: 'center' })]}>
+          <Button label={`Add ${label.toLowerCase()}`} onPress={() => onChange('09:00')} />
+        </HStack>
       </FieldRow>
     );
   }
   return (
     <FieldRow label={label} error={error}>
-      <HStack spacing={12}>
+      <HStack spacing={12} modifiers={[frame({ maxWidth: Infinity, alignment: 'center' })]}>
         <DatePicker
           title={label}
           selection={timeToDate(value)}
           displayedComponents={['hourAndMinute']}
           onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('compact')]}
+          // We label the row ourselves (FieldRow), so hide the picker's built-in label —
+          // .labelsHidden() reclaims the empty label column that otherwise offsets the pill.
+          modifiers={[datePickerStyle('compact'), labelsHidden()]}
         />
-        <Button label={`Clear ${label.toLowerCase()}`} onPress={() => onChange('')} />
+        <Button
+          label=""
+          systemImage="xmark.circle.fill"
+          onPress={() => onChange('')}
+          modifiers={[accessibilityLabel(`Clear ${label.toLowerCase()}`), foregroundStyle(LABEL_GRAY)]}
+        />
       </HStack>
     </FieldRow>
   );
 }
 
 /** Hours + minutes wheel for an Activity's duration, stored as total whole minutes.
- *  Optional like the time rows: a placeholder Button when unset, wheels + Clear once set. */
+ *  Always shown, defaulting to 00h00m; that zero value is the "unset" duration and
+ *  is stored as the empty string (no add/clear affordances). */
 function DurationRow({
   value,
   onChange,
@@ -146,16 +190,8 @@ function DurationRow({
   onChange: (v: string) => void;
   error?: string;
 }) {
-  const hm = durationToHm(value);
-  if (!hm) {
-    return (
-      <FieldRow label="Duration" error={error}>
-        <Button label="Add a duration" onPress={() => onChange(hmToDuration(1, 0))} />
-      </FieldRow>
-    );
-  }
-  // Wheeling both columns to zero would otherwise leave a "0" the optional-duration
-  // guard rejects with no way out but Clear; flip straight back to unset instead.
+  const hm = durationToHm(value) ?? { hours: 0, minutes: 0 };
+  // 00h00m means "no duration": store it as the empty (unset) value.
   const change = (hours: number, minutes: number) => {
     const total = hmToDuration(hours, minutes);
     onChange(Number(total) === 0 ? '' : total);
@@ -183,7 +219,6 @@ function DurationRow({
             <Text key={m} modifiers={[tag(m)]}>{`${m} m`}</Text>
           ))}
         </Picker>
-        <Button label="Clear duration" onPress={() => onChange('')} />
       </HStack>
     </FieldRow>
   );
@@ -224,6 +259,8 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
   const [coordsOpen, setCoordsOpen] = useState(false);
 
   const coords = useWatch({ control, name: 'coords' });
+  const noteText = useWatch({ control, name: 'text' });
+  const notesText = useWatch({ control, name: 'notes' });
   const time = useWatch({ control, name: 'time' });
   const checkIn = useWatch({ control, name: 'checkIn' });
   const checkOut = useWatch({ control, name: 'checkOut' });
@@ -270,7 +307,9 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
                   text={textState}
                   placeholder="Anything to remember"
                   onTextChange={(t) => setValue('text', t)}
+                  axis="vertical"
                 />
+                <NoteLinks text={noteText} />
               </FieldRow>
             ) : (
               <FieldRow label="Name" error={errors.name?.message}>
@@ -300,7 +339,12 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
                       onPress={() => setCoordsOpen(true)}
                     />
                     {coords ? (
-                      <Button label="Clear coordinates" onPress={() => setValue('coords', '')} />
+                      <Button
+                        label=""
+                        systemImage="xmark.circle.fill"
+                        onPress={() => setValue('coords', '')}
+                        modifiers={[accessibilityLabel('Clear coordinates'), foregroundStyle(LABEL_GRAY)]}
+                      />
                     ) : null}
                   </HStack>
                 </FieldRow>
@@ -368,14 +412,22 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
                   text={notesState}
                   placeholder="Anything else to remember"
                   onTextChange={(t) => setValue('notes', t)}
+                  axis="vertical"
                 />
+                <NoteLinks text={notesText} />
               </FieldRow>
             )}
           </Section>
 
           {initialItem && onDelete ? (
             <Section>
-              <Button label="Delete" systemImage="trash" role="destructive" onPress={onDelete} />
+              <Button
+              label="Delete"
+              systemImage="trash"
+              role="destructive"
+              onPress={onDelete}
+              modifiers={[foregroundStyle(DELETE_RED)]}
+            />
             </Section>
           ) : null}
         </Form>
