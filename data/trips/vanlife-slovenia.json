@@ -228,8 +228,8 @@
           "id": "1e48b7da-ed5a-4bae-9926-5c0376cd7c7a",
           "name": "Grottes de Škocjan",
           "address": "Škocjan 2, 6215 Divača, Slovenia",
-          "lat": 45.66314,
-          "lng": 13.98917,
+          "lat": 45.663089,
+          "lng": 13.9892129,
           "time": "10:00",
           "notes": "18 min de route. Visite le matin, 22€ par personne, prévoir 2h30/3h de visite. Lien : https://maps.app.goo.gl/dDKMRQg9VEiTkSvC8"
         },
@@ -263,21 +263,25 @@
           "id": "23256800-21cd-413d-9ad5-f951f1277546",
           "name": "Château de Predjama",
           "address": "Predjama 1, 6230 Postojna, Slovenia",
-          "lat": 45.81581,
-          "lng": 14.12677,
+          "lat": 45.8137159,
+          "lng": 14.129138,
           "notes": "15 min de route. Visite du château. Lien : https://maps.app.goo.gl/saV4zYDx9o4VCN1a7"
         },
         {
           "type": "location",
           "id": "97277035-1ae5-4977-81cf-2ad3cad20e2a",
           "name": "Église Sv. Lovrenc (point de vue)",
-          "notes": "15 min de route. Point de vue. Lien : https://maps.app.goo.gl/23H1GYztjiCd3fAN6"
+          "notes": "15 min de route. Point de vue. Lien : https://maps.app.goo.gl/23H1GYztjiCd3fAN6",
+          "lat": 45.8391981,
+          "lng": 14.1685319
         },
         {
           "type": "location",
           "id": "9bd31403-632a-4fbf-8b47-06cd3e89d85d",
           "name": "Église Cerkev Sv. Tomaž",
-          "notes": "1h20 de route. Lien : https://maps.app.goo.gl/kd3AvhnU5xWkpJ1u6"
+          "notes": "1h20 de route. Lien : https://maps.app.goo.gl/kd3AvhnU5xWkpJ1u6",
+          "lat": 46.175061,
+          "lng": 14.227574
         },
         {
           "type": "location",
@@ -291,8 +295,8 @@
           "type": "location",
           "id": "b362fc47-0924-49cd-8bdf-e231fdd50c18",
           "name": "Église de Jamnik (point de vue)",
-          "lat": 46.272138,
-          "lng": 14.207196,
+          "lat": 46.2751626,
+          "lng": 14.2139734,
           "notes": "25 min de route. Église + point de vue. Lien : https://maps.app.goo.gl/okaH35oGpjWeLH2j6"
         },
         {
@@ -340,8 +344,8 @@
           "id": "38f9d3c2-a436-4839-9d1e-adfcccb609d3",
           "name": "Gorges de Vintgar",
           "address": "Podhom 80, 4247 Zgornje Gorje, Slovenia",
-          "lat": 46.39487,
-          "lng": 14.08807,
+          "lat": 46.3935926,
+          "lng": 14.0856595,
           "notes": "15 min de voiture. 15€ par personne, environ 2h de balade. Lien : https://maps.app.goo.gl/RR8r1p8HuBRWy4Mi6"
         },
         {
@@ -349,8 +353,8 @@
           "id": "b0e15f8c-bd5f-401f-addf-5ff0e21a98a6",
           "name": "Cascade de Peričnik",
           "address": "Mojstrana, 4281 Slovenia",
-          "lat": 46.43567,
-          "lng": 13.93472,
+          "lat": 46.4391857,
+          "lng": 13.893777,
           "notes": "40 min de voiture. 1h de balade, pique-nique sur place. Lien : https://maps.app.goo.gl/2gtFC4YQ4RfCLBVU6"
         },
         {
@@ -358,8 +362,8 @@
           "id": "fcec5cff-1c5f-4cdf-83ab-bee78d7e3d11",
           "name": "Lac Jasna",
           "address": "Kranjska Gora, 4280 Slovenia",
-          "lat": 46.47414,
-          "lng": 13.78401,
+          "lat": 46.484778,
+          "lng": 13.790113,
           "notes": "30 min de voiture. Aménagé comme une plage, vue sur le Mont Triglav. Chill, baignade, sieste, paddle… Lien : https://maps.app.goo.gl/RqgxWqhzgAxZVmfy8"
         },
         {
@@ -396,8 +400,8 @@
           "id": "7ca58f5d-9d3d-456d-9707-70f61166a7d8",
           "name": "Gorges de Velika Korita",
           "address": "Soča 104a, 5232 Soča, Slovenia",
-          "lat": 46.33746,
-          "lng": 13.64587,
+          "lat": 46.3372098,
+          "lng": 13.6459342,
           "notes": "Lien : https://maps.app.goo.gl/zoEPYWvagrcZN5mm9"
         },
         {
@@ -429,8 +433,8 @@
           "id": "208110fb-b91e-4fe5-87ca-5bfba718c219",
           "name": "Stop à Kobarid",
           "address": "Kobarid, 5222 Slovenia",
-          "lat": 46.24555,
-          "lng": 13.57917,
+          "lat": 46.2470657,
+          "lng": 13.5836968,
           "notes": "Lien : https://maps.app.goo.gl/VihGPUovxdA22zhZ8"
         },
         {
@@ -438,8 +442,8 @@
           "id": "b967550e-2eba-4bb8-9960-04cb66e0782d",
           "name": "Stop à Tolmin",
           "address": "Tolmin, 5220 Slovenia",
-          "lat": 46.14373,
-          "lng": 13.78928,
+          "lat": 46.1737126,
+          "lng": 13.7401253,
           "notes": "Lien : https://maps.app.goo.gl/YMryP5MQXEdU4N377"
         },
         {
@@ -447,8 +451,8 @@
           "id": "172137c4-499e-45f6-9823-bd891acdb688",
           "name": "Stop à Most na Soči",
           "address": "Most na Soči, 5216 Slovenia",
-          "lat": 46.15209,
-          "lng": 13.74402,
+          "lat": 46.1546724,
+          "lng": 13.7461848,
           "notes": "Lien : https://maps.app.goo.gl/mrFjS1kiBjLSY6E76"
         },
         {
@@ -468,8 +472,8 @@
           "id": "387dcc2f-7b24-48d7-b2dd-de8d899f3477",
           "name": "Stop à Trieste",
           "address": "Trieste, Italy",
-          "lat": 45.64965,
-          "lng": 13.77728,
+          "lat": 45.6508342,
+          "lng": 13.7674486,
           "notes": "Sur le chemin, 1h50 de route. Lien : https://maps.app.goo.gl/JjTMfggdCX47TNJQ8"
         },
         {
