@@ -65,6 +65,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   frame: vi.fn(() => ({})),
   font: vi.fn(() => ({})),
   foregroundStyle: vi.fn(() => ({})),
+  tint: vi.fn(() => ({})),
 }));
 
 // The form drives Cancel/Save through expo-router's native Stack toolbar.

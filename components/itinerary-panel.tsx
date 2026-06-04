@@ -156,13 +156,6 @@ export function ItineraryPanel({
       : null;
 
     return (
-      // No context menu: its long-press collides with the List's drag-to-reorder gesture, so
-      // every action lives on a swipe instead. Swipe leading reveals Edit (the full-swipe main
-      // action) and Move to another day when the trip spans more than one day. Swipe trailing
-      // reveals Open in Maps when the item has a destination, and Delete. Tapping the row edits it.
-      // The trailing edge disables full-swipe (allowsFullSwipe={false}) so a long swipe can't
-      // auto-trigger Delete, and the Delete button drops role="destructive" (see below) so even a
-      // plain tap doesn't pre-remove the row before the confirm alert resolves.
       <SwipeActions key={item.id}>
         <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
           <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
@@ -187,7 +180,7 @@ export function ItineraryPanel({
             />
           ) : null}
         </SwipeActions.Actions>
-        <SwipeActions.Actions edge="trailing" allowsFullSwipe={false}>
+        <SwipeActions.Actions edge="trailing" allowsFullSwipe={!!openMaps}>
           {openMaps ? (
             <Button
               systemImage="map"
@@ -196,9 +189,6 @@ export function ItineraryPanel({
               modifiers={[tint(TINT)]}
             />
           ) : null}
-          {/* No role="destructive": it plays SwiftUI's row-removal animation on tap,
-              before the confirm alert resolves, so cancelling left the row gone. Red
-              tint keeps the look; the row stays until deleteItem actually runs. */}
           <Button systemImage="trash" label="Delete" onPress={remove} modifiers={[tint(DELETE_RED)]} />
         </SwipeActions.Actions>
       </SwipeActions>
