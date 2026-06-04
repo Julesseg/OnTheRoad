@@ -188,7 +188,7 @@
           "type": "activity",
           "id": "282a6fc0-8d30-43f5-8e44-7b2615ab76dc",
           "name": "Bus pour Koper",
-          "notes": "11,50€ par personne."
+          "notes": "11,50€ par personne. Horaires : https://arriva.si/en/timetable/?departure-8361=Ljubljana+AP&departure_id=138922&departure=Ljubljana%20AP&destination=Koper&destination_id=135768&trip_date=04.06.2026"
         },
         {
           "type": "activity",
@@ -215,7 +215,7 @@
           "type": "accommodation",
           "id": "809262e1-58c3-4af7-9a85-a15eea973be8",
           "name": "Parking pour la nuit",
-          "notes": "Vers Škocjan."
+          "notes": "Vers Škocjan. Lien : https://maps.app.goo.gl/fxiqt6NcakKDtvTL6"
         }
       ]
     },
@@ -231,26 +231,26 @@
           "lat": 45.66314,
           "lng": 13.98917,
           "time": "10:00",
-          "notes": "18 min de route. Visite le matin, 22€ par personne, prévoir 2h30/3h de visite."
+          "notes": "18 min de route. Visite le matin, 22€ par personne, prévoir 2h30/3h de visite. Lien : https://maps.app.goo.gl/dDKMRQg9VEiTkSvC8"
         },
         {
           "type": "activity",
           "id": "f17621d5-daa9-47d1-9ab0-3b061f15c898",
           "name": "Déjeuner et mini randonnée",
-          "notes": "Autour des grottes de Škocjan."
+          "notes": "Autour des grottes de Škocjan. Randonnée : https://www.komoot.com/fr-fr/guide/499378/randonnees-autour-de-grottes-de-skocjan"
         },
         {
           "type": "activity",
           "id": "bec21bd3-1d58-48a2-aadc-052cd71e8a1b",
           "name": "Observation des ours (Postojna)",
           "time": "18:20",
-          "notes": "30 min de route. 3h d’expédition, 95€ par personne."
+          "notes": "30 min de route. 3h d’expédition, 95€ par personne. Réservation : https://bearwatchingslovenia.si/ — Postojna : https://maps.app.goo.gl/wtVu6vji4esRNkJN7"
         },
         {
           "type": "accommodation",
           "id": "1d8a38b5-91a1-41ae-92fa-acc73fb9ea32",
           "name": "Parking Postojna",
-          "notes": "Dodo Postojna parking."
+          "notes": "Dodo Postojna parking. Lien : https://maps.app.goo.gl/wtVu6vji4esRNkJN7"
         }
       ]
     },
@@ -265,19 +265,19 @@
           "address": "Predjama 1, 6230 Postojna, Slovenia",
           "lat": 45.81581,
           "lng": 14.12677,
-          "notes": "15 min de route. Visite du château."
+          "notes": "15 min de route. Visite du château. Lien : https://maps.app.goo.gl/saV4zYDx9o4VCN1a7"
         },
         {
           "type": "location",
           "id": "97277035-1ae5-4977-81cf-2ad3cad20e2a",
           "name": "Église Sv. Lovrenc (point de vue)",
-          "notes": "15 min de route. Point de vue."
+          "notes": "15 min de route. Point de vue. Lien : https://maps.app.goo.gl/23H1GYztjiCd3fAN6"
         },
         {
           "type": "location",
           "id": "9bd31403-632a-4fbf-8b47-06cd3e89d85d",
           "name": "Église Cerkev Sv. Tomaž",
-          "notes": "1h20 de route."
+          "notes": "1h20 de route. Lien : https://maps.app.goo.gl/kd3AvhnU5xWkpJ1u6"
         },
         {
           "type": "location",
@@ -293,14 +293,14 @@
           "name": "Église de Jamnik (point de vue)",
           "lat": 46.272138,
           "lng": 14.207196,
-          "notes": "25 min de route. Église + point de vue."
+          "notes": "25 min de route. Église + point de vue. Lien : https://maps.app.goo.gl/okaH35oGpjWeLH2j6"
         },
         {
           "type": "accommodation",
           "id": "86d55a4e-dc8b-4d2a-9a0c-f45781c13852",
           "name": "Camping de Bled",
           "address": "Kidričeva cesta 10c, 4260 Bled, Slovenia",
-          "notes": "Arriver avant 18h pour le check-in. 105,92€ les 2 nuits."
+          "notes": "Arriver avant 18h pour le check-in. 105,92€ les 2 nuits. Lien : https://maps.app.goo.gl/QVcUPTK4AfuXLttg9"
         }
       ]
     },
@@ -327,7 +327,7 @@
           "id": "0f0eff68-9470-4b1f-b335-4b804c67b5a5",
           "name": "Camping de Bled",
           "address": "Kidričeva cesta 10c, 4260 Bled, Slovenia",
-          "notes": "105,92€ les 2 nuits."
+          "notes": "105,92€ les 2 nuits. Lien : https://maps.app.goo.gl/QVcUPTK4AfuXLttg9"
         }
       ]
     },
@@ -342,7 +342,7 @@
           "address": "Podhom 80, 4247 Zgornje Gorje, Slovenia",
           "lat": 46.39487,
           "lng": 14.08807,
-          "notes": "15 min de voiture. 15€ par personne, environ 2h de balade."
+          "notes": "15 min de voiture. 15€ par personne, environ 2h de balade. Lien : https://maps.app.goo.gl/RR8r1p8HuBRWy4Mi6"
         },
         {
           "type": "location",
@@ -351,7 +351,7 @@
           "address": "Mojstrana, 4281 Slovenia",
           "lat": 46.43567,
           "lng": 13.93472,
-          "notes": "40 min de voiture. 1h de balade, pique-nique sur place."
+          "notes": "40 min de voiture. 1h de balade, pique-nique sur place. Lien : https://maps.app.goo.gl/2gtFC4YQ4RfCLBVU6"
         },
         {
           "type": "location",
@@ -360,13 +360,13 @@
           "address": "Kranjska Gora, 4280 Slovenia",
           "lat": 46.47414,
           "lng": 13.78401,
-          "notes": "30 min de voiture. Aménagé comme une plage, vue sur le Mont Triglav. Chill, baignade, sieste, paddle…"
+          "notes": "30 min de voiture. Aménagé comme une plage, vue sur le Mont Triglav. Chill, baignade, sieste, paddle… Lien : https://maps.app.goo.gl/RqgxWqhzgAxZVmfy8"
         },
         {
           "type": "accommodation",
           "id": "eb5e48ca-ba2e-4486-ac9b-4c665778490c",
           "name": "Kranjska Gora",
-          "notes": "Air de camping-car ou camping nature."
+          "notes": "Air de camping-car ou camping nature. Lien : https://maps.app.goo.gl/RqgxWqhzgAxZVmfy8"
         }
       ]
     },
@@ -397,19 +397,20 @@
           "name": "Gorges de Velika Korita",
           "address": "Soča 104a, 5232 Soča, Slovenia",
           "lat": 46.33746,
-          "lng": 13.64587
+          "lng": 13.64587,
+          "notes": "Lien : https://maps.app.goo.gl/zoEPYWvagrcZN5mm9"
         },
         {
           "type": "activity",
           "id": "c6f5714e-2c2e-46cb-a49d-dc1dd7bccc00",
           "name": "Rafting à Bovec",
-          "notes": "Dans l’après-midi. À voir quelle compagnie."
+          "notes": "Dans l’après-midi. À voir quelle compagnie. Lien : https://maps.app.goo.gl/otjUc7Qua9xG5uA57"
         },
         {
           "type": "accommodation",
           "id": "47ac874a-e34f-4072-b8fd-e1fe575b91b6",
           "name": "Parking payant, Bovec",
-          "notes": "Arriver avant 21h pour le ticket desk."
+          "notes": "Arriver avant 21h pour le ticket desk. Lien : https://maps.app.goo.gl/8c2yvHBphiV2g6Lv6"
         }
       ]
     },
@@ -429,7 +430,8 @@
           "name": "Stop à Kobarid",
           "address": "Kobarid, 5222 Slovenia",
           "lat": 46.24555,
-          "lng": 13.57917
+          "lng": 13.57917,
+          "notes": "Lien : https://maps.app.goo.gl/VihGPUovxdA22zhZ8"
         },
         {
           "type": "location",
@@ -437,7 +439,8 @@
           "name": "Stop à Tolmin",
           "address": "Tolmin, 5220 Slovenia",
           "lat": 46.14373,
-          "lng": 13.78928
+          "lng": 13.78928,
+          "notes": "Lien : https://maps.app.goo.gl/YMryP5MQXEdU4N377"
         },
         {
           "type": "location",
@@ -445,13 +448,14 @@
           "name": "Stop à Most na Soči",
           "address": "Most na Soči, 5216 Slovenia",
           "lat": 46.15209,
-          "lng": 13.74402
+          "lng": 13.74402,
+          "notes": "Lien : https://maps.app.goo.gl/mrFjS1kiBjLSY6E76"
         },
         {
           "type": "accommodation",
           "id": "18173060-531a-40d3-9194-35ae20845ab6",
           "name": "Camping vers Kanal",
-          "notes": "Camping isolé près d’un lac."
+          "notes": "Camping isolé près d’un lac. Lien : https://maps.app.goo.gl/yBBPPAUi1zya4vRp6"
         }
       ]
     },
@@ -466,7 +470,7 @@
           "address": "Trieste, Italy",
           "lat": 45.64965,
           "lng": 13.77728,
-          "notes": "Sur le chemin, 1h50 de route."
+          "notes": "Sur le chemin, 1h50 de route. Lien : https://maps.app.goo.gl/JjTMfggdCX47TNJQ8"
         },
         {
           "type": "location",
@@ -481,7 +485,7 @@
           "type": "accommodation",
           "id": "d023a7c9-9222-4d0b-84f6-222667ae737a",
           "name": "Air de camping-car, Piran",
-          "notes": "Environ 35€ la nuit."
+          "notes": "Environ 35€ la nuit. Lien : https://maps.app.goo.gl/q37VJPMbFh6qoz8H7"
         }
       ]
     },
@@ -499,7 +503,7 @@
           "type": "activity",
           "id": "9079dd3d-a51e-4bb1-a17b-f0ccbd05c891",
           "name": "Rendre le van à Koper",
-          "notes": "Le matin avant 12h."
+          "notes": "Le matin avant 12h. Lien : https://maps.app.goo.gl/spWJjXPfFrwsWrvdA"
         },
         {
           "type": "activity",
