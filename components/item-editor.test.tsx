@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ItemEditor } from '@/components/item-editor';
 import type { Item } from '@/lib/schema';
 
@@ -39,21 +39,33 @@ vi.mock('@expo/ui/swift-ui', async () => {
     }) => React.createElement('div', null, header, children, footer),
     Text: pass('span'),
     useNativeState: (initial: string) => ({ value: initial }),
-    TextField: ({
-      text,
-      placeholder,
-      onTextChange,
-    }: {
-      text?: { value: string };
-      placeholder?: string;
-      onTextChange?: (t: string) => void;
-    }) =>
-      React.createElement('input', {
-        placeholder,
-        'aria-label': placeholder,
-        defaultValue: text?.value,
-        onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
-      }),
+    // Forward a ref exposing setText so the imperative autofill bridge
+    // (addressRef.current?.setText) is actually exercised: setText writes through
+    // to the input's value the way the native field would.
+    TextField: React.forwardRef(
+      (
+        {
+          text,
+          placeholder,
+          onTextChange,
+        }: { text?: { value: string }; placeholder?: string; onTextChange?: (t: string) => void },
+        ref: React.Ref<{ setText: (t: string) => void }>,
+      ) => {
+        const inputRef = React.useRef<HTMLInputElement>(null);
+        React.useImperativeHandle(ref, () => ({
+          setText: (t: string) => {
+            if (inputRef.current) inputRef.current.value = t;
+          },
+        }));
+        return React.createElement('input', {
+          ref: inputRef,
+          placeholder,
+          'aria-label': placeholder,
+          defaultValue: text?.value,
+          onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
+        });
+      },
+    ),
     DatePicker: (props: { title?: string; onDateChange?: (d: Date) => void; selection?: Date }) => {
       if (props.title) dpickers[props.title] = { onDateChange: props.onDateChange, selection: props.selection };
       return null;
@@ -215,6 +227,21 @@ describe('ItemEditor', () => {
     );
   });
 
+  it('flips a duration wheeled down to 0h 0m back to unset rather than an unsaveable 0', async () => {
+    const onSubmit = vi.fn();
+    const initial: Item = { type: 'activity', id: 'act-4', name: 'Hike', duration: 60 };
+    render(<ItemEditor type="activity" itemId="act-4" initialItem={initial} onSubmit={onSubmit} />);
+
+    // 1h 0m → wheel hours to 0, total would be 0 → editor clears to unset.
+    act(() => pickers['Hours'].onSelectionChange!(0));
+    expect(screen.getByRole('button', { name: 'Add a duration' })).toBeInTheDocument();
+
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({ type: 'activity', id: 'act-4', name: 'Hike' }),
+    );
+  });
+
   it('attaches coords picked from a pasted URL to the saved item', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor type="location" itemId="loc-2" onSubmit={onSubmit} />);
@@ -266,6 +293,14 @@ describe('ItemEditor', () => {
     fireEvent.click(await screen.findByText('Pike Place Market'));
 
     vi.useRealTimers();
+    // The autofill bridges into the native field via addressRef.setText, so the
+    // address row visibly shows the suggestion (not just the saved RHF value).
+    await waitFor(() =>
+      expect(
+        (screen.getByPlaceholderText('Street, city, or landmark') as HTMLInputElement).value,
+      ).toBe('Seattle'),
+    );
+
     save();
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({

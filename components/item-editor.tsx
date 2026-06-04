@@ -154,13 +154,19 @@ function DurationRow({
       </FieldRow>
     );
   }
+  // Wheeling both columns to zero would otherwise leave a "0" the optional-duration
+  // guard rejects with no way out but Clear; flip straight back to unset instead.
+  const change = (hours: number, minutes: number) => {
+    const total = hmToDuration(hours, minutes);
+    onChange(Number(total) === 0 ? '' : total);
+  };
   return (
     <FieldRow label="Duration" error={error}>
       <HStack spacing={0}>
         <Picker
           label="Hours"
           selection={hm.hours}
-          onSelectionChange={(h) => onChange(hmToDuration(h as number, hm.minutes))}
+          onSelectionChange={(h) => change(h as number, hm.minutes)}
           modifiers={[pickerStyle('wheel')]}
         >
           {HOUR_OPTIONS.map((h) => (
@@ -170,7 +176,7 @@ function DurationRow({
         <Picker
           label="Minutes"
           selection={hm.minutes}
-          onSelectionChange={(m) => onChange(hmToDuration(hm.hours, m as number))}
+          onSelectionChange={(m) => change(hm.hours, m as number)}
           modifiers={[pickerStyle('wheel')]}
         >
           {MINUTE_OPTIONS.map((m) => (
@@ -192,7 +198,10 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
   );
 
   // Native two-way binding seeds each text field's initial text (edit path); the
-  // mirror into react-hook-form below keeps validation in sync.
+  // mirror into react-hook-form below keeps validation in sync. These states are
+  // seeded once at mount and are NOT re-synced from setValue — so any field set
+  // programmatically must also push to its native side (see addressRef.setText in
+  // suggestAddress), or the row will silently show stale text.
   const nameState = useNativeState(defaults.name);
   const textState = useNativeState(defaults.text);
   const addressState = useNativeState(defaults.address);
