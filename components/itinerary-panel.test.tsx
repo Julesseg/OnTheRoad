@@ -132,9 +132,10 @@ describe('ItineraryPanel', () => {
     expect(screen.getByText('Lunch')).toBeInTheDocument();
   });
 
-  it('does not render a Next-up card when the trip is not In progress', () => {
+  it('does not render a NEXT UP pill when the trip is not In progress', () => {
     render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
     expect(screen.queryByText('Next up')).not.toBeInTheDocument();
+    expect(screen.queryByText('NEXT UP')).not.toBeInTheDocument();
   });
 
   it('the Edit action on a row opens the item editor for that item', () => {
@@ -156,11 +157,11 @@ describe('ItineraryPanel', () => {
     expect(iconFor('Note')).toBe('note.text');
   });
 
-  it('renders a Next-up card naming the next item when In progress', () => {
+  it('renders a NEXT UP pill on the item row when In progress with an upcoming timed item', () => {
     const inProgress = new Date(2026, 6, 1, 10, 0); // July 1, before the 12:00 activity
     render(<ItineraryPanel trip={TRIP} now={inProgress} />);
-    expect(screen.getByText('Next up')).toBeInTheDocument();
-    // The item title appears in both the Next-up card and its day's item row.
-    expect(screen.getAllByText('Lunch').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('Next up')).not.toBeInTheDocument(); // dedicated card gone
+    expect(screen.getByText('NEXT UP')).toBeInTheDocument(); // in-place pill
+    expect(screen.getAllByText('Lunch')).toHaveLength(1); // no duplication
   });
 });
