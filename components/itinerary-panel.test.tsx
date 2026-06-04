@@ -150,9 +150,9 @@ describe('ItineraryPanel', () => {
     render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
     const iconFor = (label: string) =>
       screen.getAllByRole('button', { name: label })[0].getAttribute('data-system-image');
-    expect(iconFor('Location')).toBe('mappin.and.ellipse');
-    expect(iconFor('Accommodation')).toBe('bed.double');
-    expect(iconFor('Activity')).toBe('figure.walk');
+    expect(iconFor('Place')).toBe('mappin.circle.fill');
+    expect(iconFor('Stay')).toBe('bed.double.fill');
+    expect(iconFor('Activity')).toBe('figure.hiking');
     expect(iconFor('Note')).toBe('note.text');
   });
 

@@ -55,6 +55,8 @@ export interface TripFormProps {
   onCancel: () => void;
 }
 
+const DELETE_RED = '#FF3B30';
+
 /** Warm, rounded-font section header (matches the native-form direction of ADR-0003). */
 function SectionHeader({ children }: { children: string }) {
   return (
@@ -194,6 +196,7 @@ export function TripForm({
                   systemImage="trash"
                   role="destructive"
                   onPress={() => setCover({ kind: 'none' })}
+                  modifiers={[foregroundStyle(DELETE_RED)]}
                 />
               </>
             ) : (
