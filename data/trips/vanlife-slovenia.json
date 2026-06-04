@@ -212,9 +212,11 @@
           "lng": 13.98917
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "809262e1-58c3-4af7-9a85-a15eea973be8",
           "name": "Parking pour la nuit",
+          "lat": 45.6333566,
+          "lng": 13.92354,
           "notes": "Vers Škocjan. Lien : https://maps.app.goo.gl/fxiqt6NcakKDtvTL6"
         }
       ]
@@ -240,16 +242,20 @@
           "notes": "Autour des grottes de Škocjan. Randonnée : https://www.komoot.com/fr-fr/guide/499378/randonnees-autour-de-grottes-de-skocjan"
         },
         {
-          "type": "activity",
+          "type": "location",
           "id": "bec21bd3-1d58-48a2-aadc-052cd71e8a1b",
           "name": "Observation des ours (Postojna)",
+          "lat": 45.7806637,
+          "lng": 14.2030782,
           "time": "18:20",
           "notes": "30 min de route. 3h d’expédition, 95€ par personne. Réservation : https://bearwatchingslovenia.si/ — Postojna : https://maps.app.goo.gl/wtVu6vji4esRNkJN7"
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "1d8a38b5-91a1-41ae-92fa-acc73fb9ea32",
           "name": "Parking Postojna",
+          "lat": 45.7806637,
+          "lng": 14.2030782,
           "notes": "Dodo Postojna parking. Lien : https://maps.app.goo.gl/wtVu6vji4esRNkJN7"
         }
       ]
@@ -271,17 +277,17 @@
           "type": "location",
           "id": "97277035-1ae5-4977-81cf-2ad3cad20e2a",
           "name": "Église Sv. Lovrenc (point de vue)",
-          "notes": "15 min de route. Point de vue. Lien : https://maps.app.goo.gl/23H1GYztjiCd3fAN6",
           "lat": 45.8391981,
-          "lng": 14.1685319
+          "lng": 14.1685319,
+          "notes": "15 min de route. Point de vue. Lien : https://maps.app.goo.gl/23H1GYztjiCd3fAN6"
         },
         {
           "type": "location",
           "id": "9bd31403-632a-4fbf-8b47-06cd3e89d85d",
           "name": "Église Cerkev Sv. Tomaž",
-          "notes": "1h20 de route. Lien : https://maps.app.goo.gl/kd3AvhnU5xWkpJ1u6",
           "lat": 46.175061,
-          "lng": 14.227574
+          "lng": 14.227574,
+          "notes": "1h20 de route. Lien : https://maps.app.goo.gl/kd3AvhnU5xWkpJ1u6"
         },
         {
           "type": "location",
@@ -300,10 +306,12 @@
           "notes": "25 min de route. Église + point de vue. Lien : https://maps.app.goo.gl/okaH35oGpjWeLH2j6"
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "86d55a4e-dc8b-4d2a-9a0c-f45781c13852",
           "name": "Camping de Bled",
           "address": "Kidričeva cesta 10c, 4260 Bled, Slovenia",
+          "lat": 46.3614535,
+          "lng": 14.0809468,
           "notes": "Arriver avant 18h pour le check-in. 105,92€ les 2 nuits. Lien : https://maps.app.goo.gl/QVcUPTK4AfuXLttg9"
         }
       ]
@@ -327,10 +335,12 @@
           "lng": 14.10028
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "0f0eff68-9470-4b1f-b335-4b804c67b5a5",
           "name": "Camping de Bled",
           "address": "Kidričeva cesta 10c, 4260 Bled, Slovenia",
+          "lat": 46.3614535,
+          "lng": 14.0809468,
           "notes": "105,92€ les 2 nuits. Lien : https://maps.app.goo.gl/QVcUPTK4AfuXLttg9"
         }
       ]
@@ -367,9 +377,11 @@
           "notes": "30 min de voiture. Aménagé comme une plage, vue sur le Mont Triglav. Chill, baignade, sieste, paddle… Lien : https://maps.app.goo.gl/RqgxWqhzgAxZVmfy8"
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "eb5e48ca-ba2e-4486-ac9b-4c665778490c",
           "name": "Kranjska Gora",
+          "lat": 46.484778,
+          "lng": 13.790113,
           "notes": "Air de camping-car ou camping nature. Lien : https://maps.app.goo.gl/RqgxWqhzgAxZVmfy8"
         }
       ]
@@ -405,15 +417,19 @@
           "notes": "Lien : https://maps.app.goo.gl/zoEPYWvagrcZN5mm9"
         },
         {
-          "type": "activity",
+          "type": "location",
           "id": "c6f5714e-2c2e-46cb-a49d-dc1dd7bccc00",
           "name": "Rafting à Bovec",
+          "lat": 46.3381244,
+          "lng": 13.5550197,
           "notes": "Dans l’après-midi. À voir quelle compagnie. Lien : https://maps.app.goo.gl/otjUc7Qua9xG5uA57"
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "47ac874a-e34f-4072-b8fd-e1fe575b91b6",
           "name": "Parking payant, Bovec",
+          "lat": 46.3325381,
+          "lng": 13.5385318,
           "notes": "Arriver avant 21h pour le ticket desk. Lien : https://maps.app.goo.gl/8c2yvHBphiV2g6Lv6"
         }
       ]
@@ -456,9 +472,11 @@
           "notes": "Lien : https://maps.app.goo.gl/mrFjS1kiBjLSY6E76"
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "18173060-531a-40d3-9194-35ae20845ab6",
           "name": "Camping vers Kanal",
+          "lat": 46.0854191,
+          "lng": 13.6657037,
           "notes": "Camping isolé près d’un lac. Lien : https://maps.app.goo.gl/yBBPPAUi1zya4vRp6"
         }
       ]
@@ -486,9 +504,11 @@
           "notes": "Se garer au camping ou à l’air de camping-car près de la ville. Visite de la ville et des remparts à pied."
         },
         {
-          "type": "accommodation",
+          "type": "location",
           "id": "d023a7c9-9222-4d0b-84f6-222667ae737a",
           "name": "Air de camping-car, Piran",
+          "lat": 45.5243676,
+          "lng": 13.5803697,
           "notes": "Environ 35€ la nuit. Lien : https://maps.app.goo.gl/q37VJPMbFh6qoz8H7"
         }
       ]
@@ -504,9 +524,11 @@
           "notes": "Continuer la visite de Piran ou des environs selon nos envies."
         },
         {
-          "type": "activity",
+          "type": "location",
           "id": "9079dd3d-a51e-4bb1-a17b-f0ccbd05c891",
           "name": "Rendre le van à Koper",
+          "lat": 45.548059,
+          "lng": 13.7301877,
           "notes": "Le matin avant 12h. Lien : https://maps.app.goo.gl/spWJjXPfFrwsWrvdA"
         },
         {
