@@ -67,7 +67,6 @@ export const DaySchema = z.object({
   id: z.string().uuid(),
   date: DateString,
   items: z.array(ItemSchema),
-  notes: z.string().optional(),
 });
 
 export type Day = z.infer<typeof DaySchema>;

@@ -261,11 +261,6 @@ export function ItineraryPanel({
                       })}
                     </Menu>
                   </HStack>
-                  {day.notes ? (
-                    <Text modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
-                      {day.notes}
-                    </Text>
-                  ) : null}
                 </VStack>
               }
             >

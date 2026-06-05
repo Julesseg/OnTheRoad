@@ -107,7 +107,6 @@ const TRIP: Trip = {
     {
       id: 'day-1',
       date: '2026-07-01',
-      notes: 'Pack sunscreen',
       items: [{ type: 'activity', id: 'a1', name: 'Lunch', time: '12:00' }],
     },
     { id: 'day-2', date: '2026-07-02', items: [] },
@@ -123,11 +122,10 @@ beforeEach(() => {
 });
 
 describe('ItineraryPanel', () => {
-  it('renders a section header per day with day number, date and notes, plus item rows', () => {
+  it('renders a section header per day with day number and date, plus item rows', () => {
     render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
     expect(screen.getByText('Day 1')).toBeInTheDocument();
     expect(screen.getByText('Wed, Jul 1')).toBeInTheDocument();
-    expect(screen.getByText('Pack sunscreen')).toBeInTheDocument();
     expect(screen.getByText('Day 2')).toBeInTheDocument();
     expect(screen.getByText('Lunch')).toBeInTheDocument();
   });

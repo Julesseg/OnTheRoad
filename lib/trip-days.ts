@@ -35,7 +35,7 @@ export function reconcileDays(
   makeId: () => string = newId,
 ): { days: Day[]; droppedDaysWithItems: Day[] } {
   // First existing day for each date wins, so an in-range date reuses its day
-  // (id, items, notes) rather than minting a fresh empty one.
+  // (id, items) rather than minting a fresh empty one.
   const byDate = new Map<string, Day>();
   for (const d of existingDays) {
     if (!byDate.has(d.date)) byDate.set(d.date, d);
