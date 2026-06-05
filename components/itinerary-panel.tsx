@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, type ReactNode } from 'react';
 import { View, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import {
@@ -28,6 +28,9 @@ import {
   tint,
   animation,
   Animation,
+  background,
+  padding,
+  shapes,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
 import type { Trip, Item } from '@/lib/schema';
@@ -115,14 +118,15 @@ export function ItineraryPanel({
 
   const isInProgress = today >= trip.startDate && today <= trip.endDate;
 
+  // Anchor resolved once at mount — 'center' spotlights the next-up item, 'top' for day-header.
+  // useState (not useRef) so it is safely readable during render without a lint error.
+  const [scrollAnchor] = useState<'center' | 'top'>(isInProgress && nextUp ? 'center' : 'top');
   // Drives SwiftUI's `.scrollPosition(id:)` — writing an id scrolls the List to that row.
   const scrollTarget = useNativeState<string | null>(null);
 
   // Auto-scroll once on sheet presentation: center on next-up item, or top of today's header.
-  const hasAutoScrolled = useRef(false);
   useEffect(() => {
-    if (hasAutoScrolled.current || !isInProgress) return;
-    hasAutoScrolled.current = true;
+    if (!isInProgress) return;
     if (nextUp) {
       // eslint-disable-next-line react-hooks/immutability
       scrollTarget.value = nextUp.itemId;
@@ -175,7 +179,8 @@ export function ItineraryPanel({
       : null;
 
     const rowContent = isNextUp ? (
-      // Solid TINT-blue row with "NEXT UP" pill in upper-right; stays in blue family, no type accent.
+      // Solid TINT-blue row with a white capsule "NEXT UP" pill in upper-right.
+      // The pill uses TINT text on white background to stay in the blue family.
       <HStack
         alignment="top"
         spacing={8}
@@ -195,7 +200,14 @@ export function ItineraryPanel({
           ))}
         </VStack>
         <Spacer />
-        <Text modifiers={[font({ size: 10, weight: 'bold' }), foregroundStyle(WHITE)]}>
+        <Text
+          modifiers={[
+            font({ size: 10, weight: 'bold' }),
+            foregroundStyle(TINT),
+            background(WHITE, shapes.capsule()),
+            padding({ horizontal: 6, vertical: 2 }),
+          ]}
+        >
           NEXT UP
         </Text>
       </HStack>
@@ -257,7 +269,7 @@ export function ItineraryPanel({
         <List
           modifiers={[
             listStyle('insetGrouped'),
-            scrollPosition(scrollTarget, { anchor: isInProgress && nextUp ? 'center' : 'top' }),
+            scrollPosition(scrollTarget, { anchor: scrollAnchor }),
             // Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
             // total item count. Dropping role="destructive" removed the swipe's built-in
             // delete animation, so we drive it here — when deleteItem lowers the count

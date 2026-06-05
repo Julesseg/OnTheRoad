@@ -73,6 +73,9 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
     tint: noop,
     animation: noop,
     Animation: { default: {} },
+    background: noop,
+    padding: noop,
+    shapes: { capsule: noop, roundedRectangle: noop, rectangle: noop, ellipse: noop, circle: noop, containerRelativeShape: noop },
   };
 });
 
