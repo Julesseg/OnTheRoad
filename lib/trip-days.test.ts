@@ -53,9 +53,9 @@ describe('reconcileDays', () => {
     expect(days.map((d) => d.id)).toEqual(['new-1', 'new-2', 'new-3']);
   });
 
-  it('keeps an in-range existing day intact — its id, items, and notes', () => {
+  it('keeps an in-range existing day intact — its id and items', () => {
     const existing = [
-      day({ id: 'd1', date: '2026-07-01', items: notes('a'), notes: 'pack the car' }),
+      day({ id: 'd1', date: '2026-07-01', items: notes('a') }),
     ];
     const { days } = reconcileDays(existing, '2026-07-01', '2026-07-02', sequentialIds());
     expect(days[0]).toEqual(existing[0]);

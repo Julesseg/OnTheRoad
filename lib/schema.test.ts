@@ -64,14 +64,14 @@ describe('DaySchema', () => {
     expect(day.items).toHaveLength(0);
   });
 
-  it('parses a day with optional notes', () => {
+  it('strips a stored day notes field that is no longer part of the model', () => {
     const day = DaySchema.parse({
       id: '01900000-0000-7000-8000-000000000002',
       date: '2026-07-01',
       items: [],
       notes: 'Drive north along coast',
     });
-    expect(day.notes).toBe('Drive north along coast');
+    expect('notes' in day).toBe(false);
   });
 });
 
