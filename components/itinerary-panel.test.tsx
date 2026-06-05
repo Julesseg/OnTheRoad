@@ -68,6 +68,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
     listSectionMargins: noop,
     frame: noop,
     onTapGesture: noop,
+    onAppear: noop,
     scrollPosition: noop,
     id: noop,
     tint: noop,

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { View, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import {
@@ -23,6 +23,7 @@ import {
   listSectionSpacing,
   listSectionMargins,
   onTapGesture,
+  onAppear,
   scrollPosition,
   id,
   tint,
@@ -124,21 +125,6 @@ export function ItineraryPanel({
   // Drives SwiftUI's `.scrollPosition(id:)` — writing an id scrolls the List to that row.
   const scrollTarget = useNativeState<string | null>(null);
 
-  // Auto-scroll once on sheet presentation: center on next-up item, or top of today's header.
-  useEffect(() => {
-    if (!isInProgress) return;
-    if (nextUp) {
-      // eslint-disable-next-line react-hooks/immutability
-      scrollTarget.value = nextUp.itemId;
-    } else {
-      const todayDay = days.find((d) => d.date === today);
-      if (todayDay) {
-        // eslint-disable-next-line react-hooks/immutability
-        scrollTarget.value = todayDay.id;
-      }
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentional mount-once
-
   function openItemEditor(dayId: string, itemId: string) {
     router.push({ pathname: '/trip/[id]/item', params: { id: trip.id, dayId, itemId } });
   }
@@ -205,7 +191,7 @@ export function ItineraryPanel({
             font({ size: 10, weight: 'bold' }),
             foregroundStyle(TINT),
             background(WHITE, shapes.capsule()),
-            padding({ horizontal: 6, vertical: 2 }),
+            padding({ horizontal: 8, vertical: 4 }),
           ]}
         >
           NEXT UP
@@ -275,6 +261,24 @@ export function ItineraryPanel({
             // delete animation, so we drive it here — when deleteItem lowers the count
             // the row slides out instead of vanishing.
             animation(Animation.default, itemCount),
+            // Auto-scroll after the native List appears so all row IDs are registered.
+            // useEffect fires too early (before SwiftUI lays out content); onAppear fires
+            // after the view is visible, at which point scrollPosition(id:) can resolve IDs.
+            // No explicit once-per-presentation guard needed: onAppear doesn't re-fire on
+            // clock ticks or manual scrolls, only when the view transitions to visible.
+            onAppear(() => {
+              if (!isInProgress) return;
+              if (nextUp) {
+                // eslint-disable-next-line react-hooks/immutability
+                scrollTarget.value = nextUp.itemId;
+              } else {
+                const todayDay = days.find((d) => d.date === today);
+                if (todayDay) {
+                  // eslint-disable-next-line react-hooks/immutability
+                  scrollTarget.value = todayDay.id;
+                }
+              }
+            }),
             ...(scrollModifier ? [scrollModifier] : []),
           ]}
         >
