@@ -51,8 +51,8 @@ cached in the store's `loadedTrips`.
 
 ### Day
 
-A single calendar **date** within a trip. Holds an ordered list of `items` and
-optional free-form `notes`. Days are generated and kept in sync by
+A single calendar **date** within a trip. Holds an ordered list of `items`.
+Days are generated and kept in sync by
 `reconcileDays` (`lib/trip-days.ts`): on create it builds one empty day for
 every date from `startDate` through `endDate` inclusive, and when a trip's dates
 change it is **calendar-anchored** — in-range days are kept intact, newly
