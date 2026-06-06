@@ -46,12 +46,14 @@ full custom skin. Concretely:
   card, glass pill tints, and the map route pins + polyline.
 - **Destructive uses Ember Rose** at its natural muted strength; the trash icon +
   "Delete" label carry the danger cue. Coral never doubles as destructive.
-- **Secondary actions use a cool Ember accent** (Steel/Sage) — e.g. the "Move to
-  day" swipe — to preserve the warm/cool, safe/destructive contrast that a fully
-  warm palette would erase.
+- **Secondary actions use a single cool Ember accent (Steel)** — e.g. the "Move
+  to day" swipe — to preserve the warm/cool, safe/destructive contrast that a
+  fully warm palette would erase. (Steel overlaps the Stay item accent and sits
+  near Activity's Sage — an accepted seam, see Consequences.)
 - **Per-Item accents remap onto the Ember ramp**, clear of coral + rose: Place =
   Olive, Stay = Steel, Activity = Sage, Note = Mauve (was terracotta / indigo /
-  green / warm-gray). Recorded in [CONTEXT.md](../../CONTEXT.md#item).
+  green / warm-gray). Will be recorded in [CONTEXT.md](../../CONTEXT.md#item) when
+  implemented — the glossary still lists the old accents until then.
 - **Two-layer palette, one hook.** A raw Ember palette (named colours, the single
   source of truth, rewriting `constants/theme.ts`) → semantic role tokens
   (light + dark) → a `useThemeColors()` hook every component consumes.
@@ -64,7 +66,8 @@ full custom skin. Concretely:
   inset list is intentional.
 - **Standard Ember (dark) + Ember Light**, not Ember Soft (higher contrast for a
   road-trip app used outdoors).
-- **Appearance toggle** — a `System / Light / Dark` setting persisted in
+- **Appearance toggle** — a `System / Light / Dark` setting
+  (`appearance: 'system' | 'light' | 'dark'`, default `'system'`) persisted in
   `AppState` (mirroring `preferredMapsApp`), applied globally via RN
   `Appearance.setColorScheme()` so native surfaces follow the override too. New
   glossary term **Appearance**.
@@ -96,11 +99,20 @@ full custom skin. Concretely:
   system-red; the grouped-`List` canvas stays the system grouped colour (the warm
   screen background around it is intentional, not a bug); the Apple Maps base
   tiles can't take the palette.
-- Adds an `appearance` field to `AppStateSchema` (defaulted, backward-compatible)
-  and a new **Appearance** glossary entry; the **App State** entry is updated to
+- **Cool secondary-action colour overlaps cool item accents.** Steel (secondary
+  action) is also the Stay accent, and an Activity row's Sage sits near it.
+  Accepted, because per-item accents render in the **item editor** while
+  swipe-action colours render on **itinerary rows**, so they don't currently
+  co-occur — and #75 (the ADR-0004 overhaul) is slated to remove the "Move to
+  day" swipe entirely, which would retire the secondary-action colour anyway.
+- Adds `appearance: 'system' | 'light' | 'dark'` (default `'system'`) to
+  `AppStateSchema` — defaulted and backward-compatible like `preferredMapsApp` —
+  plus a new **Appearance** glossary entry; the **App State** entry is updated to
   list it.
-- `lib/item-identity.test.ts`'s "reserved colours" invariant moves from
-  `{#FF3B30, #007AFF}` to `{coral, rose}` — item accents must stay clear of the
-  interactive and destructive colours.
+- `lib/item-identity.test.ts`'s "reserved colours" invariant moves off the hex
+  literals `{#FF3B30, #007AFF}` onto the new interactive + destructive colours,
+  referenced through the raw palette (`EmberPalette.coral` / `EmberPalette.rose`
+  in `constants/theme.ts`, the single source of truth for their hex values)
+  rather than re-spelled literals — so item accents must stay clear of them.
 </content>
 </invoke>
