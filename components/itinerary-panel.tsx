@@ -13,7 +13,6 @@ import {
   Image,
   Menu,
   SwipeActions,
-  useNativeState,
 } from '@expo/ui/swift-ui';
 import {
   listStyle,
@@ -23,9 +22,6 @@ import {
   listSectionSpacing,
   listSectionMargins,
   onTapGesture,
-  onAppear,
-  scrollPosition,
-  id,
   tint,
   animation,
   Animation,
@@ -78,8 +74,9 @@ function mapsTargetForItem(item: Item): MapsTarget | null {
  * Sections give the system grouped-list separation between Days. Each Day's rows
  * live in a `List.ForEach` so SwiftUI's drag-to-reorder works within the Day. Rows
  * carry swipe actions only (no context menu — its long-press collides with the
- * reorder gesture). When the trip is In progress the list auto-scrolls on present
- * to center the next-up item (or show today's header) via `scrollPosition`.
+ * reorder gesture). On the day that's underway, the whole section gets a faint
+ * blue fill and a TINT-blue "Day X" header, and the next-up item is highlighted
+ * in-place with a solid TINT-blue row and a "NEXT UP" pill.
  *
  * `titleRow` is rendered as the List's first row so the large trip title scrolls
  * away naturally under the native header (ADR-0002). `scrollModifier` lets the
@@ -116,14 +113,6 @@ export function ItineraryPanel({
   const nextUp = useMemo(() => resolveNextUp(trip, now), [trip, now]);
   // Total item count across all days — the value the list's removal animation keys off.
   const itemCount = useMemo(() => days.reduce((n, d) => n + d.items.length, 0), [days]);
-
-  const isInProgress = today >= trip.startDate && today <= trip.endDate;
-
-  // Anchor resolved once at mount — 'center' spotlights the next-up item, 'top' for day-header.
-  // useState (not useRef) so it is safely readable during render without a lint error.
-  const [scrollAnchor] = useState<'center' | 'top'>(isInProgress && nextUp ? 'center' : 'top');
-  // Drives SwiftUI's `.scrollPosition(id:)` — writing an id scrolls the List to that row.
-  const scrollTarget = useNativeState<string | null>(null);
 
   function openItemEditor(dayId: string, itemId: string) {
     router.push({ pathname: '/trip/[id]/item', params: { id: trip.id, dayId, itemId } });
@@ -170,7 +159,7 @@ export function ItineraryPanel({
       <HStack
         alignment="top"
         spacing={8}
-        modifiers={[onTapGesture(edit), id(item.id), listRowBackground(TINT)]}
+        modifiers={[onTapGesture(edit), listRowBackground(TINT)]}
       >
         <VStack alignment="leading" spacing={2}>
           <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
@@ -190,8 +179,8 @@ export function ItineraryPanel({
           modifiers={[
             font({ size: 10, weight: 'bold' }),
             foregroundStyle(TINT),
-            background(WHITE, shapes.capsule()),
             padding({ horizontal: 8, vertical: 4 }),
+            background(WHITE, shapes.capsule()),
           ]}
         >
           NEXT UP
@@ -203,7 +192,6 @@ export function ItineraryPanel({
         spacing={2}
         modifiers={[
           onTapGesture(edit),
-          id(item.id),
           ...(isToday ? [listRowBackground(FAINT_BLUE)] : []),
         ]}
       >
@@ -255,30 +243,11 @@ export function ItineraryPanel({
         <List
           modifiers={[
             listStyle('insetGrouped'),
-            scrollPosition(scrollTarget, { anchor: scrollAnchor }),
             // Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
             // total item count. Dropping role="destructive" removed the swipe's built-in
             // delete animation, so we drive it here — when deleteItem lowers the count
             // the row slides out instead of vanishing.
             animation(Animation.default, itemCount),
-            // Auto-scroll after the native List appears so all row IDs are registered.
-            // useEffect fires too early (before SwiftUI lays out content); onAppear fires
-            // after the view is visible, at which point scrollPosition(id:) can resolve IDs.
-            // No explicit once-per-presentation guard needed: onAppear doesn't re-fire on
-            // clock ticks or manual scrolls, only when the view transitions to visible.
-            onAppear(() => {
-              if (!isInProgress) return;
-              if (nextUp) {
-                // eslint-disable-next-line react-hooks/immutability
-                scrollTarget.value = nextUp.itemId;
-              } else {
-                const todayDay = days.find((d) => d.date === today);
-                if (todayDay) {
-                  // eslint-disable-next-line react-hooks/immutability
-                  scrollTarget.value = todayDay.id;
-                }
-              }
-            }),
             ...(scrollModifier ? [scrollModifier] : []),
           ]}
         >
@@ -301,7 +270,6 @@ export function ItineraryPanel({
           {days.map((day, index) => (
             <Section
               key={day.id}
-              modifiers={[id(day.id)]}
               header={
                 <VStack alignment="leading" spacing={2}>
                   <HStack spacing={8}>

@@ -51,7 +51,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
     Menu: pass('div'),
     Button,
     SwipeActions,
-    useNativeState: () => ({ value: null }),
   };
 });
 
@@ -68,9 +67,6 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
     listSectionMargins: noop,
     frame: noop,
     onTapGesture: noop,
-    onAppear: noop,
-    scrollPosition: noop,
-    id: noop,
     tint: noop,
     animation: noop,
     Animation: { default: {} },
