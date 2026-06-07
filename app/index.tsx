@@ -49,8 +49,8 @@ export default function HomeScreen() {
   const filterModel = trip && badge
     ? todayFilterModel(trip.days, badge, todayFilterOverride, today)
     : { canFilter: false, active: false };
-  const mapTrip = filterModel.active
-    ? { ...trip!, days: trip!.days.filter((d) => d.date === today) }
+  const mapTrip = trip && filterModel.active
+    ? { ...trip, days: trip.days.filter((d) => d.date === today) }
     : trip;
   const coords = mapTrip ? tripRouteCoords(mapTrip) : [];
   const viewport = framedViewport(coords, PANEL_FRACTION);
