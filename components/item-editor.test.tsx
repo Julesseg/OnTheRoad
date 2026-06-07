@@ -4,9 +4,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ItemEditor } from '@/components/item-editor';
 import type { Item } from '@/lib/schema';
 
-// The native SwiftUI pickers are native-only. Capture each row's props — DatePickers
-// keyed by title, wheel Pickers keyed by label — so specs can drive a selection the
-// way a tap on the wheel would and assert which value each row is bound to.
+// Capture DatePicker props keyed by title, and Picker props keyed by label.
 const dpickers = vi.hoisted(
   () => ({}) as Record<string, { onDateChange?: (d: Date) => void; selection?: Date }>,
 );
@@ -14,7 +12,7 @@ const pickers = vi.hoisted(
   () => ({}) as Record<string, { onSelectionChange?: (v: unknown) => void; selection?: unknown }>,
 );
 
-/* eslint-disable react/display-name -- inline passthrough stand-ins for native views */
+/* eslint-disable react/display-name */
 vi.mock('@expo/ui/swift-ui', async () => {
   const React = await import('react');
   const pass =
@@ -27,7 +25,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
     VStack: pass('div'),
     HStack: pass('div'),
     Image: () => null,
-    // Render header + footer so the identity label and inline errors are queryable.
     Section: ({
       children,
       header,
@@ -39,9 +36,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
     }) => React.createElement('div', null, header, children, footer),
     Text: pass('span'),
     useNativeState: (initial: string) => ({ value: initial }),
-    // Forward a ref exposing setText so the imperative autofill bridge
-    // (addressRef.current?.setText) is actually exercised: setText writes through
-    // to the input's value the way the native field would.
     TextField: React.forwardRef(
       (
         {
@@ -67,8 +61,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
       },
     ),
     DatePicker: (props: { title?: string; onDateChange?: (d: Date) => void; selection?: Date }) => {
-      // The picker's own label is hidden (.labelsHidden) but the title is still set for
-      // accessibility, so tests key on it as before.
       if (props.title) dpickers[props.title] = { onDateChange: props.onDateChange, selection: props.selection };
       return null;
     },
@@ -90,7 +82,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
       onPress?: () => void;
       modifiers?: { __accessibilityLabel?: string }[];
     }) => {
-      // An icon-only button (label "") carries its name via an accessibilityLabel modifier.
       const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
       return typeof label === 'string'
         ? React.createElement('button', { onClick: onPress, 'aria-label': a11y ?? label }, label)
@@ -108,11 +99,9 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   frame: vi.fn(() => ({})),
   tint: vi.fn(() => ({})),
   onTapGesture: vi.fn(() => ({})),
-  // Carry the label so the Button mock can expose it as the accessible name.
   accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
 }));
 
-// The editor drives Cancel/Save through expo-router's native Stack toolbar.
 vi.mock('expo-router', async () => {
   const React = await import('react');
   const Stack: any = () => null;
@@ -137,7 +126,6 @@ beforeEach(() => {
   for (const k of Object.keys(dpickers)) delete dpickers[k];
   for (const k of Object.keys(pickers)) delete pickers[k];
 });
-
 afterEach(() => vi.restoreAllMocks());
 
 function save() {
@@ -145,226 +133,106 @@ function save() {
 }
 
 describe('ItemEditor', () => {
-  it('renders fields appropriate to a location, headed by its identity label', () => {
-    render(<ItemEditor type="location" itemId="x" onSubmit={() => {}} />);
-    expect(screen.getByText('Place')).toBeInTheDocument();
+  it('renders name and notes fields for a new item', () => {
+    render(<ItemEditor itemId="x" onSubmit={() => {}} />);
     expect(screen.getByPlaceholderText('What is it?')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Street, city, or landmark')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Set on map' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Anything else to remember')).toBeInTheDocument();
   });
 
-  it('renders only a note field for a note', () => {
-    render(<ItemEditor type="note" itemId="x" onSubmit={() => {}} />);
-    expect(screen.queryByPlaceholderText('What is it?')).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Anything to remember')).toBeInTheDocument();
+  it('renders a category picker defaulting to "activity"', () => {
+    render(<ItemEditor itemId="x" onSubmit={() => {}} />);
+    expect(pickers['Category']).toBeDefined();
+    expect(pickers['Category'].selection).toBe('activity');
+  });
+
+  it('identity header reflects the currently selected category', () => {
+    render(<ItemEditor itemId="x" onSubmit={() => {}} />);
+    expect(screen.getByText('Activity')).toBeInTheDocument();
+    act(() => pickers['Category'].onSelectionChange!('stay'));
+    expect(screen.getByText('Stay')).toBeInTheDocument();
   });
 
   it('shows a required error in the section footer and does not submit when name is empty', async () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor type="location" itemId="x" onSubmit={onSubmit} />);
+    render(<ItemEditor itemId="x" onSubmit={onSubmit} />);
     save();
     await waitFor(() => expect(screen.getByText('Required')).toBeInTheDocument());
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('submits a built item when valid', async () => {
+  it('submits a built item with the selected category when name is filled', async () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor type="location" itemId="loc-1" onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pier' } });
-    fireEvent.change(screen.getByPlaceholderText('Street, city, or landmark'), {
-      target: { value: '1 Quay' },
-    });
+    render(<ItemEditor itemId="act-1" onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Whale watching' } });
     save();
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ type: 'location', id: 'loc-1', name: 'Pier', address: '1 Quay' }),
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-1', name: 'Whale watching', category: 'activity' }),
+    );
+  });
+
+  it('submits with a different category when changed via picker', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="meal-1" onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Taco truck' } });
+    act(() => pickers['Category'].onSelectionChange!('meal'));
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'meal-1', name: 'Taco truck', category: 'meal' }),
     );
   });
 
   it('sets a time through the native picker and persists it', async () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor type="location" itemId="loc-t" onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pier' } });
+    render(<ItemEditor itemId="act-t" onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Add time' }));
     const picked = new Date();
-    picked.setHours(14, 30, 0, 0);
-    dpickers['Time'].onDateChange!(picked);
+    picked.setHours(9, 30, 0, 0);
+    act(() => dpickers['Time'].onDateChange!(picked));
 
     save();
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ type: 'location', id: 'loc-t', name: 'Pier', time: '14:30' }),
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-t', name: 'Hike', category: 'activity', time: '09:30' }),
     );
   });
 
-  it('clears a set time back to unset, persisting "not set"', async () => {
+  it('clears a set time back to unset', async () => {
     const onSubmit = vi.fn();
-    const initial: Item = { type: 'location', id: 'loc-c', name: 'Pier', time: '08:00' };
-    render(<ItemEditor type="location" itemId="loc-c" initialItem={initial} onSubmit={onSubmit} />);
+    const initial: Item = { id: 'act-c', name: 'Hike', category: 'activity', time: '08:00' };
+    render(<ItemEditor itemId="act-c" initialItem={initial} onSubmit={onSubmit} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear time' }));
     save();
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ type: 'location', id: 'loc-c', name: 'Pier' }),
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-c', name: 'Hike', category: 'activity' }),
     );
   });
 
-  it('displays an existing duration on the h/m wheel (90 → 1h 30m) and round-trips it unchanged', async () => {
-    const onSubmit = vi.fn();
-    const initial: Item = { type: 'activity', id: 'act-1', name: 'Hike', duration: 90 };
-    render(<ItemEditor type="activity" itemId="act-1" initialItem={initial} onSubmit={onSubmit} />);
-
-    expect(pickers['Hours'].selection).toBe(1);
-    expect(pickers['Minutes'].selection).toBe(30);
-
-    save();
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ type: 'activity', id: 'act-1', name: 'Hike', duration: 90 }),
-    );
+  it('pre-fills name and category when editing an existing item', () => {
+    const initial: Item = { id: 'stay-1', name: 'Sea Cliff Inn', category: 'stay' };
+    render(<ItemEditor itemId="stay-1" initialItem={initial} onSubmit={() => {}} />);
+    const nameInput = screen.getByPlaceholderText('What is it?') as HTMLInputElement;
+    expect(nameInput.defaultValue).toBe('Sea Cliff Inn');
+    expect(pickers['Category'].selection).toBe('stay');
   });
 
-  it('saves a duration changed on the wheel as total whole minutes', async () => {
-    const onSubmit = vi.fn();
-    const initial: Item = { type: 'activity', id: 'act-2', name: 'Hike', duration: 90 };
-    render(<ItemEditor type="activity" itemId="act-2" initialItem={initial} onSubmit={onSubmit} />);
-
-    pickers['Hours'].onSelectionChange!(2);
-    save();
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ type: 'activity', id: 'act-2', name: 'Hike', duration: 150 }),
-    );
-  });
-
-  it('defaults a new activity duration to 0h 0m and omits it when left at zero', async () => {
-    const onSubmit = vi.fn();
-    render(<ItemEditor type="activity" itemId="act-3" onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
-
-    expect(pickers['Hours'].selection).toBe(0);
-    expect(pickers['Minutes'].selection).toBe(0);
-
-    save();
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ type: 'activity', id: 'act-3', name: 'Hike' }),
-    );
-  });
-
-  it('clears a set duration by wheeling it to 0h 0m, leaving the wheels at zero', async () => {
-    const onSubmit = vi.fn();
-    const initial: Item = { type: 'activity', id: 'act-4', name: 'Hike', duration: 60 };
-    render(<ItemEditor type="activity" itemId="act-4" initialItem={initial} onSubmit={onSubmit} />);
-
-    // 1h 0m → wheel hours to 0, total 0 → duration unset; the wheels stay visible at 0h 0m.
-    act(() => pickers['Hours'].onSelectionChange!(0));
-    expect(pickers['Hours'].selection).toBe(0);
-    expect(pickers['Minutes'].selection).toBe(0);
-
-    save();
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ type: 'activity', id: 'act-4', name: 'Hike' }),
-    );
-  });
-
-  it('attaches coords picked from a pasted URL to the saved item', async () => {
-    const onSubmit = vi.fn();
-    render(<ItemEditor type="location" itemId="loc-2" onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Market' } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Set on map' }));
-    fireEvent.change(screen.getByLabelText('Maps URL or coordinates'), {
-      target: { value: 'maps://?ll=47.6062,-122.3321' },
-    });
-    fireEvent.click(screen.getByLabelText('Parse'));
-    await screen.findByText('47.6062, -122.3321');
-    fireEvent.click(screen.getByLabelText('Use these coordinates'));
-
-    save();
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({
-        type: 'location',
-        id: 'loc-2',
-        name: 'Market',
-        lat: 47.6062,
-        lng: -122.3321,
-      }),
-    );
-  });
-
-  it('fills an empty address from a Photon search result', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        features: [
-          {
-            geometry: { coordinates: [-122.3422, 47.6097] },
-            properties: { name: 'Pike Place Market', city: 'Seattle' },
-          },
-        ],
-      }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const onSubmit = vi.fn();
-    render(<ItemEditor type="location" itemId="loc-3" onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Stop' } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Set on map' }));
-    fireEvent.click(screen.getByText('Search'));
-    fireEvent.change(screen.getByLabelText('Search for a place'), { target: { value: 'pike' } });
-    vi.advanceTimersByTime(260);
-    fireEvent.click(await screen.findByText('Pike Place Market'));
-
-    vi.useRealTimers();
-    // The autofill bridges into the native field via addressRef.setText, so the
-    // address row visibly shows the suggestion (not just the saved RHF value).
-    await waitFor(() =>
-      expect(
-        (screen.getByPlaceholderText('Street, city, or landmark') as HTMLInputElement).value,
-      ).toBe('Seattle'),
-    );
-
-    save();
-    await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({
-        type: 'location',
-        id: 'loc-3',
-        name: 'Stop',
-        address: 'Seattle',
-        lat: 47.6097,
-        lng: -122.3422,
-      }),
-    );
-  });
-
-  it('invokes onDelete from the destructive section when editing an existing item', () => {
+  it('invokes onDelete when the Delete button is clicked while editing an existing item', () => {
     const onDelete = vi.fn();
-    render(
-      <ItemEditor
-        type="note"
-        itemId="n1"
-        initialItem={{ type: 'note', id: 'n1', text: 'hi' }}
-        onSubmit={() => {}}
-        onDelete={onDelete}
-      />,
-    );
+    const initial: Item = { id: 'x', name: 'Walk', category: 'activity' };
+    render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} onDelete={onDelete} />);
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(onDelete).toHaveBeenCalled();
   });
 
   it('omits the Delete control when creating a new item', () => {
-    render(<ItemEditor type="note" itemId="n2" onSubmit={() => {}} onDelete={() => {}} />);
+    render(<ItemEditor itemId="x" onSubmit={() => {}} onDelete={() => {}} />);
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
-  it('surfaces a tappable link for a URL typed into a note', () => {
-    const initial: Item = { type: 'note', id: 'n3', text: 'book at https://example.com/rooms' };
-    render(<ItemEditor type="note" itemId="n3" initialItem={initial} onSubmit={() => {}} />);
-    expect(screen.getByText('https://example.com/rooms')).toBeInTheDocument();
-  });
-
-  it('surfaces a tappable link for a URL in another type\'s notes field', () => {
-    const initial: Item = { type: 'activity', id: 'a3', name: 'Hike', notes: 'trailhead www.alltrails.com' };
-    render(<ItemEditor type="activity" itemId="a3" initialItem={initial} onSubmit={() => {}} />);
-    expect(screen.getByText('www.alltrails.com')).toBeInTheDocument();
+  it('surfaces tappable links found in the notes field', () => {
+    const initial: Item = { id: 'a', name: 'Hike', category: 'activity', notes: 'trailhead https://example.com' };
+    render(<ItemEditor itemId="a" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByText('https://example.com')).toBeInTheDocument();
   });
 });

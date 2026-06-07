@@ -39,7 +39,10 @@ The `schemaVersion` stamped on every trip file, bumped when the persisted shape
 changes. On read, a stored trip is run through `migrateTripData`
 (`lib/trip-migrate.ts`) to upgrade it to `CURRENT_SCHEMA_VERSION` before
 validation, so older files keep loading. v1 → v2 added the optional
-[wallpaper](#wallpaper); a v1 trip upgrades with no wallpaper.
+[wallpaper](#wallpaper); a v1 trip upgrades with no wallpaper. v2 → v3
+replaced the four-type discriminated-union Item with the unified Item (see
+[ADR-0004](docs/adr/0004-single-item-type-category-as-metadata.md)); every
+v1/v2 item is transformed per-item, with lossy fields preserved into `notes`.
 
 ### Trip Summary
 
@@ -65,35 +68,40 @@ Prefer **Day** over "leg" or "stage".
 
 ### Item
 
-A single entry on a day. Modeled as a discriminated union on `type` (see
-`ItemSchema`). Every item has an `id` and optional `attachments`. There are four
-item types:
+A single entry on a day. A **single unified entity** (not a discriminated union)
+defined by `ItemSchema` in `lib/schema.ts`:
 
-- **Location** — a place to stop. `name`, optional `address`, optional
-  coordinates (`lat` / `lng`), optional `time`, optional `notes`.
-- **Accommodation** — where you stay. `name`, optional `address`, `checkIn` /
-  `checkOut` times, `confirmationNumber`, `notes`.
-- **Activity** — something you do. `name`, optional `time`, optional `duration`
-  (whole minutes), `notes`.
-- **Note** — free-form `text` only.
+```
+id · name* · category · time? · location?{ address?, lat?, lng? } · notes? · checklist?[{ id, label, checked }]
+```
 
-Prefer **Item** over "entry", "event", or "stop" (a stop is specifically a
-Location).
+- `name` is required (non-empty). All other fields are optional.
+- `category` is a fixed enum — **Activity** (default) · **Location** · **Stay**
+  · **Meal** · **Note** — that drives only the SF Symbol and accent; it never
+  gates which fields are valid. Any category can carry a location or checklist.
+- `location` bundles `address` and/or coordinates (`lat` / `lng`) into one
+  sub-object; this is the single source of truth for maps navigation.
+- `checklist` is an array of `{ id, label, checked }` entries (optional);
+  items are ticked inline in the itinerary and persisted immediately.
+- The v2 fields `duration`, `checkIn`, `checkOut`, `confirmationNumber`, and
+  `attachments` do not exist in v3; they were preserved into `notes` on
+  migration.
 
-Each type carries a fixed visual identity — an SF Symbol and an accent color —
-used consistently in the type picker, section headers, and form accents
-(Location = terracotta, Accommodation = indigo, Activity = green, Note = warm
-gray). In user-facing copy the types are labelled **Place** (Location), **Stay**
-(Accommodation), **Activity**, and **Note**; the canonical terms above remain
-the names used in code, the schema, and this glossary.
+Each category carries a fixed visual identity — SF Symbol + accent — defined in
+`item-identity.ts` (Activity = green, Location = terracotta, Stay = indigo,
+Meal = amber, Note = warm gray). In user-facing copy the categories are labelled
+**Activity**, **Place** (Location), **Stay**, **Meal**, and **Note**.
+
+Prefer **Item** over "entry", "event", or "stop". Prefer **category** over
+"type" when discussing the cosmetic classification.
 
 ### Item time
 
 The single comparable time an item happens at, used for ordering and for picking
-the [next item](#today-selection--next-item): `time` for a Location or Activity,
-`checkIn` for an Accommodation, and none for a Note (`itemTime` in
-`lib/item-display.ts`). Items without a time sort after timed items in their
-original relative order.
+the [next item](#today-selection--next-item): the `time` field on any item
+(`itemTime` in `lib/item-display.ts`). Items without a time sort after timed
+items in their original relative order. All categories share the same `time`
+field — there is no per-category time synonym.
 
 ### App State
 

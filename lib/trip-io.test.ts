@@ -71,14 +71,16 @@ describe('importTripFromJson — errors', () => {
     }
   });
 
-  it('returns an error naming the nested path for an unknown item type', () => {
+  it('returns an error naming the nested path for an invalid item category', () => {
+    // Use schemaVersion: 3 so migration passes through, then schema rejects the invalid category.
     const bad = {
       ...VALID_TRIP,
+      schemaVersion: 3,
       days: [
         {
           id: '01900000-0000-7000-8000-0000000000a1',
           date: '2026-07-01',
-          items: [{ type: 'flight', id: '01900000-0000-7000-8000-0000000000b1', name: 'UA1' }],
+          items: [{ id: '01900000-0000-7000-8000-0000000000b1', name: 'UA1', category: 'flight' }],
         },
       ],
     };

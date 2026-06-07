@@ -1,4 +1,5 @@
 import type { Item } from './schema';
+import { itemIdentity } from './item-identity';
 
 export type ItemDisplay = {
   typeLabel: string;
@@ -7,46 +8,24 @@ export type ItemDisplay = {
 };
 
 export function formatItem(item: Item): ItemDisplay {
-  switch (item.type) {
-    case 'location': {
-      const lines: string[] = [];
-      if (item.address) lines.push(item.address);
-      if (item.time) lines.push(`At ${item.time}`);
-      if (item.notes) lines.push(item.notes);
-      return { typeLabel: 'Location', title: item.name, lines };
-    }
-    case 'accommodation': {
-      const lines: string[] = [];
-      if (item.address) lines.push(item.address);
-      if (item.checkIn) lines.push(`Check-in ${item.checkIn}`);
-      if (item.checkOut) lines.push(`Check-out ${item.checkOut}`);
-      if (item.confirmationNumber) lines.push(`Confirmation ${item.confirmationNumber}`);
-      if (item.notes) lines.push(item.notes);
-      return { typeLabel: 'Accommodation', title: item.name, lines };
-    }
-    case 'activity': {
-      const lines: string[] = [];
-      if (item.time) lines.push(`At ${item.time}`);
-      if (item.duration != null) lines.push(`${item.duration} min`);
-      if (item.notes) lines.push(item.notes);
-      return { typeLabel: 'Activity', title: item.name, lines };
-    }
-    case 'note':
-      return { typeLabel: 'Note', title: 'Note', lines: [item.text] };
-  }
+  const lines: string[] = [];
+  if (item.location?.address) lines.push(item.location.address);
+  if (item.time) lines.push(`At ${item.time}`);
+  if (item.notes) lines.push(item.notes);
+  return {
+    typeLabel: itemIdentity(item.category).label,
+    title: item.name,
+    lines,
+  };
 }
 
-/** The single comparable time an item happens at: `time` for location/activity,
- * `checkIn` for accommodation, none for a note. */
+/** The single comparable time an item happens at. */
 export function itemTime(item: Item): string | undefined {
-  if (item.type === 'location' || item.type === 'activity') return item.time;
-  if (item.type === 'accommodation') return item.checkIn;
-  return undefined;
+  return item.time;
 }
 
-/** Items ordered chronologically by their time; untimed items (notes, and
- * location/activity without a time) follow in their original relative order.
- * Returns a new array — the input is not mutated. */
+/** Items ordered chronologically by their time; untimed items follow in their
+ * original relative order. Returns a new array — the input is not mutated. */
 export function sortItemsByTime(items: Item[]): Item[] {
   return [...items].sort((a, b) => {
     const ta = itemTime(a);

@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Linking, Modal, useColorScheme } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +9,6 @@ import {
   Section,
   Text,
   TextField,
-  type TextFieldRef,
   DatePicker,
   Picker,
   Button,
@@ -31,25 +30,20 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 
 import {
-  type ItemType,
   type ItemFormValues,
   emptyForm,
   itemToForm,
   formToItem,
   itemFormSchema,
-  parseCoords,
-  durationToHm,
-  hmToDuration,
 } from '@/lib/item-form';
-import { itemIdentity, type ItemIdentity } from '@/lib/item-identity';
+import { itemIdentity, ITEM_IDENTITY, type ItemIdentity } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
-import { CoordsPicker } from '@/components/coords-picker';
-import type { Item } from '@/lib/schema';
+import type { Item, ItemCategory } from '@/lib/schema';
 
 export interface ItemEditorProps {
-  type: ItemType;
   itemId: string;
   initialItem?: Item;
+  defaultCategory?: ItemCategory;
   onSubmit: (item: Item) => void;
   onDelete?: () => void;
   onCancel?: () => void;
@@ -60,11 +54,7 @@ const ERROR_RED = '#d11';
 const DELETE_RED = '#FF3B30';
 const LINK_BLUE = '#007AFF';
 
-// Wheel options. Hours cover a full day so any stored duration round-trips; minutes
-// step by 5 per the brief. A legacy value off the 5-minute grid (e.g. 7) is preserved
-// in the form until the traveller actually turns the wheel — see durationToHm.
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => h);
-const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, i) => i * 5);
+const ALL_CATEGORIES = Object.keys(ITEM_IDENTITY) as ItemCategory[];
 
 function timeToDate(t: string): Date {
   const d = new Date();
@@ -77,7 +67,7 @@ function dateToTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** Warm, rounded-font section header carrying the type's symbol + accent (ADR-0003). */
+/** Section header showing the currently selected category's symbol + accent. */
 function IdentityHeader({ identity }: { identity: ItemIdentity }) {
   return (
     <HStack spacing={6}>
@@ -91,7 +81,6 @@ function IdentityHeader({ identity }: { identity: ItemIdentity }) {
   );
 }
 
-/** A labeled form row; the label tints red when its field is in error. */
 function FieldRow({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <VStack alignment="leading" spacing={3}>
@@ -106,8 +95,6 @@ function FieldError({ message }: { message?: string }) {
   return <Text modifiers={[font({ size: 13 }), foregroundStyle(ERROR_RED)]}>{message}</Text>;
 }
 
-/** Tappable rows for any URLs typed into a notes field — the field itself is plain,
- *  editable text, so we surface its links underneath as something openable. */
 function NoteLinks({ text }: { text: string }) {
   const links = useMemo(() => extractLinks(text), [text]);
   if (links.length === 0) return null;
@@ -121,7 +108,7 @@ function NoteLinks({ text }: { text: string }) {
             frame({ maxWidth: Infinity, alignment: 'leading' }),
             accessibilityLabel(`Open ${link.label}`),
             onTapGesture(() => {
-              void Linking.openURL(link.url).catch(() => {});
+              void import('react-native').then(({ Linking }) => Linking.openURL(link.url).catch(() => {}));
             }),
           ]}
         >
@@ -133,114 +120,56 @@ function NoteLinks({ text }: { text: string }) {
   );
 }
 
-/** A native compact time picker that keeps an "unset" state in the surrounding row:
- *  a placeholder Button when unset, the picker + an inline Clear once a time is set. */
 function TimeRow({
-  label,
   value,
   onChange,
   error,
 }: {
-  label: string;
   value: string;
   onChange: (v: string) => void;
   error?: string;
 }) {
   if (!value) {
     return (
-      <FieldRow label={label} error={error}>
+      <FieldRow label="Time" error={error}>
         <HStack modifiers={[frame({ maxWidth: Infinity, alignment: 'center' })]}>
-          <Button label={`Add ${label.toLowerCase()}`} onPress={() => onChange('09:00')} />
+          <Button label="Add time" onPress={() => onChange('09:00')} />
         </HStack>
       </FieldRow>
     );
   }
   return (
-    <FieldRow label={label} error={error}>
+    <FieldRow label="Time" error={error}>
       <HStack spacing={12} modifiers={[frame({ maxWidth: Infinity, alignment: 'center' })]}>
         <DatePicker
-          title={label}
+          title="Time"
           selection={timeToDate(value)}
           displayedComponents={['hourAndMinute']}
           onDateChange={(d) => onChange(dateToTime(d))}
-          // We label the row ourselves (FieldRow), so hide the picker's built-in label —
-          // .labelsHidden() reclaims the empty label column that otherwise offsets the pill.
           modifiers={[datePickerStyle('compact'), labelsHidden()]}
         />
         <Button
           label=""
           systemImage="xmark.circle.fill"
           onPress={() => onChange('')}
-          modifiers={[accessibilityLabel(`Clear ${label.toLowerCase()}`), foregroundStyle(LABEL_GRAY)]}
+          modifiers={[accessibilityLabel('Clear time'), foregroundStyle(LABEL_GRAY)]}
         />
       </HStack>
     </FieldRow>
   );
 }
 
-/** Hours + minutes wheel for an Activity's duration, stored as total whole minutes.
- *  Always shown, defaulting to 00h00m; that zero value is the "unset" duration and
- *  is stored as the empty string (no add/clear affordances). */
-function DurationRow({
-  value,
-  onChange,
-  error,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  error?: string;
-}) {
-  const hm = durationToHm(value) ?? { hours: 0, minutes: 0 };
-  // 00h00m means "no duration": store it as the empty (unset) value.
-  const change = (hours: number, minutes: number) => {
-    const total = hmToDuration(hours, minutes);
-    onChange(Number(total) === 0 ? '' : total);
-  };
-  return (
-    <FieldRow label="Duration" error={error}>
-      <HStack spacing={0}>
-        <Picker
-          label="Hours"
-          selection={hm.hours}
-          onSelectionChange={(h) => change(h as number, hm.minutes)}
-          modifiers={[pickerStyle('wheel')]}
-        >
-          {HOUR_OPTIONS.map((h) => (
-            <Text key={h} modifiers={[tag(h)]}>{`${h} h`}</Text>
-          ))}
-        </Picker>
-        <Picker
-          label="Minutes"
-          selection={hm.minutes}
-          onSelectionChange={(m) => change(hm.hours, m as number)}
-          modifiers={[pickerStyle('wheel')]}
-        >
-          {MINUTE_OPTIONS.map((m) => (
-            <Text key={m} modifiers={[tag(m)]}>{`${m} m`}</Text>
-          ))}
-        </Picker>
-      </HStack>
-    </FieldRow>
-  );
-}
-
-export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCancel }: ItemEditorProps) {
+export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
-  const identity = itemIdentity(type);
   const defaults = useMemo(
-    () => (initialItem ? itemToForm(initialItem) : emptyForm()),
-    [initialItem],
+    () => (initialItem ? itemToForm(initialItem) : { ...emptyForm(), category: defaultCategory ?? 'activity' }),
+    [initialItem, defaultCategory],
   );
 
-  // Native two-way binding seeds each text field's initial text (edit path); the
-  // mirror into react-hook-form below keeps validation in sync. These states are
-  // seeded once at mount and are NOT re-synced from setValue — so any field set
-  // programmatically must also push to its native side (see addressRef.setText in
-  // suggestAddress), or the row will silently show stale text.
+  const [category, setCategory] = useState<ItemCategory>(defaults.category);
+  const identity = itemIdentity(category);
+
   const nameState = useNativeState(defaults.name);
-  const textState = useNativeState(defaults.text);
-  const addressState = useNativeState(defaults.address);
-  const confirmationState = useNativeState(defaults.confirmationNumber);
   const notesState = useNativeState(defaults.notes);
 
   const {
@@ -250,31 +179,18 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
     setValue,
     formState: { errors },
   } = useForm<ItemFormValues, unknown, ItemFormValues>({
-    resolver: zodResolver(itemFormSchema(type)),
+    resolver: zodResolver(itemFormSchema()),
     defaultValues: defaults,
     mode: 'onSubmit',
   });
 
-  const addressRef = useRef<TextFieldRef>(null);
-  const [coordsOpen, setCoordsOpen] = useState(false);
-
-  const coords = useWatch({ control, name: 'coords' });
-  const noteText = useWatch({ control, name: 'text' });
   const notesText = useWatch({ control, name: 'notes' });
   const time = useWatch({ control, name: 'time' });
-  const checkIn = useWatch({ control, name: 'checkIn' });
-  const checkOut = useWatch({ control, name: 'checkOut' });
-  const duration = useWatch({ control, name: 'duration' });
 
-  const submit = handleSubmit(() => onSubmit(formToItem(type, getValues(), itemId, initialItem)));
-
-  function suggestAddress(address: string) {
-    if (!getValues('address')) {
-      setValue('address', address, { shouldDirty: true });
-      // Reflect the autofill in the native field too (RHF holds the saved value).
-      void addressRef.current?.setText(address);
-    }
-  }
+  const submit = handleSubmit(() => {
+    const values = { ...getValues(), category };
+    onSubmit(formToItem(values, itemId, initialItem));
+  });
 
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
 
@@ -299,178 +215,65 @@ export function ItemEditor({ type, itemId, initialItem, onSubmit, onDelete, onCa
         <Form>
           <Section
             header={<IdentityHeader identity={identity} />}
-            footer={<FieldError message={firstError(type, errors)} />}
+            footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
           >
-            {type === 'note' ? (
-              <FieldRow label="Note" error={errors.text?.message}>
-                <TextField
-                  text={textState}
-                  placeholder="Anything to remember"
-                  onTextChange={(t) => setValue('text', t)}
-                  axis="vertical"
-                />
-                <NoteLinks text={noteText} />
-              </FieldRow>
-            ) : (
-              <FieldRow label="Name" error={errors.name?.message}>
-                <TextField
-                  text={nameState}
-                  placeholder="What is it?"
-                  onTextChange={(t) => setValue('name', t)}
-                />
-              </FieldRow>
-            )}
+            <FieldRow label="Name" error={errors.name?.message}>
+              <TextField
+                text={nameState}
+                placeholder="What is it?"
+                onTextChange={(t) => setValue('name', t)}
+              />
+            </FieldRow>
 
-            {type === 'location' && (
-              <>
-                <FieldRow label="Address">
-                  <TextField
-                    ref={addressRef}
-                    text={addressState}
-                    placeholder="Street, city, or landmark"
-                    onTextChange={(t) => setValue('address', t)}
-                  />
-                </FieldRow>
-                <FieldRow label="Coordinates" error={errors.coords?.message}>
-                  <HStack spacing={12}>
-                    <Button
-                      label={coords || 'Set on map'}
-                      systemImage="map"
-                      onPress={() => setCoordsOpen(true)}
-                    />
-                    {coords ? (
-                      <Button
-                        label=""
-                        systemImage="xmark.circle.fill"
-                        onPress={() => setValue('coords', '')}
-                        modifiers={[accessibilityLabel('Clear coordinates'), foregroundStyle(LABEL_GRAY)]}
-                      />
-                    ) : null}
-                  </HStack>
-                </FieldRow>
-                <TimeRow
-                  label="Time"
-                  value={time}
-                  onChange={(v) => setValue('time', v)}
-                  error={errors.time?.message}
-                />
-              </>
-            )}
+            <FieldRow label="Category">
+              <Picker
+                label="Category"
+                selection={category}
+                onSelectionChange={(v) => {
+                  const cat = v as ItemCategory;
+                  setCategory(cat);
+                  setValue('category', cat);
+                }}
+                modifiers={[pickerStyle('segmented')]}
+              >
+                {ALL_CATEGORIES.map((cat) => (
+                  <Text key={cat} modifiers={[tag(cat)]}>
+                    {itemIdentity(cat).label}
+                  </Text>
+                ))}
+              </Picker>
+            </FieldRow>
 
-            {type === 'activity' && (
-              <>
-                <TimeRow
-                  label="Time"
-                  value={time}
-                  onChange={(v) => setValue('time', v)}
-                  error={errors.time?.message}
-                />
-                <DurationRow
-                  value={duration}
-                  onChange={(v) => setValue('duration', v)}
-                  error={errors.duration?.message}
-                />
-              </>
-            )}
+            <TimeRow
+              value={time as string}
+              onChange={(v) => setValue('time', v)}
+              error={errors.time?.message}
+            />
 
-            {type === 'accommodation' && (
-              <>
-                <FieldRow label="Address">
-                  <TextField
-                    ref={addressRef}
-                    text={addressState}
-                    placeholder="Street, city, or landmark"
-                    onTextChange={(t) => setValue('address', t)}
-                  />
-                </FieldRow>
-                <TimeRow
-                  label="Check-in"
-                  value={checkIn}
-                  onChange={(v) => setValue('checkIn', v)}
-                  error={errors.checkIn?.message}
-                />
-                <TimeRow
-                  label="Check-out"
-                  value={checkOut}
-                  onChange={(v) => setValue('checkOut', v)}
-                  error={errors.checkOut?.message}
-                />
-                <FieldRow label="Confirmation #">
-                  <TextField
-                    text={confirmationState}
-                    placeholder="Booking code"
-                    onTextChange={(t) => setValue('confirmationNumber', t)}
-                    modifiers={[font({ design: 'monospaced' })]}
-                  />
-                </FieldRow>
-              </>
-            )}
-
-            {type !== 'note' && (
-              <FieldRow label="Notes">
-                <TextField
-                  text={notesState}
-                  placeholder="Anything else to remember"
-                  onTextChange={(t) => setValue('notes', t)}
-                  axis="vertical"
-                />
-                <NoteLinks text={notesText} />
-              </FieldRow>
-            )}
+            <FieldRow label="Notes">
+              <TextField
+                text={notesState}
+                placeholder="Anything else to remember"
+                onTextChange={(t) => setValue('notes', t)}
+                axis="vertical"
+              />
+              <NoteLinks text={notesText as string} />
+            </FieldRow>
           </Section>
 
           {initialItem && onDelete ? (
             <Section>
               <Button
-              label="Delete"
-              systemImage="trash"
-              role="destructive"
-              onPress={onDelete}
-              modifiers={[foregroundStyle(DELETE_RED)]}
-            />
+                label="Delete"
+                systemImage="trash"
+                role="destructive"
+                onPress={onDelete}
+                modifiers={[foregroundStyle(DELETE_RED)]}
+              />
             </Section>
           ) : null}
         </Form>
       </Host>
-
-      <Modal
-        visible={coordsOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setCoordsOpen(false)}
-      >
-        {coordsOpen ? (
-          <CoordsPicker
-            initial={parseCoords(coords)}
-            onCancel={() => setCoordsOpen(false)}
-            onConfirm={(c, extras) => {
-              setValue('coords', `${c.lat}, ${c.lng}`);
-              if (extras?.address) suggestAddress(extras.address);
-              setCoordsOpen(false);
-            }}
-          />
-        ) : null}
-      </Modal>
     </>
   );
-}
-
-/** The first field error to surface in a type's Section footer (one message at a time). */
-function firstError(
-  type: ItemType,
-  errors: Partial<Record<keyof ItemFormValues, { message?: string }>>,
-): string | undefined {
-  const order: (keyof ItemFormValues)[] =
-    type === 'note'
-      ? ['text']
-      : type === 'location'
-        ? ['name', 'coords', 'time']
-        : type === 'activity'
-          ? ['name', 'time', 'duration']
-          : ['name', 'checkIn', 'checkOut'];
-  for (const f of order) {
-    const m = errors[f]?.message;
-    if (m) return m;
-  }
-  return undefined;
 }

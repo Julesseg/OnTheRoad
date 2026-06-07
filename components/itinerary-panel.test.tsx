@@ -99,7 +99,7 @@ vi.mock('@/lib/store', () => ({
 
 const TRIP: Trip = {
   id: 'trip-1',
-  schemaVersion: 2,
+  schemaVersion: 3,
   title: 'Pacific Coast Highway',
   startDate: '2026-07-01',
   endDate: '2026-07-02',
@@ -107,7 +107,7 @@ const TRIP: Trip = {
     {
       id: 'day-1',
       date: '2026-07-01',
-      items: [{ type: 'activity', id: 'a1', name: 'Lunch', time: '12:00' }],
+      items: [{ id: 'a1', name: 'Lunch', category: 'activity', time: '12:00' }],
     },
     { id: 'day-2', date: '2026-07-02', items: [] },
   ],
@@ -149,9 +149,10 @@ describe('ItineraryPanel', () => {
     render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
     const iconFor = (label: string) =>
       screen.getAllByRole('button', { name: label })[0].getAttribute('data-system-image');
+    expect(iconFor('Activity')).toBe('figure.hiking');
     expect(iconFor('Place')).toBe('mappin.circle.fill');
     expect(iconFor('Stay')).toBe('bed.double.fill');
-    expect(iconFor('Activity')).toBe('figure.hiking');
+    expect(iconFor('Meal')).toBe('fork.knife.circle.fill');
     expect(iconFor('Note')).toBe('note.text');
   });
 

@@ -5,21 +5,20 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useTripStore } from '@/lib/store';
 import { newId } from '@/lib/id';
 import { ItemEditor } from '@/components/item-editor';
-import type { ItemType } from '@/lib/item-form';
-import type { Item } from '@/lib/schema';
+import type { ItemCategory, Item } from '@/lib/schema';
+import { ItemCategorySchema } from '@/lib/schema';
 
-const ITEM_TYPES: ItemType[] = ['location', 'accommodation', 'activity', 'note'];
-
-function asItemType(value: string | string[] | undefined): ItemType | undefined {
-  return ITEM_TYPES.find((t) => t === value);
+function asCategory(value: string | string[] | undefined): ItemCategory | undefined {
+  const result = ItemCategorySchema.safeParse(value);
+  return result.success ? result.data : undefined;
 }
 
 export default function ItemEditorScreen() {
-  const { id, dayId, itemId, type } = useLocalSearchParams<{
+  const { id, dayId, itemId, category } = useLocalSearchParams<{
     id: string;
     dayId: string;
     itemId?: string;
-    type?: string;
+    category?: string;
   }>();
   const { loadedTrips, loadTripById, upsertItem, deleteItem } = useTripStore();
   const [newItemId] = useState(newId);
@@ -31,7 +30,9 @@ export default function ItemEditorScreen() {
   const trip = loadedTrips[id] ?? null;
   const day = trip?.days.find((d) => d.id === dayId) ?? null;
   const existing = itemId ? (day?.items.find((i) => i.id === itemId) ?? null) : null;
-  const editorType = existing?.type ?? asItemType(type);
+
+  // On the create path, a category param primes the picker; on edit it's ignored.
+  const initialCategory: ItemCategory | undefined = existing?.category ?? asCategory(category);
 
   function handleSubmit(item: Item) {
     upsertItem(id, dayId, item);
@@ -40,7 +41,7 @@ export default function ItemEditorScreen() {
 
   function handleDelete() {
     if (!existing) return;
-    Alert.alert('Delete item', `Delete "${itemTitle(existing)}"? This can't be undone.`, [
+    Alert.alert('Delete item', `Delete "${existing.name}"? This can't be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -56,7 +57,7 @@ export default function ItemEditorScreen() {
   if (!trip) {
     return <ActivityIndicator style={styles.loader} size="large" />;
   }
-  if (!day || !editorType) {
+  if (!day) {
     return (
       <View style={styles.empty}>
         <Text style={styles.emptyText}>This item could not be found.</Text>
@@ -66,18 +67,14 @@ export default function ItemEditorScreen() {
 
   return (
     <ItemEditor
-      type={editorType}
       itemId={existing ? existing.id : newItemId}
       initialItem={existing ?? undefined}
+      defaultCategory={initialCategory}
       onSubmit={handleSubmit}
       onDelete={existing ? handleDelete : undefined}
       onCancel={() => router.back()}
     />
   );
-}
-
-function itemTitle(item: Item): string {
-  return item.type === 'note' ? 'this note' : item.name;
 }
 
 const styles = StyleSheet.create({

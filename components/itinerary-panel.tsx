@@ -30,9 +30,8 @@ import {
   shapes,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
-import type { Trip, Item } from '@/lib/schema';
-import type { ItemType } from '@/lib/item-form';
-import { itemIdentity } from '@/lib/item-identity';
+import type { Trip, Item, ItemCategory } from '@/lib/schema';
+import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { useTripStore } from '@/lib/store';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
@@ -48,22 +47,15 @@ const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
 
-// Item types offered when adding to a day, in canonical order. Each option's warm
-// label and SF Symbol come from the shared item-identity module so the menu stays in
-// lockstep with the editor and any other surface that names a type.
-const ADD_ITEM_TYPES: ItemType[] = ['location', 'accommodation', 'activity', 'note'];
+// Categories offered when adding an item to a day, in canonical order.
+const ADD_ITEM_TYPES = Object.keys(ITEM_IDENTITY) as ItemCategory[];
 
 // The map destination an item exposes, if any — coordinates and/or an address.
-// Only Locations and Accommodations carry one.
+// Any category can carry a location sub-object.
 function mapsTargetForItem(item: Item): MapsTarget | null {
-  let coords: MapsTarget['coords'];
-  let address: string | undefined;
-  if (item.type === 'location') {
-    if (item.lat != null && item.lng != null) coords = { lat: item.lat, lng: item.lng };
-    address = item.address;
-  } else if (item.type === 'accommodation') {
-    address = item.address;
-  }
+  if (!item.location) return null;
+  const { lat, lng, address } = item.location;
+  const coords = lat != null && lng != null ? { lat, lng } : undefined;
   if (!coords && !address) return null;
   return { coords, address };
 }
@@ -134,7 +126,7 @@ export function ItineraryPanel({
   }
 
   function confirmDelete(dayId: string, item: Item) {
-    const label = item.type === 'note' ? 'this note' : item.name;
+    const label = item.name;
     Alert.alert('Delete item', `Delete "${label}"? This can't be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteItem(trip.id, dayId, item.id) },
@@ -146,11 +138,11 @@ export function ItineraryPanel({
     setMoveTarget({ fromDayId, itemId });
   }
 
-  // Pick an item type for the day, then open the editor to create it.
-  function addItemToDay(dayId: string, type: ItemType) {
+  // Pick a category for the new item, then open the editor to create it.
+  function addItemToDay(dayId: string, category: ItemCategory) {
     router.push({
       pathname: '/trip/[id]/item',
-      params: { id: trip.id, dayId, type },
+      params: { id: trip.id, dayId, category },
     });
   }
 
