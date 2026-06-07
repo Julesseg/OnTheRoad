@@ -49,10 +49,14 @@ export default function HomeScreen() {
   const filterModel = trip && badge
     ? todayFilterModel(trip.days, badge, todayFilterOverride, today)
     : { canFilter: false, active: false };
-  const mapTrip = trip && filterModel.active
-    ? { ...trip, days: trip.days.filter((d) => d.date === today) }
-    : trip;
-  const coords = mapTrip ? tripRouteCoords(mapTrip) : [];
+  // Frame today's pins when the filter is active, but fall back to the whole
+  // route when today has no map-able locations (only activities/accommodations)
+  // so the camera never collapses to the empty-coords world view.
+  const fullCoords = trip ? tripRouteCoords(trip) : [];
+  const todayCoords = trip && filterModel.active
+    ? tripRouteCoords({ ...trip, days: trip.days.filter((d) => d.date === today) })
+    : fullCoords;
+  const coords = todayCoords.length > 0 ? todayCoords : fullCoords;
   const viewport = framedViewport(coords, PANEL_FRACTION);
 
   return (

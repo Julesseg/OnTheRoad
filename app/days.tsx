@@ -154,8 +154,8 @@ export default function DaysSheet() {
       {/* Transparent native bar — the progressive blur behind it is an RN overlay
           (see the return below), since the native bar only does a uniform blur. */}
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      {model.showBackArrow ? (
         <Stack.Toolbar placement="left">
+        {model.showBackArrow ? (
           <Stack.Toolbar.Button
             icon="chevron.backward"
             accessibilityLabel="Back to default trip"
@@ -172,17 +172,17 @@ export default function DaysSheet() {
               resetDisplayedTrip();
             }}
           />
-        </Stack.Toolbar>
-      ) : null}
-      <Stack.Toolbar placement="right">
-        {filterModel.canFilter ? (
-          <Stack.Toolbar.Button
-            icon="line.3.horizontal.decrease.circle"
+        ) : null}
+          {filterModel.canFilter ? (
+            <Stack.Toolbar.Button
+            icon="line.3.horizontal.decrease"
             accessibilityLabel="Today only"
             selected={filterModel.active}
             onPress={() => setTodayFilterOverride(!filterModel.active)}
-          />
-        ) : null}
+            />
+          ) : null}
+        </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon="list.bullet"
           accessibilityLabel="Trips"
