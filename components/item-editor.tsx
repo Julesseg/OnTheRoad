@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { Linking, useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -108,7 +108,7 @@ function NoteLinks({ text }: { text: string }) {
             frame({ maxWidth: Infinity, alignment: 'leading' }),
             accessibilityLabel(`Open ${link.label}`),
             onTapGesture(() => {
-              void import('react-native').then(({ Linking }) => Linking.openURL(link.url).catch(() => {}));
+              void Linking.openURL(link.url).catch(() => {});
             }),
           ]}
         >

@@ -56,6 +56,8 @@ export function formToItem(v: ItemFormValues, id: string, original?: Item): Item
     category: v.category,
     time: trimToUndefined(v.time),
     notes: trimToUndefined(v.notes),
+    // location and checklist are not surfaced in the form; carry them over so a name/notes
+    // edit or category change never silently drops persisted location or checklist data.
     ...(original?.location ? { location: original.location } : {}),
     ...(original?.checklist ? { checklist: original.checklist } : {}),
   }) as Item;
