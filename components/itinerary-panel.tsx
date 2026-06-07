@@ -85,11 +85,13 @@ function mapsTargetForItem(item: Item): MapsTarget | null {
  */
 export function ItineraryPanel({
   trip,
+  days: daysProp,
   now = new Date(),
   titleRow,
   scrollModifier,
 }: {
   trip: Trip;
+  days?: import('@/lib/schema').Day[];
   now?: Date;
   titleRow?: ReactNode;
   scrollModifier?: BuiltInModifier | null;
@@ -106,9 +108,22 @@ export function ItineraryPanel({
   const [moveTarget, setMoveTarget] = useState<{ fromDayId: string; itemId: string } | null>(null);
 
   const today = localDateString(now);
-  const days = useMemo(
+  // allDays is always the full sorted trip days — used for "Day N" numbering.
+  const allDays = useMemo(
     () => [...trip.days].sort((a, b) => a.date.localeCompare(b.date)),
     [trip.days],
+  );
+  // dayPosition maps day.id → 1-based trip position so "Day 5" stays "Day 5" when filtered.
+  const dayPosition = useMemo(
+    () => new Map(allDays.map((d, i) => [d.id, i + 1])),
+    [allDays],
+  );
+  // days is the list to render — filtered when daysProp is provided, full otherwise.
+  const days = useMemo(
+    () => daysProp
+      ? [...daysProp].sort((a, b) => a.date.localeCompare(b.date))
+      : allDays,
+    [daysProp, allDays],
   );
   const nextUp = useMemo(() => resolveNextUp(trip, now), [trip, now]);
   // Total item count across all days — the value the list's removal animation keys off.
@@ -267,7 +282,7 @@ export function ItineraryPanel({
             </Section>
           ) : null}
 
-          {days.map((day, index) => (
+          {days.map((day) => (
             <Section
               key={day.id}
               header={
@@ -279,7 +294,7 @@ export function ItineraryPanel({
                         foregroundStyle(day.date === today ? TINT : subtext),
                       ]}
                     >
-                      {`Day ${index + 1}`}
+                      {`Day ${dayPosition.get(day.id) ?? '?'}`}
                     </Text>
                     <Text modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
                       {formatDayLabel(day.date)}

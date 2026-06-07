@@ -16,6 +16,7 @@ interface TripStore {
   loadedTrips: Record<string, Trip>;
   activeTripId: string | null;
   displayedTripId: string | null;
+  todayFilterOverride: boolean | null;
   preferredMapsApp: MapsApp;
   installedMapsApps: MapsApp[];
   initialized: boolean;
@@ -36,6 +37,7 @@ interface TripStore {
   clearFavorite: () => void;
   setDisplayedTrip: (id: string) => void;
   resetDisplayedTrip: () => void;
+  setTodayFilterOverride: (value: boolean) => void;
 }
 
 type StateSnapshot = { trips: TripSummary[]; activeTripId: string | null; preferredMapsApp: MapsApp };
@@ -81,6 +83,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   loadedTrips: {},
   activeTripId: null,
   displayedTripId: null,
+  todayFilterOverride: null,
   preferredMapsApp: 'apple',
   // Apple Maps always ships with iOS, so default to it until the probe resolves.
   installedMapsApps: ['apple'],
@@ -190,6 +193,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
         // Deleting the Displayed Trip drops back to the resolved default; deleting
         // the favorite clears it so the default re-resolves (ADR-0001).
         displayedTripId: s.displayedTripId === id ? null : s.displayedTripId,
+        todayFilterOverride: s.displayedTripId === id ? null : s.todayFilterOverride,
         activeTripId: s.activeTripId === id ? null : s.activeTripId,
       };
     });
@@ -215,10 +219,14 @@ export const useTripStore = create<TripStore>((set, get) => ({
   // setters never call writeState, so it never reaches state.json. A cold start
   // therefore always shows the resolved default, not the last-browsed Trip.
   setDisplayedTrip(id: string) {
-    set({ displayedTripId: id });
+    set({ displayedTripId: id, todayFilterOverride: null });
   },
 
   resetDisplayedTrip() {
-    set({ displayedTripId: null });
+    set({ displayedTripId: null, todayFilterOverride: null });
+  },
+
+  setTodayFilterOverride(value: boolean) {
+    set({ todayFilterOverride: value });
   },
 }));
