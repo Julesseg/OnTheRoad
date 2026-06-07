@@ -13,7 +13,6 @@ import {
   Image,
   Menu,
   SwipeActions,
-  useNativeState,
 } from '@expo/ui/swift-ui';
 import {
   listStyle,
@@ -23,11 +22,12 @@ import {
   listSectionSpacing,
   listSectionMargins,
   onTapGesture,
-  scrollPosition,
-  id,
   tint,
   animation,
   Animation,
+  background,
+  padding,
+  shapes,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
 import type { Trip, Item } from '@/lib/schema';
@@ -42,6 +42,7 @@ import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
 import { MoveToDayOverlay } from './move-to-day-overlay';
 
 const TINT = '#007AFF';
+const FAINT_BLUE = '#007AFF1A'; // ~10% opacity — today's section background
 const ORANGE = '#FF9500'; // "Move to another day" swipe action
 const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
@@ -69,12 +70,13 @@ function mapsTargetForItem(item: Item): MapsTarget | null {
 
 /**
  * The itinerary rendered with a native SwiftUI `List`: an optional leading
- * `titleRow`, an optional Next-up card, then one `Section` per Day (header + its
- * Item rows in stored order). Sections give the system grouped-list separation
- * between Days. Each Day's rows live in a `List.ForEach` so SwiftUI's
- * drag-to-reorder works within the Day. Rows carry swipe actions only (no context
- * menu — its long-press collides with the reorder gesture); tapping the Next-up
- * card scrolls the List to that Day via `scrollPosition`.
+ * `titleRow`, then one `Section` per Day (header + its Item rows in stored order).
+ * Sections give the system grouped-list separation between Days. Each Day's rows
+ * live in a `List.ForEach` so SwiftUI's drag-to-reorder works within the Day. Rows
+ * carry swipe actions only (no context menu — its long-press collides with the
+ * reorder gesture). On the day that's underway, the whole section gets a faint
+ * blue fill and a TINT-blue "Day X" header, and the next-up item is highlighted
+ * in-place with a solid TINT-blue row and a "NEXT UP" pill.
  *
  * `titleRow` is rendered as the List's first row so the large trip title scrolls
  * away naturally under the native header (ADR-0002). `scrollModifier` lets the
@@ -112,14 +114,6 @@ export function ItineraryPanel({
   // Total item count across all days — the value the list's removal animation keys off.
   const itemCount = useMemo(() => days.reduce((n, d) => n + d.items.length, 0), [days]);
 
-  // Drives SwiftUI's `.scrollPosition(id:)` — writing a Day id scrolls the List to it.
-  const scrollTarget = useNativeState<string | null>(null);
-  function scrollToDay(dayId: string) {
-    // Writing `.value` is how expo-ui's native state drives the List's scroll position.
-    // eslint-disable-next-line react-hooks/immutability
-    scrollTarget.value = dayId;
-  }
-
   function openItemEditor(dayId: string, itemId: string) {
     router.push({ pathname: '/trip/[id]/item', params: { id: trip.id, dayId, itemId } });
   }
@@ -145,7 +139,11 @@ export function ItineraryPanel({
     });
   }
 
-  function renderItem(dayId: string, item: Item) {
+  function renderItem(
+    dayId: string,
+    item: Item,
+    { isNextUp, isToday }: { isNextUp: boolean; isToday: boolean },
+  ) {
     const { typeLabel, title, lines } = formatItem(item);
     const edit = () => openItemEditor(dayId, item.id);
     const remove = () => confirmDelete(dayId, item);
@@ -155,19 +153,63 @@ export function ItineraryPanel({
       ? () => openInMaps(mapsTarget, { app: preferredMapsApp }).catch(() => {})
       : null;
 
-    return (
-      <SwipeActions key={item.id}>
-        <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
-          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+    const rowContent = isNextUp ? (
+      // Solid TINT-blue row with a white capsule "NEXT UP" pill in upper-right.
+      // The pill uses TINT text on white background to stay in the blue family.
+      <HStack
+        alignment="top"
+        spacing={8}
+        modifiers={[onTapGesture(edit), listRowBackground(TINT)]}
+      >
+        <VStack alignment="leading" spacing={2}>
+          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
             {typeLabel.toUpperCase()}
           </Text>
-          <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
+          <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(WHITE)]}>
+            {title}
+          </Text>
           {lines.map((line, i) => (
-            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
+            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(WHITE)]}>
               {line}
             </Text>
           ))}
         </VStack>
+        <Spacer />
+        <Text
+          modifiers={[
+            font({ size: 10, weight: 'bold' }),
+            foregroundStyle(TINT),
+            padding({ horizontal: 8, vertical: 4 }),
+            background(WHITE, shapes.capsule()),
+          ]}
+        >
+          NEXT UP
+        </Text>
+      </HStack>
+    ) : (
+      <VStack
+        alignment="leading"
+        spacing={2}
+        modifiers={[
+          onTapGesture(edit),
+          ...(isToday ? [listRowBackground(FAINT_BLUE)] : []),
+        ]}
+      >
+        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+          {typeLabel.toUpperCase()}
+        </Text>
+        <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
+        {lines.map((line, i) => (
+          <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
+            {line}
+          </Text>
+        ))}
+      </VStack>
+    );
+
+    return (
+      <SwipeActions key={item.id}>
+        {rowContent}
 
         <SwipeActions.Actions edge="leading">
           <Button systemImage="pencil" label="Edit" onPress={edit} modifiers={[tint(TINT)]} />
@@ -201,7 +243,6 @@ export function ItineraryPanel({
         <List
           modifiers={[
             listStyle('insetGrouped'),
-            scrollPosition(scrollTarget, { anchor: 'top' }),
             // Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
             // total item count. Dropping role="destructive" removed the swipe's built-in
             // delete animation, so we drive it here — when deleteItem lowers the count
@@ -226,12 +267,9 @@ export function ItineraryPanel({
             </Section>
           ) : null}
 
-          {nextUp ? renderNextUp(trip, nextUp, scrollToDay) : null}
-
           {days.map((day, index) => (
             <Section
               key={day.id}
-              modifiers={[id(day.id)]}
               header={
                 <VStack alignment="leading" spacing={2}>
                   <HStack spacing={8}>
@@ -271,7 +309,12 @@ export function ItineraryPanel({
                   reorderItem(trip.id, day.id, sourceIndices, destination)
                 }
               >
-                {day.items.map((item) => renderItem(day.id, item))}
+                {day.items.map((item) =>
+                  renderItem(day.id, item, {
+                    isNextUp: nextUp?.dayId === day.id && nextUp?.itemId === item.id,
+                    isToday: day.date === today,
+                  }),
+                )}
               </List.ForEach>
             </Section>
           ))}
@@ -290,37 +333,6 @@ export function ItineraryPanel({
         />
       ) : null}
     </View>
-  );
-}
-
-// The Next-up card: a single blue-backed row at the top of the List naming the
-// next item; tapping it scrolls the List down to that item's Day.
-function renderNextUp(
-  trip: Trip,
-  nextUp: { dayId: string; itemId: string },
-  scrollToDay: (dayId: string) => void,
-) {
-  const item = trip.days
-    .find((d) => d.id === nextUp.dayId)
-    ?.items.find((i) => i.id === nextUp.itemId);
-  if (!item) return null;
-  const { typeLabel, title, lines } = formatItem(item);
-
-  return (
-    <Section modifiers={[listSectionMargins({ edges: 'top', length: 16 })]}>
-      <VStack
-        alignment="leading"
-        spacing={2}
-        modifiers={[onTapGesture(() => scrollToDay(nextUp.dayId)), listRowBackground(TINT)]}
-      >
-        <Text modifiers={[font({ size: 11, weight: 'bold' }), foregroundStyle(WHITE)]}>Next up</Text>
-        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
-          {typeLabel.toUpperCase()}
-        </Text>
-        <Text modifiers={[font({ size: 18, weight: 'bold' }), foregroundStyle(WHITE)]}>{title}</Text>
-        {lines[0] ? <Text modifiers={[foregroundStyle(WHITE)]}>{lines[0]}</Text> : null}
-      </VStack>
-    </Section>
   );
 }
 
