@@ -8,13 +8,15 @@ import { effectiveTripId } from '@/lib/active-trip';
 import { framedViewport } from '@/lib/framed-viewport';
 import { tripRouteCoords } from '@/lib/trip-route';
 import { todayString } from '@/lib/date-utils';
+import { tripCountdownBadge } from '@/lib/trip-badge';
+import { todayFilterModel } from '@/lib/today-filter';
 
 // Matches the resting detent of the /days sheet so the route frames into the
 // visible top half of the map.
 const PANEL_FRACTION = 0.5;
 
 export default function HomeScreen() {
-  const { trips, loadedTrips, displayedTripId, activeTripId, initialized, initialize, loadTripById } =
+  const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, initialized, initialize, loadTripById } =
     useTripStore();
 
   useEffect(() => {
@@ -43,7 +45,14 @@ export default function HomeScreen() {
     }, [initialized]),
   );
 
-  const coords = trip ? tripRouteCoords(trip) : [];
+  const badge = summary ? tripCountdownBadge(summary, today) : null;
+  const filterModel = trip && badge
+    ? todayFilterModel(trip.days, badge, todayFilterOverride, today)
+    : { canFilter: false, active: false };
+  const mapTrip = filterModel.active
+    ? { ...trip!, days: trip!.days.filter((d) => d.date === today) }
+    : trip;
+  const coords = mapTrip ? tripRouteCoords(mapTrip) : [];
   const viewport = framedViewport(coords, PANEL_FRACTION);
 
   return (

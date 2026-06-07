@@ -24,6 +24,7 @@ import {
 } from '@/lib/trip-badge';
 import { todayString, formatDateRange } from '@/lib/date-utils';
 import { exportTripAsFile } from '@/lib/storage';
+import { todayFilterModel } from '@/lib/today-filter';
 
 const TINT = '#007AFF';
 const WHITE = '#ffffff';
@@ -38,11 +39,13 @@ export default function DaysSheet() {
     loadedTrips,
     displayedTripId,
     activeTripId,
+    todayFilterOverride,
     initialized,
     loadTripById,
     setFavorite,
     resetDisplayedTrip,
     removeTrip,
+    setTodayFilterOverride,
   } = useTripStore();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -141,6 +144,7 @@ export default function DaysSheet() {
 
   const badge = tripCountdownBadge(summary, today);
   const dateRange = formatDateRange(summary.startDate, summary.endDate);
+  const filterModel = trip ? todayFilterModel(trip.days, badge, todayFilterOverride, today) : { canFilter: false, active: false };
 
   // The native navigation row: a leading back-arrow while browsing a non-default
   // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Edit / Make
@@ -171,6 +175,14 @@ export default function DaysSheet() {
         </Stack.Toolbar>
       ) : null}
       <Stack.Toolbar placement="right">
+        {filterModel.canFilter ? (
+          <Stack.Toolbar.Button
+            icon="line.3.horizontal.decrease.circle"
+            accessibilityLabel="Today only"
+            selected={filterModel.active}
+            onPress={() => setTodayFilterOverride(!filterModel.active)}
+          />
+        ) : null}
         <Stack.Toolbar.Button
           icon="list.bullet"
           accessibilityLabel="Trips"
@@ -247,10 +259,12 @@ export default function DaysSheet() {
     );
   }
 
+  const visibleDays = filterModel.active ? trip.days.filter((d) => d.date === today) : trip.days;
+
   return (
     <View style={styles.sheet}>
       {chrome}
-      <ItineraryPanel trip={trip} titleRow={titleRow} scrollModifier={scrollModifier} />
+      <ItineraryPanel trip={trip} days={visibleDays} titleRow={titleRow} scrollModifier={scrollModifier} />
       {/* Progressive blur behind the transparent nav bar: full strength at the top
           edge, easing to clear by the bar's bottom so list content stays sharp. It
           renders within RN content, i.e. beneath the native toolbar buttons/title. */}
