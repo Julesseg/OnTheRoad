@@ -102,6 +102,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
 }));
 
+vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
+
 vi.mock('expo-router', async () => {
   const React = await import('react');
   const Stack: any = () => null;
@@ -145,11 +147,11 @@ describe('ItemEditor', () => {
     expect(pickers['Category'].selection).toBe('activity');
   });
 
-  it('identity header reflects the currently selected category', () => {
+  it('sheet title reflects the currently selected category', () => {
     render(<ItemEditor itemId="x" onSubmit={() => {}} />);
-    expect(screen.getByText('Activity')).toBeInTheDocument();
+    expect(screen.getByText('New Activity')).toBeInTheDocument();
     act(() => pickers['Category'].onSelectionChange!('stay'));
-    expect(screen.getByText('Stay')).toBeInTheDocument();
+    expect(screen.getByText('New Stay')).toBeInTheDocument();
   });
 
   it('shows a required error in the section footer and does not submit when name is empty', async () => {

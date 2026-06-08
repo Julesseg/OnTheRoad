@@ -10,8 +10,6 @@ import {
   Spacer,
   Text,
   Button,
-  Image,
-  Menu,
   SwipeActions,
 } from '@expo/ui/swift-ui';
 import {
@@ -30,8 +28,7 @@ import {
   shapes,
   type BuiltInModifier,
 } from '@expo/ui/swift-ui/modifiers';
-import type { Trip, Item, ItemCategory } from '@/lib/schema';
-import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
+import type { Trip, Item } from '@/lib/schema';
 import { useTripStore } from '@/lib/store';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
@@ -46,9 +43,6 @@ const ORANGE = '#FF9500'; // "Move to another day" swipe action
 const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
-
-// Categories offered when adding an item to a day, in canonical order.
-const ADD_ITEM_TYPES = Object.keys(ITEM_IDENTITY) as ItemCategory[];
 
 // The map destination an item exposes, if any — coordinates and/or an address.
 // Any category can carry a location sub-object.
@@ -138,11 +132,12 @@ export function ItineraryPanel({
     setMoveTarget({ fromDayId, itemId });
   }
 
-  // Pick a category for the new item, then open the editor to create it.
-  function addItemToDay(dayId: string, category: ItemCategory) {
+  // Open the editor on the create path for this day. No category is passed, so the
+  // editor opens on its default ("activity"); the segmented picker can change it.
+  function addItemToDay(dayId: string) {
     router.push({
       pathname: '/trip/[id]/item',
-      params: { id: trip.id, dayId, category },
+      params: { id: trip.id, dayId },
     });
   }
 
@@ -292,19 +287,11 @@ export function ItineraryPanel({
                       {formatDayLabel(day.date)}
                     </Text>
                     <Spacer />
-                    <Menu label={<Image systemName="plus" size={20} />}>
-                      {ADD_ITEM_TYPES.map((t) => {
-                        const identity = itemIdentity(t);
-                        return (
-                          <Button
-                            key={t}
-                            label={identity.label}
-                            systemImage={identity.symbol}
-                            onPress={() => addItemToDay(day.id, t)}
-                          />
-                        );
-                      })}
-                    </Menu>
+                    <Button
+                      systemImage="plus"
+                      label=""
+                      onPress={() => addItemToDay(day.id)}
+                    />
                   </HStack>
                 </VStack>
               }

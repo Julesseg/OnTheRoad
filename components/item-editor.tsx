@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, useColorScheme } from 'react-native';
+import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -36,7 +37,7 @@ import {
   formToItem,
   itemFormSchema,
 } from '@/lib/item-form';
-import { itemIdentity, ITEM_IDENTITY, type ItemIdentity } from '@/lib/item-identity';
+import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import type { Item, ItemCategory } from '@/lib/schema';
 
@@ -65,20 +66,6 @@ function timeToDate(t: string): Date {
 
 function dateToTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-/** Section header showing the currently selected category's symbol + accent. */
-function IdentityHeader({ identity }: { identity: ItemIdentity }) {
-  return (
-    <HStack spacing={6}>
-      <Image systemName={identity.symbol} color={identity.accent} size={15} />
-      <Text
-        modifiers={[font({ design: 'rounded', weight: 'semibold', size: 15 }), foregroundStyle(identity.accent)]}
-      >
-        {identity.label}
-      </Text>
-    </HStack>
-  );
 }
 
 function FieldRow({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
@@ -197,7 +184,21 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onD
   return (
     <>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>{heading}</Stack.Title>
+      {/* Sheet title carries the category's accent + SF Symbol, so the picker icons
+          below can stay monochrome (iOS strips per-item color through the Picker slot). */}
+      <Stack.Title asChild>
+        <View style={styles.titleRow}>
+          <SymbolView
+            name={identity.symbol as SymbolViewProps['name']}
+            tintColor={identity.accent}
+            resizeMode="scaleAspectFit"
+            style={styles.titleIcon}
+          />
+          <RNText style={[styles.titleText, { color: identity.accent }]} numberOfLines={1}>
+            {heading}
+          </RNText>
+        </View>
+      </Stack.Title>
       {onCancel ? (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onCancel}>
@@ -214,17 +215,8 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onD
       <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
         <Form>
           <Section
-            header={<IdentityHeader identity={identity} />}
             footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
           >
-            <FieldRow label="Name" error={errors.name?.message}>
-              <TextField
-                text={nameState}
-                placeholder="What is it?"
-                onTextChange={(t) => setValue('name', t)}
-              />
-            </FieldRow>
-
             <FieldRow label="Category">
               <Picker
                 label="Category"
@@ -234,14 +226,25 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onD
                   setCategory(cat);
                   setValue('category', cat);
                 }}
-                modifiers={[pickerStyle('segmented')]}
+                modifiers={[pickerStyle('palette'), labelsHidden()]}
               >
                 {ALL_CATEGORIES.map((cat) => (
-                  <Text key={cat} modifiers={[tag(cat)]}>
-                    {itemIdentity(cat).label}
-                  </Text>
+                  <Image
+                    key={cat}
+                    systemName={itemIdentity(cat).symbol}
+                    size={20}
+                    modifiers={[tag(cat), accessibilityLabel(itemIdentity(cat).label)]}
+                  />
                 ))}
               </Picker>
+            </FieldRow>
+
+            <FieldRow label="Name" error={errors.name?.message}>
+              <TextField
+                text={nameState}
+                placeholder="What is it?"
+                onTextChange={(t) => setValue('name', t)}
+              />
             </FieldRow>
 
             <TimeRow
@@ -277,3 +280,9 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onD
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  titleIcon: { width: 18, height: 18 },
+  titleText: { fontSize: 17, fontWeight: '600' },
+});
