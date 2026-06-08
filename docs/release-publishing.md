@@ -79,6 +79,46 @@ Triggers on `v*` tags (e.g. `v1.0.0`). Steps:
 ### `ExportOptions.plist`
 Tells Xcode to export as ad-hoc with your provisioning profile.
 
+### `manifest.plist` (OTA install manifest)
+Apple's OTA format requires exactly these keys ([Apple documentation](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Articles/OTADistribution.html)):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>items</key>
+  <array>
+    <dict>
+      <key>assets</key>
+      <array>
+        <dict>
+          <key>kind</key>
+          <string>software-package</string>
+          <key>url</key>
+          <string>https://julesseg.github.io/OnTheRoad/on-the-road.ipa</string>
+        </dict>
+      </array>
+      <key>metadata</key>
+      <dict>
+        <key>bundle-identifier</key>
+        <string>com.julesseguin.ontheroad</string>
+        <key>bundle-version</key>
+        <string>1.0.0</string>
+        <key>kind</key>
+        <string>software</string>
+        <key>title</key>
+        <string>On the Road</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>
+```
+
+The workflow generates this file dynamically, substituting the version from the git tag and the correct `.ipa` URL before publishing to GitHub Pages.
+
 ---
 
 ## Installing a Build
