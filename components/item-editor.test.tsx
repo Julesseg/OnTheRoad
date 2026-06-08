@@ -6,7 +6,11 @@ import type { Item } from '@/lib/schema';
 
 // Capture DatePicker props keyed by title, and Picker props keyed by label.
 const dpickers = vi.hoisted(
-  () => ({}) as Record<string, { onDateChange?: (d: Date) => void; selection?: Date }>,
+  () =>
+    ({}) as Record<
+      string,
+      { onDateChange?: (d: Date) => void; selection?: Date; range?: { start?: Date; end?: Date } }
+    >,
 );
 const pickers = vi.hoisted(
   () => ({}) as Record<string, { onSelectionChange?: (v: unknown) => void; selection?: unknown }>,
@@ -60,8 +64,18 @@ vi.mock('@expo/ui/swift-ui', async () => {
         });
       },
     ),
-    DatePicker: (props: { title?: string; onDateChange?: (d: Date) => void; selection?: Date }) => {
-      if (props.title) dpickers[props.title] = { onDateChange: props.onDateChange, selection: props.selection };
+    DatePicker: (props: {
+      title?: string;
+      onDateChange?: (d: Date) => void;
+      selection?: Date;
+      range?: { start?: Date; end?: Date };
+    }) => {
+      if (props.title)
+        dpickers[props.title] = {
+          onDateChange: props.onDateChange,
+          selection: props.selection,
+          range: props.range,
+        };
       return null;
     },
     Picker: (props: {
@@ -164,28 +178,28 @@ describe('ItemEditor', () => {
 
   it('submits a built item with the selected category when name is filled', async () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor itemId="act-1" onSubmit={onSubmit} />);
+    render(<ItemEditor itemId="act-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Whale watching' } });
     save();
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-1', name: 'Whale watching', category: 'activity' }),
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-1', name: 'Whale watching', category: 'activity' }, INIT_DATE),
     );
   });
 
   it('submits with a different category when changed via picker', async () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor itemId="meal-1" onSubmit={onSubmit} />);
+    render(<ItemEditor itemId="meal-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Taco truck' } });
     act(() => pickers['Category'].onSelectionChange!('meal'));
     save();
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ id: 'meal-1', name: 'Taco truck', category: 'meal' }),
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'meal-1', name: 'Taco truck', category: 'meal' }, INIT_DATE),
     );
   });
 
   it('sets a time through the native picker and persists it', async () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor itemId="act-t" onSubmit={onSubmit} />);
+    render(<ItemEditor itemId="act-t" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Add time' }));
@@ -195,19 +209,22 @@ describe('ItemEditor', () => {
 
     save();
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-t', name: 'Hike', category: 'activity', time: '09:30' }),
+      expect(onSubmit).toHaveBeenCalledWith(
+        { id: 'act-t', name: 'Hike', category: 'activity', time: '09:30' },
+        INIT_DATE,
+      ),
     );
   });
 
   it('clears a set time back to unset', async () => {
     const onSubmit = vi.fn();
     const initial: Item = { id: 'act-c', name: 'Hike', category: 'activity', time: '08:00' };
-    render(<ItemEditor itemId="act-c" initialItem={initial} onSubmit={onSubmit} />);
+    render(<ItemEditor itemId="act-c" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear time' }));
     save();
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-c', name: 'Hike', category: 'activity' }),
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'act-c', name: 'Hike', category: 'activity' }, INIT_DATE),
     );
   });
 
@@ -236,5 +253,59 @@ describe('ItemEditor', () => {
     const initial: Item = { id: 'a', name: 'Hike', category: 'activity', notes: 'trailhead https://example.com' };
     render(<ItemEditor itemId="a" initialItem={initial} onSubmit={() => {}} />);
     expect(screen.getByText('https://example.com')).toBeInTheDocument();
+  });
+
+  // --- Date picker (issue #75) ---
+
+  const TRIP = { startDate: '2025-06-01', endDate: '2025-06-07' };
+  const INIT_DATE = '2025-06-03';
+
+  it('renders a date picker with selection matching initialDate', () => {
+    render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    expect(dpickers['Date']).toBeDefined();
+    const sel = dpickers['Date'].selection!;
+    expect(sel.getFullYear()).toBe(2025);
+    expect(sel.getMonth()).toBe(5); // 0-based June
+    expect(sel.getDate()).toBe(3);
+  });
+
+  it('saving with unchanged date passes initialDate as second arg to onSubmit', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="d-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Boat tour' } });
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        { id: 'd-1', name: 'Boat tour', category: 'activity' },
+        INIT_DATE,
+      ),
+    );
+  });
+
+  it('changing the date picker fires onSubmit with the new YYYY-MM-DD string', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="d-2" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Swim' } });
+    const picked = new Date(2025, 5, 5, 12, 0, 0); // June 5 local
+    act(() => dpickers['Date'].onDateChange!(picked));
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        { id: 'd-2', name: 'Swim', category: 'activity' },
+        '2025-06-05',
+      ),
+    );
+  });
+
+  it('date picker range is clamped to trip startDate and endDate', () => {
+    render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    const { range } = dpickers['Date'];
+    expect(range).toBeDefined();
+    expect(range!.start!.getFullYear()).toBe(2025);
+    expect(range!.start!.getMonth()).toBe(5);
+    expect(range!.start!.getDate()).toBe(1);
+    expect(range!.end!.getFullYear()).toBe(2025);
+    expect(range!.end!.getMonth()).toBe(5);
+    expect(range!.end!.getDate()).toBe(7);
   });
 });

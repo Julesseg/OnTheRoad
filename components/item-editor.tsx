@@ -39,13 +39,16 @@ import {
 } from '@/lib/item-form';
 import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
+import { localDateString } from '@/lib/today';
 import type { Item, ItemCategory } from '@/lib/schema';
 
 export interface ItemEditorProps {
   itemId: string;
   initialItem?: Item;
   defaultCategory?: ItemCategory;
-  onSubmit: (item: Item) => void;
+  trip?: { startDate: string; endDate: string };
+  initialDate?: string;
+  onSubmit: (item: Item, date: string) => void;
   onDelete?: () => void;
   onCancel?: () => void;
 }
@@ -56,6 +59,11 @@ const DELETE_RED = '#FF3B30';
 const LINK_BLUE = '#007AFF';
 
 const ALL_CATEGORIES = Object.keys(ITEM_IDENTITY) as ItemCategory[];
+
+function parseLocalDate(s: string, hour = 12): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d, hour, 0, 0, 0);
+}
 
 function timeToDate(t: string): Date {
   const d = new Date();
@@ -146,7 +154,7 @@ function TimeRow({
   );
 }
 
-export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onDelete, onCancel }: ItemEditorProps) {
+export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
   const defaults = useMemo(
     () => (initialItem ? itemToForm(initialItem) : { ...emptyForm(), category: defaultCategory ?? 'activity' }),
@@ -154,6 +162,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onD
   );
 
   const [category, setCategory] = useState<ItemCategory>(defaults.category);
+  const [date, setDate] = useState(initialDate ?? '');
   const identity = itemIdentity(category);
 
   const nameState = useNativeState(defaults.name);
@@ -176,7 +185,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onD
 
   const submit = handleSubmit(() => {
     const values = { ...getValues(), category };
-    onSubmit(formToItem(values, itemId, initialItem));
+    onSubmit(formToItem(values, itemId, initialItem), date);
   });
 
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
@@ -238,6 +247,22 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, onSubmit, onD
                 ))}
               </Picker>
             </FieldRow>
+
+            {trip && date ? (
+              <FieldRow label="Date">
+                <DatePicker
+                  title="Date"
+                  selection={parseLocalDate(date)}
+                  displayedComponents={['date']}
+                  range={{
+                    start: parseLocalDate(trip.startDate, 0),
+                    end: parseLocalDate(trip.endDate, 23),
+                  }}
+                  onDateChange={(d) => setDate(localDateString(d))}
+                  modifiers={[datePickerStyle('compact'), labelsHidden()]}
+                />
+              </FieldRow>
+            ) : null}
 
             <FieldRow label="Name" error={errors.name?.message}>
               <TextField

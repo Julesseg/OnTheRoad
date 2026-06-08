@@ -83,14 +83,12 @@ vi.mock('@/lib/store', () => ({
     selector: (s: {
       preferredMapsApp: string;
       deleteItem: () => void;
-      moveItem: () => void;
       reorderItem: () => void;
     }) => unknown,
   ) =>
     selector({
       preferredMapsApp: 'apple',
       deleteItem: vi.fn(),
-      moveItem: vi.fn(),
       reorderItem: vi.fn(),
     }),
 }));

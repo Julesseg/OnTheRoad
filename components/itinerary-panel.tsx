@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { View, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import {
@@ -35,11 +35,8 @@ import { formatItem } from '@/lib/item-display';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
-import { MoveToDayOverlay } from './move-to-day-overlay';
-
 const TINT = '#007AFF';
 const FAINT_BLUE = '#007AFF1A'; // ~10% opacity — today's section background
-const ORANGE = '#FF9500'; // "Move to another day" swipe action
 const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
@@ -87,11 +84,7 @@ export function ItineraryPanel({
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const reorderItem = useTripStore((s) => s.reorderItem);
-  const moveItem = useTripStore((s) => s.moveItem);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
-
-  // The Item whose "Move to day" calendar is open, or null when none is.
-  const [moveTarget, setMoveTarget] = useState<{ fromDayId: string; itemId: string } | null>(null);
 
   const today = localDateString(now);
   // allDays is always the full sorted trip days — used for "Day N" numbering.
@@ -125,11 +118,6 @@ export function ItineraryPanel({
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteItem(trip.id, dayId, item.id) },
     ]);
-  }
-
-  // Open the floating calendar to move this item to another Day (a different date).
-  function showMoveToDaySheet(fromDayId: string, itemId: string) {
-    setMoveTarget({ fromDayId, itemId });
   }
 
   // Open the editor on the create path for this day. No category is passed, so the
@@ -215,14 +203,6 @@ export function ItineraryPanel({
 
         <SwipeActions.Actions edge="leading">
           <Button systemImage="pencil" label="Edit" onPress={edit} modifiers={[tint(TINT)]} />
-          {days.length > 1 ? (
-            <Button
-              systemImage="calendar"
-              label="Change day"
-              onPress={() => showMoveToDaySheet(dayId, item.id)}
-              modifiers={[tint(ORANGE)]}
-            />
-          ) : null}
         </SwipeActions.Actions>
         <SwipeActions.Actions edge="trailing" allowsFullSwipe={!!openMaps}>
           {openMaps ? (
@@ -315,17 +295,6 @@ export function ItineraryPanel({
         </List>
       </Host>
 
-      {moveTarget ? (
-        <MoveToDayOverlay
-          trip={trip}
-          fromDayId={moveTarget.fromDayId}
-          itemId={moveTarget.itemId}
-          onMove={(targetDayId) =>
-            moveItem(trip.id, moveTarget.fromDayId, targetDayId, moveTarget.itemId)
-          }
-          onClose={() => setMoveTarget(null)}
-        />
-      ) : null}
     </View>
   );
 }
