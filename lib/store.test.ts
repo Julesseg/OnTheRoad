@@ -30,7 +30,7 @@ beforeEach(() => {
 function tripFixture(over: Partial<Trip> = {}): Trip {
   return {
     id: 'trip-1',
-    schemaVersion: 2,
+    schemaVersion: 3,
     title: 'Coast',
     startDate: '2026-07-01',
     endDate: '2026-07-02',

@@ -5,7 +5,7 @@ import { formatItem, linkify, itemTime, sortItemsByTime } from '@/lib/item-displ
 import type { Day, Item } from '@/lib/schema';
 
 function itemBody(item: Item): string | undefined {
-  return item.type === 'note' ? item.text : item.notes;
+  return item.notes;
 }
 
 function CompanionItem({ item, highlighted }: { item: Item; highlighted: boolean }) {

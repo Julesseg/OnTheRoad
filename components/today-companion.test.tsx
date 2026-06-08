@@ -7,9 +7,9 @@ const DAY: Day = {
   id: 'day-1',
   date: '2026-07-02',
   items: [
-    { type: 'activity', id: 'a', name: 'Breakfast', time: '09:00' },
-    { type: 'location', id: 'b', name: 'Museum', time: '11:00', notes: 'buy tickets online first' },
-    { type: 'note', id: 'c', text: 'remember sunscreen' },
+    { id: 'a', name: 'Breakfast', category: 'activity', time: '09:00' },
+    { id: 'b', name: 'Museum', category: 'location', time: '11:00', notes: 'buy tickets online first' },
+    { id: 'c', name: 'Remember sunscreen', category: 'note' },
   ],
 };
 
@@ -25,8 +25,8 @@ describe('TodayCompanion', () => {
       id: 'day-1',
       date: '2026-07-02',
       items: [
-        { type: 'activity', id: 'late', name: 'Dinner', time: '19:00' },
-        { type: 'activity', id: 'early', name: 'Breakfast', time: '08:00' },
+        { id: 'late', name: 'Dinner', category: 'activity', time: '19:00' },
+        { id: 'early', name: 'Breakfast', category: 'activity', time: '08:00' },
       ],
     };
     render(<TodayCompanion day={day} highlightId={null} />);

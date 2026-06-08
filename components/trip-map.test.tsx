@@ -6,7 +6,7 @@ import { TripMap } from './trip-map';
 function makeTrip(items: Trip['days'][number]['items']): Trip {
   return {
     id: '00000000-0000-0000-0000-000000000001',
-    schemaVersion: 2,
+    schemaVersion: 3,
     title: 'Test trip',
     startDate: '2099-07-01',
     endDate: '2099-07-01',
@@ -24,9 +24,9 @@ describe('TripMap', () => {
 
   it('renders a teal-tinted marker per location with coords, in itinerary order', () => {
     const trip = makeTrip([
-      { type: 'location', id: 'a', name: 'Golden Gate', lat: 37.8199, lng: -122.4783 },
-      { type: 'note', id: 'n', text: 'skip me' },
-      { type: 'location', id: 'b', name: 'Big Sur', lat: 36.2704, lng: -121.8081 },
+      { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8199, lng: -122.4783 } },
+      { category: 'note' as const, id: 'n', name: 'skip me' },
+      { category: 'location' as const, id: 'b', name: 'Big Sur', location: { lat: 36.2704, lng: -121.8081 } },
     ]);
     render(<TripMap trip={trip} />);
     const map = screen.getByTestId('apple-maps-view');
@@ -36,9 +36,9 @@ describe('TripMap', () => {
 
   it('connects the markers with a teal polyline in itinerary order', () => {
     const trip = makeTrip([
-      { type: 'location', id: 'a', name: 'A', lat: 37.8199, lng: -122.4783 },
-      { type: 'location', id: 'b', name: 'B', lat: 36.2704, lng: -121.8081 },
-      { type: 'location', id: 'c', name: 'C', lat: 35.6852, lng: -121.1685 },
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 37.8199, lng: -122.4783 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 36.2704, lng: -121.8081 } },
+      { category: 'location' as const, id: 'c', name: 'C', location: { lat: 35.6852, lng: -121.1685 } },
     ]);
     render(<TripMap trip={trip} />);
     const map = screen.getByTestId('apple-maps-view');
@@ -50,7 +50,7 @@ describe('TripMap', () => {
 
   it('omits the polyline when fewer than two coords are available', () => {
     const trip = makeTrip([
-      { type: 'location', id: 'a', name: 'Alone', lat: 37.8199, lng: -122.4783 },
+      { category: 'location' as const, id: 'a', name: 'Alone', location: { lat: 37.8199, lng: -122.4783 } },
     ]);
     render(<TripMap trip={trip} />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-polyline')).toBe('');
@@ -65,8 +65,8 @@ describe('TripMap', () => {
 
   it('centers the camera on the bounding-box midpoint of the route', () => {
     const trip = makeTrip([
-      { type: 'location', id: 'a', name: 'A', lat: 40, lng: -120 },
-      { type: 'location', id: 'b', name: 'B', lat: 42, lng: -110 },
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
     ]);
     render(<TripMap trip={trip} />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
@@ -79,8 +79,8 @@ describe('TripMap', () => {
     // camera imperatively when the coords change.
     const { rerender } = render(<TripMap trip={null} />);
     const trip = makeTrip([
-      { type: 'location', id: 'a', name: 'A', lat: 40, lng: -120 },
-      { type: 'location', id: 'b', name: 'B', lat: 42, lng: -110 },
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
     ]);
     rerender(<TripMap trip={trip} />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');

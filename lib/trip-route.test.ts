@@ -5,7 +5,7 @@ import type { Trip } from './schema';
 function makeTrip(days: Trip['days']): Trip {
   return {
     id: '00000000-0000-0000-0000-000000000001',
-    schemaVersion: 2,
+    schemaVersion: 3,
     title: 'Test trip',
     startDate: '2099-07-01',
     endDate: '2099-07-02',
@@ -27,14 +27,14 @@ describe('tripRouteCoords', () => {
         id: 'd1',
         date: '2099-07-01',
         items: [
-          { type: 'location', id: 'a', name: 'Golden Gate', lat: 37.8199, lng: -122.4783 },
-          { type: 'location', id: 'b', name: 'Big Sur', lat: 36.2704, lng: -121.8081 },
+          { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8199, lng: -122.4783 } },
+          { category: 'location' as const, id: 'b', name: 'Big Sur', location: { lat: 36.2704, lng: -121.8081 } },
         ],
       },
       {
         id: 'd2',
         date: '2099-07-02',
-        items: [{ type: 'location', id: 'c', name: 'Hearst Castle', lat: 35.6852, lng: -121.1685 }],
+        items: [{ category: 'location' as const, id: 'c', name: 'Hearst Castle', location: { lat: 35.6852, lng: -121.1685 } }],
       },
     ]);
     expect(tripRouteCoords(trip)).toEqual([
@@ -50,11 +50,11 @@ describe('tripRouteCoords', () => {
         id: 'd1',
         date: '2099-07-01',
         items: [
-          { type: 'note', id: 'n1', text: 'leave early' },
-          { type: 'location', id: 'noc', name: 'No coords yet' },
-          { type: 'location', id: 'lat-only', name: 'Half-pinned', lat: 40 },
-          { type: 'location', id: 'with', name: 'Yosemite', lat: 37.8651, lng: -119.5383 },
-          { type: 'accommodation', id: 'h', name: 'Lodge' },
+          { category: 'note' as const, id: 'n1', name: 'leave early' },
+          { category: 'location' as const, id: 'noc', name: 'No coords yet' },
+          { category: 'location' as const, id: 'lat-only', name: 'Half-pinned', location: { lat: 40 } },
+          { category: 'location' as const, id: 'with', name: 'Yosemite', location: { lat: 37.8651, lng: -119.5383 } },
+          { category: 'stay' as const, id: 'h', name: 'Lodge' },
         ],
       },
     ]);

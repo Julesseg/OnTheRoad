@@ -23,7 +23,7 @@ export default function NewTripScreen() {
       wallpaperSaved = wallpaperUri !== undefined;
       const trip: Trip = {
         id,
-        schemaVersion: 2,
+        schemaVersion: 3,
         title,
         startDate,
         endDate,

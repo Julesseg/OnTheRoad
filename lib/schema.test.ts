@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { TripSchema, DaySchema, ItemSchema, AppStateSchema, TripSummarySchema } from './schema';
+import { TripSchema, DaySchema, ItemSchema, AppStateSchema, TripSummarySchema, CURRENT_SCHEMA_VERSION } from './schema';
 
 const VALID_TRIP = {
   id: '01900000-0000-7000-8000-000000000001',
-  schemaVersion: 2,
+  schemaVersion: 3,
   title: 'Pacific Coast Highway',
   startDate: '2026-07-01',
   endDate: '2026-07-14',
@@ -16,7 +16,7 @@ describe('TripSchema', () => {
   it('parses a valid trip fixture', () => {
     const result = TripSchema.parse(VALID_TRIP);
     expect(result.title).toBe('Pacific Coast Highway');
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.startDate).toBe('2026-07-01');
   });
 
@@ -77,68 +77,58 @@ describe('DaySchema', () => {
 
 const ITEM_ID = '01900000-0000-7000-8000-000000000003';
 
-describe('ItemSchema — location', () => {
-  it('parses with required fields only', () => {
-    const item = ItemSchema.parse({ type: 'location', id: ITEM_ID, name: 'Golden Gate Bridge' });
-    expect(item.type).toBe('location');
-    if (item.type === 'location') expect(item.name).toBe('Golden Gate Bridge');
+describe('ItemSchema — unified v3', () => {
+  it('parses a minimal item: name + category, no other fields', () => {
+    const item = ItemSchema.parse({ id: ITEM_ID, name: 'Walk the pier', category: 'activity' });
+    expect(item.name).toBe('Walk the pier');
+    expect(item.category).toBe('activity');
   });
 
-  it('parses with all optional fields', () => {
-    const item = ItemSchema.parse({
-      type: 'location', id: ITEM_ID, name: 'Golden Gate Bridge',
-      address: '100 Bridge Way', lat: 37.8199, lng: -122.4783,
-      time: '09:30', notes: 'Great view', attachments: ['photo.jpg'],
-    });
-    if (item.type === 'location') {
-      expect(item.lat).toBe(37.8199);
-      expect(item.attachments).toEqual(['photo.jpg']);
+  it('accepts all five category values', () => {
+    for (const cat of ['activity', 'location', 'stay', 'meal', 'note'] as const) {
+      const item = ItemSchema.parse({ id: ITEM_ID, name: 'X', category: cat });
+      expect(item.category).toBe(cat);
     }
   });
 
-  it('rejects unknown item type', () => {
-    expect(() => ItemSchema.parse({ type: 'flight', id: ITEM_ID, name: 'UA123' })).toThrow();
-  });
-});
-
-describe('ItemSchema — accommodation', () => {
-  it('parses with required fields only', () => {
-    const item = ItemSchema.parse({ type: 'accommodation', id: ITEM_ID, name: 'Sea Cliff Inn' });
-    expect(item.type).toBe('accommodation');
+  it('rejects an unknown category value', () => {
+    expect(() => ItemSchema.parse({ id: ITEM_ID, name: 'X', category: 'flight' })).toThrow();
   });
 
-  it('parses with optional check-in/out times', () => {
+  it('requires a non-empty name', () => {
+    expect(() => ItemSchema.parse({ id: ITEM_ID, name: '', category: 'activity' })).toThrow();
+  });
+
+  it('accepts optional time in HH:mm format', () => {
+    const item = ItemSchema.parse({ id: ITEM_ID, name: 'Breakfast', category: 'meal', time: '08:30' });
+    expect(item.time).toBe('08:30');
+  });
+
+  it('accepts an optional location sub-object with address, lat, and lng', () => {
     const item = ItemSchema.parse({
-      type: 'accommodation', id: ITEM_ID, name: 'Sea Cliff Inn',
-      checkIn: '15:00', checkOut: '11:00', confirmationNumber: 'XYZ123',
+      id: ITEM_ID, name: 'Golden Gate', category: 'location',
+      location: { address: '100 Bridge Way', lat: 37.8199, lng: -122.4783 },
     });
-    if (item.type === 'accommodation') expect(item.checkIn).toBe('15:00');
-  });
-});
-
-describe('ItemSchema — activity', () => {
-  it('parses with required fields only', () => {
-    const item = ItemSchema.parse({ type: 'activity', id: ITEM_ID, name: 'Whale watching' });
-    expect(item.type).toBe('activity');
+    expect(item.location?.address).toBe('100 Bridge Way');
+    expect(item.location?.lat).toBe(37.8199);
   });
 
-  it('parses with optional duration', () => {
+  it('accepts optional notes', () => {
+    const item = ItemSchema.parse({ id: ITEM_ID, name: 'Hike', category: 'activity', notes: 'Bring sunscreen' });
+    expect(item.notes).toBe('Bring sunscreen');
+  });
+
+  it('accepts an optional checklist array', () => {
     const item = ItemSchema.parse({
-      type: 'activity', id: ITEM_ID, name: 'Whale watching', duration: 120,
+      id: ITEM_ID, name: 'Pack bag', category: 'activity',
+      checklist: [{ id: ITEM_ID, label: 'Passport', checked: false }],
     });
-    if (item.type === 'activity') expect(item.duration).toBe(120);
-  });
-});
-
-describe('ItemSchema — note', () => {
-  it('parses with required text field', () => {
-    const item = ItemSchema.parse({ type: 'note', id: ITEM_ID, text: 'Remember sunscreen' });
-    expect(item.type).toBe('note');
-    if (item.type === 'note') expect(item.text).toBe('Remember sunscreen');
+    expect(item.checklist).toHaveLength(1);
+    expect(item.checklist![0].label).toBe('Passport');
   });
 
-  it('rejects note with empty text', () => {
-    expect(() => ItemSchema.parse({ type: 'note', id: ITEM_ID, text: '' })).toThrow();
+  it('CURRENT_SCHEMA_VERSION is 3', () => {
+    expect(CURRENT_SCHEMA_VERSION).toBe(3);
   });
 });
 

@@ -9,7 +9,7 @@ function makeDay(items: Item[]): Day {
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
   return {
     id: 'trip-1',
-    schemaVersion: 2,
+    schemaVersion: 3,
     title: 'Pacific Coast Highway',
     startDate: '2026-07-01',
     endDate: '2026-07-03',
@@ -54,40 +54,40 @@ describe('selectTodayDay', () => {
 describe('nextItemId', () => {
   it('returns the first item whose time is at or after now', () => {
     const day = makeDay([
-      { type: 'activity', id: 'a', name: 'Breakfast', time: '09:00' },
-      { type: 'location', id: 'b', name: 'Museum', time: '11:00' },
-      { type: 'activity', id: 'c', name: 'Dinner', time: '19:00' },
+      { category: 'activity' as const, id: 'a', name: 'Breakfast', time: '09:00' },
+      { category: 'location' as const, id: 'b', name: 'Museum', time: '11:00' },
+      { category: 'activity' as const, id: 'c', name: 'Dinner', time: '19:00' },
     ]);
     expect(nextItemId(day, new Date(2026, 6, 2, 10, 0))).toBe('b');
   });
 
   it('picks the chronologically earliest upcoming item even when stored out of order', () => {
     const day = makeDay([
-      { type: 'location', id: 'late', name: 'Museum', time: '11:00' },
-      { type: 'activity', id: 'early', name: 'Breakfast', time: '09:00' },
+      { category: 'location' as const, id: 'late', name: 'Museum', time: '11:00' },
+      { category: 'activity' as const, id: 'early', name: 'Breakfast', time: '09:00' },
     ]);
     expect(nextItemId(day, new Date(2026, 6, 2, 8, 0))).toBe('early');
   });
 
-  it('uses an accommodation check-in as its time', () => {
+  it('uses a stay check-in time as its time', () => {
     const day = makeDay([
-      { type: 'accommodation', id: 'hotel', name: 'Seaside Inn', checkIn: '15:00' },
+      { category: 'stay' as const, id: 'hotel', name: 'Seaside Inn', time: '15:00' },
     ]);
     expect(nextItemId(day, new Date(2026, 6, 2, 12, 0))).toBe('hotel');
   });
 
   it('falls back to the first item when no item has a time', () => {
     const day = makeDay([
-      { type: 'note', id: 'n1', text: 'remember sunscreen' },
-      { type: 'location', id: 'l1', name: 'Lookout' },
+      { category: 'note' as const, id: 'n1', name: 'remember sunscreen' },
+      { category: 'location' as const, id: 'l1', name: 'Lookout' },
     ]);
     expect(nextItemId(day, new Date(2026, 6, 2, 12, 0))).toBe('n1');
   });
 
   it('returns null when timed items have all passed', () => {
     const day = makeDay([
-      { type: 'activity', id: 'a', name: 'Breakfast', time: '08:00' },
-      { type: 'activity', id: 'b', name: 'Lunch', time: '12:00' },
+      { category: 'activity' as const, id: 'a', name: 'Breakfast', time: '08:00' },
+      { category: 'activity' as const, id: 'b', name: 'Lunch', time: '12:00' },
     ]);
     expect(nextItemId(day, new Date(2026, 6, 2, 23, 0))).toBeNull();
   });

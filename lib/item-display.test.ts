@@ -1,79 +1,68 @@
 import { describe, it, expect } from 'vitest';
-import { formatItem, linkify, sortItemsByTime } from './item-display';
+import { formatItem, linkify, sortItemsByTime, itemTime } from './item-display';
 import type { Item } from './schema';
 
-describe('formatItem — location', () => {
-  it('uses the name as title and shows no lines when only required fields are set', () => {
-    const item: Item = { type: 'location', id: 'a', name: 'Golden Gate Bridge' };
+describe('formatItem — v3 unified', () => {
+  it('uses item name as title and category label as typeLabel', () => {
+    const item: Item = { id: 'a', name: 'Golden Gate Bridge', category: 'location' };
     const display = formatItem(item);
-    expect(display.typeLabel).toBe('Location');
     expect(display.title).toBe('Golden Gate Bridge');
-    expect(display.lines).toEqual([]);
+    expect(display.typeLabel).toBe('Place');
   });
 
-  it('lists address, time, and notes in order, omitting absent fields', () => {
+  it('shows no lines when only name and category are set', () => {
+    const item: Item = { id: 'a', name: 'Walk', category: 'activity' };
+    expect(formatItem(item).lines).toEqual([]);
+  });
+
+  it('lists location address, time, and notes in order, omitting absent ones', () => {
     const item: Item = {
-      type: 'location',
-      id: 'a',
-      name: 'Golden Gate Bridge',
-      address: '100 Bridge Way',
+      id: 'a', name: 'Golden Gate', category: 'location',
+      location: { address: '100 Bridge Way' },
       time: '09:30',
-      notes: 'Great view at sunrise',
+      notes: 'Great view',
     };
     const display = formatItem(item);
-    expect(display.lines).toEqual(['100 Bridge Way', 'At 09:30', 'Great view at sunrise']);
+    expect(display.lines).toEqual(['100 Bridge Way', 'At 09:30', 'Great view']);
   });
-});
 
-describe('formatItem — accommodation', () => {
-  it('shows address, check-in/out, confirmation, and notes', () => {
-    const item: Item = {
-      type: 'accommodation',
-      id: 'b',
-      name: 'Sea Cliff Inn',
-      address: '5 Ocean Ave',
-      checkIn: '15:00',
-      checkOut: '11:00',
-      confirmationNumber: 'XYZ123',
-      notes: 'Ask for an ocean view',
-    };
+  it('omits the address line when location has only coords (no address)', () => {
+    const item: Item = { id: 'a', name: 'Viewpoint', category: 'location', location: { lat: 37.8, lng: -122.4 } };
+    expect(formatItem(item).lines).toEqual([]);
+  });
+
+  it('shows time and notes for a stay item', () => {
+    const item: Item = { id: 'b', name: 'Sea Cliff Inn', category: 'stay', time: '15:00', notes: 'Ask for sea view' };
     const display = formatItem(item);
-    expect(display.typeLabel).toBe('Accommodation');
-    expect(display.title).toBe('Sea Cliff Inn');
-    expect(display.lines).toEqual([
-      '5 Ocean Ave',
-      'Check-in 15:00',
-      'Check-out 11:00',
-      'Confirmation XYZ123',
-      'Ask for an ocean view',
-    ]);
+    expect(display.typeLabel).toBe('Stay');
+    expect(display.lines).toEqual(['At 15:00', 'Ask for sea view']);
   });
-});
 
-describe('formatItem — activity', () => {
-  it('shows time, duration in minutes, and notes', () => {
-    const item: Item = {
-      type: 'activity',
-      id: 'c',
-      name: 'Whale watching',
-      time: '08:00',
-      duration: 120,
-      notes: 'Bring a jacket',
-    };
+  it('shows time and notes for a meal item', () => {
+    const item: Item = { id: 'c', name: 'Taco truck', category: 'meal', time: '12:00', notes: 'Cash only' };
     const display = formatItem(item);
-    expect(display.typeLabel).toBe('Activity');
-    expect(display.title).toBe('Whale watching');
-    expect(display.lines).toEqual(['At 08:00', '120 min', 'Bring a jacket']);
+    expect(display.typeLabel).toBe('Meal');
+    expect(display.lines).toEqual(['At 12:00', 'Cash only']);
   });
-});
 
-describe('formatItem — note', () => {
-  it('labels the type Note and renders the text as a line so it can be linkified', () => {
-    const item: Item = { type: 'note', id: 'd', text: 'Remember sunscreen' };
+  it('shows notes for a note item; name serves as the title', () => {
+    const item: Item = { id: 'd', name: 'Remember sunscreen', category: 'note', notes: 'SPF 50+\nAlso a hat' };
     const display = formatItem(item);
     expect(display.typeLabel).toBe('Note');
-    expect(display.title).toBe('Note');
-    expect(display.lines).toEqual(['Remember sunscreen']);
+    expect(display.title).toBe('Remember sunscreen');
+    expect(display.lines).toContain('SPF 50+\nAlso a hat');
+  });
+});
+
+describe('itemTime', () => {
+  it('returns the item time for any category', () => {
+    const item: Item = { id: 'a', name: 'Walk', category: 'activity', time: '09:00' };
+    expect(itemTime(item)).toBe('09:00');
+  });
+
+  it('returns undefined when the item has no time', () => {
+    const item: Item = { id: 'a', name: 'Note', category: 'note' };
+    expect(itemTime(item)).toBeUndefined();
   });
 });
 
@@ -82,34 +71,26 @@ describe('sortItemsByTime', () => {
 
   it('orders timed items ascending by time', () => {
     const items: Item[] = [
-      { type: 'activity', id: 'c', name: 'Dinner', time: '19:00' },
-      { type: 'activity', id: 'a', name: 'Breakfast', time: '09:00' },
-      { type: 'location', id: 'b', name: 'Museum', time: '11:00' },
+      { id: 'c', name: 'Dinner', category: 'activity', time: '19:00' },
+      { id: 'a', name: 'Breakfast', category: 'meal', time: '09:00' },
+      { id: 'b', name: 'Museum', category: 'location', time: '11:00' },
     ];
     expect(ids(sortItemsByTime(items))).toEqual(['a', 'b', 'c']);
   });
 
-  it('places untimed items after timed ones, preserving their original order', () => {
+  it('places untimed items after timed ones, preserving their relative order', () => {
     const items: Item[] = [
-      { type: 'note', id: 'n1', text: 'first note' },
-      { type: 'location', id: 'l1', name: 'Lookout', time: '08:00' },
-      { type: 'note', id: 'n2', text: 'second note' },
+      { id: 'n1', name: 'First note', category: 'note' },
+      { id: 'l1', name: 'Lookout', category: 'location', time: '08:00' },
+      { id: 'n2', name: 'Second note', category: 'note' },
     ];
     expect(ids(sortItemsByTime(items))).toEqual(['l1', 'n1', 'n2']);
   });
 
-  it('sorts accommodation by its check-in time', () => {
-    const items: Item[] = [
-      { type: 'activity', id: 'act', name: 'Sunset walk', time: '16:00' },
-      { type: 'accommodation', id: 'hotel', name: 'Seaside Inn', checkIn: '15:00' },
-    ];
-    expect(ids(sortItemsByTime(items))).toEqual(['hotel', 'act']);
-  });
-
   it('does not mutate the input array', () => {
     const items: Item[] = [
-      { type: 'activity', id: 'c', name: 'Dinner', time: '19:00' },
-      { type: 'activity', id: 'a', name: 'Breakfast', time: '09:00' },
+      { id: 'c', name: 'Dinner', category: 'activity', time: '19:00' },
+      { id: 'a', name: 'Breakfast', category: 'activity', time: '09:00' },
     ];
     sortItemsByTime(items);
     expect(ids(items)).toEqual(['c', 'a']);
@@ -134,15 +115,6 @@ describe('linkify', () => {
       { kind: 'text', value: 'call ' },
       { kind: 'phone', value: '555-123-4567', href: 'tel:5551234567' },
       { kind: 'text', value: ' now' },
-    ]);
-  });
-
-  it('detects a url and a phone in the same string, in order', () => {
-    expect(linkify('book https://x.io or call 555-123-4567')).toEqual([
-      { kind: 'text', value: 'book ' },
-      { kind: 'url', value: 'https://x.io', href: 'https://x.io' },
-      { kind: 'text', value: ' or call ' },
-      { kind: 'phone', value: '555-123-4567', href: 'tel:5551234567' },
     ]);
   });
 

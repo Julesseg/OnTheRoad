@@ -10,8 +10,8 @@ export function tripRouteCoords(trip: Trip): Coords[] {
   const out: Coords[] = [];
   for (const day of trip.days) {
     for (const item of day.items) {
-      if (item.type === 'location' && typeof item.lat === 'number' && typeof item.lng === 'number') {
-        out.push({ lat: item.lat, lng: item.lng });
+      if (item.location?.lat != null && item.location?.lng != null) {
+        out.push({ lat: item.location.lat, lng: item.location.lng });
       }
     }
   }

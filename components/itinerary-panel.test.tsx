@@ -29,13 +29,11 @@ vi.mock('@expo/ui/swift-ui', async () => {
     onPress?: () => void;
     systemImage?: string;
   }) =>
-    label
-      ? React.createElement(
-          'button',
-          { onClick: onPress, 'data-system-image': systemImage },
-          label,
-        )
-      : null;
+    React.createElement(
+      'button',
+      { onClick: onPress, 'data-system-image': systemImage },
+      label ?? null,
+    );
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
   const ForEach = pass('div');
@@ -99,7 +97,7 @@ vi.mock('@/lib/store', () => ({
 
 const TRIP: Trip = {
   id: 'trip-1',
-  schemaVersion: 2,
+  schemaVersion: 3,
   title: 'Pacific Coast Highway',
   startDate: '2026-07-01',
   endDate: '2026-07-02',
@@ -107,7 +105,7 @@ const TRIP: Trip = {
     {
       id: 'day-1',
       date: '2026-07-01',
-      items: [{ type: 'activity', id: 'a1', name: 'Lunch', time: '12:00' }],
+      items: [{ id: 'a1', name: 'Lunch', category: 'activity', time: '12:00' }],
     },
     { id: 'day-2', date: '2026-07-02', items: [] },
   ],
@@ -145,14 +143,17 @@ describe('ItineraryPanel', () => {
     });
   });
 
-  it('renders each add-item option with its own SF Symbol icon next to its label', () => {
+  it('the add (+) button opens the editor on the create path for its day, with no category (defaults to activity)', () => {
     render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
-    const iconFor = (label: string) =>
-      screen.getAllByRole('button', { name: label })[0].getAttribute('data-system-image');
-    expect(iconFor('Place')).toBe('mappin.circle.fill');
-    expect(iconFor('Stay')).toBe('bed.double.fill');
-    expect(iconFor('Activity')).toBe('figure.hiking');
-    expect(iconFor('Note')).toBe('note.text');
+    const addButtons = screen
+      .getAllByRole('button')
+      .filter((b) => b.getAttribute('data-system-image') === 'plus');
+    expect(addButtons).toHaveLength(2); // one per day, no category menu
+    fireEvent.click(addButtons[0]); // Day 1
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/trip/[id]/item',
+      params: { id: 'trip-1', dayId: 'day-1' },
+    });
   });
 
   it('renders a NEXT UP pill on the item row when In progress with an upcoming timed item', () => {

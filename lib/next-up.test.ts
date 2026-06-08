@@ -5,7 +5,7 @@ import { resolveNextUp } from './next-up';
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
   return {
     id: 'trip-1',
-    schemaVersion: 2,
+    schemaVersion: 3,
     title: 'Pacific Coast Highway',
     startDate: '2026-07-01',
     endDate: '2026-07-03',
@@ -50,8 +50,8 @@ describe('resolveNextUp', () => {
           id: 'day-2',
           date: '2026-07-02',
           items: [
-            { type: 'activity', id: 'a1', name: 'Breakfast', time: '09:00' },
-            { type: 'location', id: 'l1', name: 'Beach', time: '11:00' },
+            { category: 'activity' as const, id: 'a1', name: 'Breakfast', time: '09:00' },
+            { category: 'location' as const, id: 'l1', name: 'Beach', time: '11:00' },
           ],
         },
         { id: 'day-3', date: '2026-07-03', items: [] },
@@ -70,8 +70,8 @@ describe('resolveNextUp', () => {
           id: 'day-2',
           date: '2026-07-02',
           items: [
-            { type: 'note', id: 'n1', text: 'remember sunscreen' },
-            { type: 'location', id: 'l1', name: 'Lookout' }, // no time
+            { category: 'note' as const, id: 'n1', name: 'remember sunscreen' },
+            { category: 'location' as const, id: 'l1', name: 'Lookout' }, // no time
           ],
         },
         { id: 'day-3', date: '2026-07-03', items: [] },
@@ -90,8 +90,8 @@ describe('resolveNextUp', () => {
           id: 'day-2',
           date: '2026-07-02',
           items: [
-            { type: 'activity', id: 'a1', name: 'Breakfast', time: '08:00' },
-            { type: 'activity', id: 'a2', name: 'Lunch', time: '12:00' },
+            { category: 'activity' as const, id: 'a1', name: 'Breakfast', time: '08:00' },
+            { category: 'activity' as const, id: 'a2', name: 'Lunch', time: '12:00' },
           ],
         },
       ],
