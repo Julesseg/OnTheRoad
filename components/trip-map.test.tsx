@@ -1,7 +1,9 @@
+import React from 'react';
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import type { Trip } from '@/lib/schema';
-import { TripMap } from './trip-map';
+import type { Viewport } from '@/lib/trip-route';
+import { TripMap, type TripMapHandle } from './trip-map';
 
 function makeTrip(items: Trip['days'][number]['items']): Trip {
   return {
@@ -84,5 +86,29 @@ describe('TripMap', () => {
     ]);
     rerender(<TripMap trip={trip} />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
+  });
+
+  it('exposes recenter() that re-applies the current viewport', () => {
+    const ref = React.createRef<TripMapHandle>();
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
+    ]);
+    const vpA: Viewport = { coordinates: { latitude: 41, longitude: -115 }, zoom: 8 };
+    const vpB: Viewport = { coordinates: { latitude: 50, longitude: -100 }, zoom: 6 };
+
+    const { rerender } = render(<TripMap ref={ref} trip={trip} viewport={vpA} />);
+    // useEffect fires on mount (coords key is set) and calls setCameraPosition(vpA).
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
+
+    // Change the viewport prop without changing coords — the useEffect is keyed on
+    // coords only, so it won't fire again; the camera stays at vpA.
+    rerender(<TripMap ref={ref} trip={trip} viewport={vpB} />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
+
+    // recenter() re-applies the current (vpB) viewport — simulating a drift recovery.
+    act(() => ref.current!.recenter());
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('50,-100');
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-zoom')).toBe('6');
   });
 });

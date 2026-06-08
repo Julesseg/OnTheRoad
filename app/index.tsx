@@ -1,9 +1,12 @@
-import React, { useCallback, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { GlassView } from 'expo-glass-effect';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTripStore } from '@/lib/store';
-import { TripMap } from '@/components/trip-map';
+import { TripMap, type TripMapHandle } from '@/components/trip-map';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { effectiveTripId } from '@/lib/active-trip';
 import { framedViewport } from '@/lib/framed-viewport';
 import { tripRouteCoords } from '@/lib/trip-route';
@@ -59,15 +62,48 @@ export default function HomeScreen() {
   const coords = todayCoords.length > 0 ? todayCoords : fullCoords;
   const viewport = framedViewport(coords, PANEL_FRACTION);
 
+  // The map is interactive — pan, pinch-zoom, two-finger rotate, and two-finger
+  // pitch all activate as a bundle. expo-maps' AppleMaps exposes no per-gesture
+  // toggle (AppleMapsUISettings only covers compass/my-location/scale/pitch
+  // buttons), so the full standard MapKit gesture set rides along. This is
+  // intentional: "interactive map" here means a normal MapKit map.
+  const tripMapRef = useRef<TripMapHandle>(null);
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={styles.container}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <TripMap trip={trip} viewport={viewport} />
+      <View style={StyleSheet.absoluteFill}>
+        <TripMap ref={tripMapRef} trip={trip} viewport={viewport} />
       </View>
+      {/* Manual pan/zoom persists across /days sheet re-presents and resets only
+          when the route coords change (trip switch or itinerary edit). Recenter
+          undoes a manual pan by re-applying the framed viewport. Hidden when no
+          trip is loaded so it can't snap the camera to the world-view default. */}
+      {trip && (
+        <Pressable
+          style={[styles.recenterBtn, { top: insets.top + 12 }]}
+          onPress={() => tripMapRef.current?.recenter()}
+          accessibilityLabel="Recenter"
+        >
+          {/* Liquid glass to match the native MapKit controls (iOS 26+). */}
+          <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
+          <IconSymbol name="scope" size={22} color="#007AFF" />
+        </Pressable>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  recenterBtn: {
+    position: 'absolute',
+    left: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
