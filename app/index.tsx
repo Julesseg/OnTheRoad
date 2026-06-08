@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTripStore } from '@/lib/store';
@@ -85,8 +85,9 @@ export default function HomeScreen() {
           onPress={() => tripMapRef.current?.recenter()}
           accessibilityLabel="Recenter"
         >
-          <BlurView tint="regular" intensity={80} style={StyleSheet.absoluteFill} />
-          <IconSymbol name="scope" size={22} color="#000" />
+          {/* Liquid glass to match the native MapKit controls (iOS 26+). */}
+          <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
+          <IconSymbol name="scope" size={22} color="#007AFF" />
         </Pressable>
       )}
     </View>
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   recenterBtn: {
     position: 'absolute',
-    right: 16,
+    left: 16,
     width: 44,
     height: 44,
     borderRadius: 22,
