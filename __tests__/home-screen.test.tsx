@@ -32,7 +32,7 @@ function makeTrip(
 ): Trip {
   return {
     id,
-    schemaVersion: 2,
+    schemaVersion: 3,
     title: 'Test trip',
     startDate: dates.startDate,
     endDate: dates.endDate,
@@ -65,8 +65,8 @@ const storeWith = (overrides: object = {}) => {
 };
 
 const TRIP_ITEMS: Trip['days'][number]['items'] = [
-  { type: 'location', id: 'a', name: 'A', lat: 40, lng: -120 },
-  { type: 'location', id: 'b', name: 'B', lat: 42, lng: -110 },
+  { category: 'location', id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+  { category: 'location', id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
 ];
 
 afterEach(() => vi.restoreAllMocks());

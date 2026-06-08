@@ -91,8 +91,8 @@ describe('TripMap', () => {
   it('exposes recenter() that re-applies the current viewport', () => {
     const ref = React.createRef<TripMapHandle>();
     const trip = makeTrip([
-      { type: 'location', id: 'a', name: 'A', lat: 40, lng: -120 },
-      { type: 'location', id: 'b', name: 'B', lat: 42, lng: -110 },
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
     ]);
     const vpA: Viewport = { coordinates: { latitude: 41, longitude: -115 }, zoom: 8 };
     const vpB: Viewport = { coordinates: { latitude: 50, longitude: -100 }, zoom: 6 };
