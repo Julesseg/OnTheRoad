@@ -77,15 +77,18 @@ export default function HomeScreen() {
       </View>
       {/* Manual pan/zoom persists across /days sheet re-presents and resets only
           when the route coords change (trip switch or itinerary edit). Recenter
-          undoes a manual pan by re-applying the framed viewport. */}
-      <Pressable
-        style={[styles.recenterBtn, { top: insets.top + 12 }]}
-        onPress={() => tripMapRef.current?.recenter()}
-        accessibilityLabel="Recenter"
-      >
-        <BlurView tint="regular" intensity={80} style={StyleSheet.absoluteFill} />
-        <IconSymbol name="scope" size={22} color="#000" />
-      </Pressable>
+          undoes a manual pan by re-applying the framed viewport. Hidden when no
+          trip is loaded so it can't snap the camera to the world-view default. */}
+      {trip && (
+        <Pressable
+          style={[styles.recenterBtn, { top: insets.top + 12 }]}
+          onPress={() => tripMapRef.current?.recenter()}
+          accessibilityLabel="Recenter"
+        >
+          <BlurView tint="regular" intensity={80} style={StyleSheet.absoluteFill} />
+          <IconSymbol name="scope" size={22} color="#000" />
+        </Pressable>
+      )}
     </View>
   );
 }

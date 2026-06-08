@@ -64,21 +64,32 @@ const storeWith = (overrides: object = {}) => {
   return state;
 };
 
+const TRIP_ITEMS: Trip['days'][number]['items'] = [
+  { type: 'location', id: 'a', name: 'A', lat: 40, lng: -120 },
+  { type: 'location', id: 'b', name: 'B', lat: 42, lng: -110 },
+];
+
 afterEach(() => vi.restoreAllMocks());
 
 describe('HomeScreen', () => {
-  it('renders a recenter button over the map', async () => {
-    storeWith({});
+  it('renders a recenter button when a trip is loaded', async () => {
+    const trip = makeTrip('trip-1', TRIP_ITEMS);
+    const summary = makeSummary(trip);
+    storeWith({ trips: [summary], loadedTrips: { [trip.id]: trip }, activeTripId: trip.id });
     const { default: HomeScreen } = await import('@/app/index');
     render(<HomeScreen />);
     expect(screen.getByLabelText('Recenter')).toBeInTheDocument();
   });
 
+  it('does not render the recenter button when no trip is loaded', async () => {
+    storeWith({});
+    const { default: HomeScreen } = await import('@/app/index');
+    render(<HomeScreen />);
+    expect(screen.queryByLabelText('Recenter')).not.toBeInTheDocument();
+  });
+
   it('tapping the recenter button re-applies the framed viewport', async () => {
-    const trip = makeTrip('trip-1', [
-      { type: 'location', id: 'a', name: 'A', lat: 40, lng: -120 },
-      { type: 'location', id: 'b', name: 'B', lat: 42, lng: -110 },
-    ]);
+    const trip = makeTrip('trip-1', TRIP_ITEMS);
     const summary = makeSummary(trip);
 
     storeWith({
@@ -96,10 +107,10 @@ describe('HomeScreen', () => {
     expect(centerAfterLoad).not.toBe('0,0');
     expect(centerAfterLoad).not.toBe('');
 
-    // Simulate user panning away by recording current state, then tap recenter.
+    // Recenter can be tapped without crashing; camera stays at the framed viewport.
+    // (Drift→recenter correctness is covered by the TripMap.recenter() unit test.)
     act(() => fireEvent.click(screen.getByLabelText('Recenter')));
 
-    // Camera should be (re-)applied to the framed viewport.
     expect(map.getAttribute('data-center')).toBe(centerAfterLoad);
     expect(map.getAttribute('data-zoom')).not.toBe('');
   });
