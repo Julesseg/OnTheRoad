@@ -7,6 +7,7 @@ import { newId } from '@/lib/id';
 import { ItemEditor } from '@/components/item-editor';
 import type { ItemCategory, Item } from '@/lib/schema';
 import { ItemCategorySchema } from '@/lib/schema';
+import { dayIdForDate } from '@/lib/trip-days';
 
 function asCategory(value: string | string[] | undefined): ItemCategory | undefined {
   const result = ItemCategorySchema.safeParse(value);
@@ -20,7 +21,7 @@ export default function ItemEditorScreen() {
     itemId?: string;
     category?: string;
   }>();
-  const { loadedTrips, loadTripById, upsertItem, deleteItem } = useTripStore();
+  const { loadedTrips, loadTripById, upsertItem, deleteItem, moveItem } = useTripStore();
   const [newItemId] = useState(newId);
 
   useEffect(() => {
@@ -34,8 +35,13 @@ export default function ItemEditorScreen() {
   // On the create path, a category param primes the picker; on edit it's ignored.
   const initialCategory: ItemCategory | undefined = existing?.category ?? asCategory(category);
 
-  function handleSubmit(item: Item) {
+  function handleSubmit(item: Item, date: string) {
     upsertItem(id, dayId, item);
+    if (date && date !== day!.date) {
+      const [y, m, d] = date.split('-').map(Number);
+      const targetDayId = dayIdForDate(trip!, new Date(y, m - 1, d, 12, 0, 0));
+      if (targetDayId) moveItem(id, dayId, targetDayId, item.id);
+    }
     router.back();
   }
 
@@ -70,6 +76,8 @@ export default function ItemEditorScreen() {
       itemId={existing ? existing.id : newItemId}
       initialItem={existing ?? undefined}
       defaultCategory={initialCategory}
+      trip={trip}
+      initialDate={day.date}
       onSubmit={handleSubmit}
       onDelete={existing ? handleDelete : undefined}
       onCancel={() => router.back()}
