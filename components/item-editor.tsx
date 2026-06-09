@@ -16,6 +16,8 @@ import {
   Image,
   HStack,
   VStack,
+  LabeledContent,
+  Divider,
   useNativeState,
 } from '@expo/ui/swift-ui';
 import {
@@ -25,7 +27,9 @@ import {
   pickerStyle,
   tag,
   accessibilityLabel,
+  multilineTextAlignment,
   labelsHidden,
+  background,
   frame,
   onTapGesture,
 } from '@expo/ui/swift-ui/modifiers';
@@ -76,13 +80,10 @@ function dateToTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function FieldRow({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <VStack alignment="leading" spacing={3}>
-      <Text modifiers={[font({ size: 13 }), foregroundStyle(error ? ERROR_RED : LABEL_GRAY)]}>{label}</Text>
-      {children}
-    </VStack>
-  );
+// Native form rows label themselves; when a field is invalid we tint its
+// leading label red to match the error message in the section footer.
+function fieldLabel(label: string, error?: string): string | React.ReactNode {
+  return error ? <Text modifiers={[foregroundStyle(ERROR_RED)]}>{label}</Text> : label;
 }
 
 function FieldError({ message }: { message?: string }) {
@@ -126,31 +127,34 @@ function TimeRow({
 }) {
   if (!value) {
     return (
-      <FieldRow label="Time" error={error}>
-        <HStack modifiers={[frame({ maxWidth: Infinity, alignment: 'center' })]}>
-          <Button label="Add time" onPress={() => onChange('09:00')} />
-        </HStack>
-      </FieldRow>
+      <LabeledContent label={fieldLabel('Time', error)}>
+        <Button label="Add time" onPress={() => onChange('09:00')} />
+      </LabeledContent>
     );
   }
   return (
-    <FieldRow label="Time" error={error}>
-      <HStack spacing={12} modifiers={[frame({ maxWidth: Infinity, alignment: 'center' })]}>
-        <DatePicker
-          title="Time"
-          selection={timeToDate(value)}
-          displayedComponents={['hourAndMinute']}
-          onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('compact'), labelsHidden()]}
-        />
-        <Button
-          label=""
-          systemImage="xmark.circle.fill"
-          onPress={() => onChange('')}
-          modifiers={[accessibilityLabel('Clear time'), foregroundStyle(LABEL_GRAY)]}
-        />
-      </HStack>
-    </FieldRow>
+    // The compact picker makes the Form drop this row's bottom separator, so we
+    // draw our own line just below it to keep the divider down to Notes.
+    <VStack spacing={14}>
+      <LabeledContent label={fieldLabel('Time', error)}>
+        <HStack spacing={8}>
+          <DatePicker
+            title="Time"
+            selection={timeToDate(value)}
+            displayedComponents={['hourAndMinute']}
+            onDateChange={(d) => onChange(dateToTime(d))}
+            modifiers={[datePickerStyle('compact'), labelsHidden()]}
+          />
+          <Button
+            label=""
+            systemImage="xmark.circle.fill"
+            onPress={() => onChange('')}
+            modifiers={[accessibilityLabel('Clear time'), foregroundStyle(LABEL_GRAY)]}
+          />
+        </HStack>
+      </LabeledContent>
+      <Divider modifiers={[frame({ height: 1 })]} />
+    </VStack>
   );
 }
 
@@ -226,51 +230,48 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           <Section
             footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
           >
-            <FieldRow label="Category">
-              <Picker
-                label="Category"
-                selection={category}
-                onSelectionChange={(v) => {
-                  const cat = v as ItemCategory;
-                  setCategory(cat);
-                  setValue('category', cat);
-                }}
-                modifiers={[pickerStyle('palette'), labelsHidden()]}
-              >
-                {ALL_CATEGORIES.map((cat) => (
-                  <Image
-                    key={cat}
-                    systemName={itemIdentity(cat).symbol}
-                    size={20}
-                    modifiers={[tag(cat), accessibilityLabel(itemIdentity(cat).label)]}
-                  />
-                ))}
-              </Picker>
-            </FieldRow>
+            <Picker
+              label="Category"
+              selection={category}
+              onSelectionChange={(v) => {
+                const cat = v as ItemCategory;
+                setCategory(cat);
+                setValue('category', cat);
+              }}
+              modifiers={[pickerStyle('palette')]}
+            >
+              {ALL_CATEGORIES.map((cat) => (
+                <Image
+                  key={cat}
+                  systemName={itemIdentity(cat).symbol}
+                  size={20}
+                  modifiers={[tag(cat), accessibilityLabel(itemIdentity(cat).label)]}
+                />
+              ))}
+            </Picker>
 
             {trip && date ? (
-              <FieldRow label="Date">
-                <DatePicker
-                  title="Date"
-                  selection={parseLocalDate(date)}
-                  displayedComponents={['date']}
-                  range={{
-                    start: parseLocalDate(trip.startDate, 0),
-                    end: parseLocalDate(trip.endDate, 23),
-                  }}
-                  onDateChange={(d) => setDate(localDateString(d))}
-                  modifiers={[datePickerStyle('compact'), labelsHidden()]}
-                />
-              </FieldRow>
+              <DatePicker
+                title="Date"
+                selection={parseLocalDate(date)}
+                displayedComponents={['date']}
+                range={{
+                  start: parseLocalDate(trip.startDate, 0),
+                  end: parseLocalDate(trip.endDate, 23),
+                }}
+                onDateChange={(d) => setDate(localDateString(d))}
+                modifiers={[datePickerStyle('compact')]}
+              />
             ) : null}
 
-            <FieldRow label="Name" error={errors.name?.message}>
+            <LabeledContent label={fieldLabel('Name', errors.name?.message)}>
               <TextField
                 text={nameState}
                 placeholder="What is it?"
                 onTextChange={(t) => setValue('name', t)}
+                modifiers={[multilineTextAlignment('trailing')]}
               />
-            </FieldRow>
+            </LabeledContent>
 
             <TimeRow
               value={time as string}
@@ -278,7 +279,8 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               error={errors.time?.message}
             />
 
-            <FieldRow label="Notes">
+            <VStack alignment="leading" spacing={8}>
+              <Text modifiers={[font({ size: 16 })]}>Notes</Text>
               <TextField
                 text={notesState}
                 placeholder="Anything else to remember"
@@ -286,7 +288,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                 axis="vertical"
               />
               <NoteLinks text={notesText as string} />
-            </FieldRow>
+            </VStack>
           </Section>
 
           {initialItem && onDelete ? (
