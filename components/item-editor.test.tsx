@@ -149,6 +149,9 @@ function save() {
 }
 
 describe('ItemEditor', () => {
+  const TRIP = { startDate: '2025-06-01', endDate: '2025-06-07' };
+  const INIT_DATE = '2025-06-03';
+
   it('renders name and notes fields for a new item', () => {
     render(<ItemEditor itemId="x" onSubmit={() => {}} />);
     expect(screen.getByPlaceholderText('What is it?')).toBeInTheDocument();
@@ -256,9 +259,6 @@ describe('ItemEditor', () => {
   });
 
   // --- Date picker (issue #75) ---
-
-  const TRIP = { startDate: '2025-06-01', endDate: '2025-06-07' };
-  const INIT_DATE = '2025-06-03';
 
   it('renders a date picker with selection matching initialDate', () => {
     render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
