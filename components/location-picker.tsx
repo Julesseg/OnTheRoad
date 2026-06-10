@@ -1,14 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, useColorScheme } from 'react-native';
+import { View, useColorScheme, useWindowDimensions } from 'react-native';
 import { Stack } from 'expo-router';
 import {
   Host,
   Form,
+  HStack,
+  VStack,
   Section,
+  Spacer,
   Button,
   Text,
   TextField,
+  RNHostView,
 } from '@expo/ui/swift-ui';
+import {
+  accessibilityLabel,
+  animation,
+  Animation,
+  buttonStyle,
+  contentTransition,
+  font,
+  foregroundStyle,
+  listRowBackground,
+  listRowSeparator,
+  tint,
+} from '@expo/ui/swift-ui/modifiers';
 
 import { parseLatLng, resolveMapsUrl } from '@/lib/coords';
 import { searchPlaces, type PhotonResult } from '@/lib/photon';
@@ -41,10 +57,11 @@ function classifyInput(text: string): InputKind {
 
 export function LocationPicker({ initialLocation, onConfirm, onCancel }: LocationPickerProps) {
   const colorScheme = useColorScheme();
+  const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [inputKind, setInputKind] = useState<InputKind>(null);
   const [photonResults, setPhotonResults] = useState<PhotonResult[]>([]);
-  const [showPin, setShowPin] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(
     initialLocation?.lat != null && initialLocation?.lng != null
       ? { lat: initialLocation.lat, lng: initialLocation.lng }
@@ -53,6 +70,8 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
 
   const abortRef = useRef<AbortController | null>(null);
   const resolveAbortRef = useRef<AbortController | null>(null);
+  const mapRef = useRef<AppleMaps.MapView>(null);
+  const zoomRef = useRef(12);
 
   // Resolve maps URL asynchronously
   useEffect(() => {
@@ -110,54 +129,18 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
     setInputKind(kind);
   }
 
-  const center =
-    pin ??
-    (initialLocation?.lat != null && initialLocation?.lng != null
-      ? { lat: initialLocation.lat, lng: initialLocation.lng }
-      : FALLBACK_CENTER);
+  // Captured once: camera moves after mount go through the ref (animated),
+  // so the prop must not re-derive from the pin and snap the camera.
+  const [initialCenter] = useState(
+    () =>
+      pin ??
+      (initialLocation?.lat != null && initialLocation?.lng != null
+        ? { lat: initialLocation.lat, lng: initialLocation.lng }
+        : FALLBACK_CENTER),
+  );
 
-  if (showPin) {
-    return (
-      <>
-        <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-        <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button accessibilityLabel="Back" onPress={() => setShowPin(false)}>
-            Back
-          </Stack.Toolbar.Button>
-        </Stack.Toolbar>
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            accessibilityLabel="Use pin"
-            variant="prominent"
-            disabled={!pin}
-            onPress={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng })}
-          >
-            Use pin
-          </Stack.Toolbar.Button>
-        </Stack.Toolbar>
-        <View style={{ flex: 1 }}>
-          <AppleMaps.View
-            style={{ flex: 1 }}
-            cameraPosition={{
-              coordinates: { latitude: center.lat, longitude: center.lng },
-              zoom: 12,
-            }}
-            markers={
-              pin
-                ? [{ coordinates: { latitude: pin.lat, longitude: pin.lng }, systemImage: 'mappin' }]
-                : []
-            }
-            onMapClick={(event) => {
-              const { latitude, longitude } = event.coordinates;
-              if (typeof latitude === 'number' && typeof longitude === 'number') {
-                setPin({ lat: latitude, lng: longitude });
-              }
-            }}
-          />
-        </View>
-      </>
-    );
-  }
+  // Square map window sized to the Form row's usable width.
+  const mapSide = Math.min(width - 72, 500);
 
   return (
     <>
@@ -171,13 +154,103 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
       ) : null}
 
       <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-        <Form>
+        {/* Keyed to map visibility and pin presence so their rows animate in and out. */}
+        <Form
+          modifiers={[animation(Animation.spring({ duration: 0.35 }), (showMap ? 1 : 0) + (pin ? 2 : 0))]}
+        >
           <Section>
-            <TextField
-              placeholder="Search or paste a location"
-              onTextChange={handleQueryChange}
-            />
+            <HStack spacing={8}>
+              <TextField
+                placeholder="Search or paste a location"
+                onTextChange={handleQueryChange}
+                // Typing means searching: collapse the map so results land under the field.
+                onFocusChange={(focused) => {
+                  if (focused) setShowMap(false);
+                }}
+              />
+              <Button
+                label=""
+                systemImage={showMap ? 'mappin.and.ellipse.circle.fill' : 'mappin.and.ellipse.circle'}
+                onPress={() => setShowMap((s) => !s)}
+                modifiers={[
+                  accessibilityLabel('Drop a pin'),
+                  buttonStyle('borderless'),
+                  tint(showMap ? '#007AFF' : '#8E8E93'),
+                ]}
+              />
+            </HStack>
+            {showMap ? (
+              <RNHostView matchContents>
+                <View style={{ width: mapSide, height: mapSide, borderRadius: 12, overflow: 'hidden' }}>
+                  <AppleMaps.View
+                    ref={mapRef}
+                    style={{ flex: 1 }}
+                    cameraPosition={{
+                      coordinates: { latitude: initialCenter.lat, longitude: initialCenter.lng },
+                      zoom: 12,
+                    }}
+                    markers={
+                      pin
+                        ? [{ coordinates: { latitude: pin.lat, longitude: pin.lng }, systemImage: 'mappin' }]
+                        : []
+                    }
+                    onCameraMove={(event) => {
+                      zoomRef.current = event.zoom;
+                    }}
+                    onMapClick={(event) => {
+                      const { latitude, longitude } = event.coordinates;
+                      if (typeof latitude === 'number' && typeof longitude === 'number') {
+                        setPin({ lat: latitude, lng: longitude });
+                        // Imperative move animates natively (withAnimation); keep the
+                        // user's zoom level rather than resetting it.
+                        mapRef.current?.setCameraPosition({
+                          coordinates: { latitude, longitude },
+                          zoom: zoomRef.current,
+                        });
+                      }
+                    }}
+                  />
+                </View>
+              </RNHostView>
+            ) : null}
           </Section>
+
+          {showMap && pin ? (
+            <Section modifiers={[listRowBackground('#00000000'), listRowSeparator('hidden')]}>
+              <HStack>
+                <Spacer />
+                <Button
+                  onPress={() => onConfirm({ lat: pin.lat, lng: pin.lng })}
+                  modifiers={[buttonStyle('glassProminent')]}
+                >
+                  <HStack spacing={10}>
+                    <Text>Use pin</Text>
+                    <VStack alignment="center" spacing={1}>
+                      <Text
+                        modifiers={[
+                          font({ size: 13 }),
+                          contentTransition('numericText'),
+                          animation(Animation.default, pin.lat),
+                        ]}
+                      >
+                        {pin.lat.toFixed(3)}
+                      </Text>
+                      <Text
+                        modifiers={[
+                          font({ size: 13 }),
+                          contentTransition('numericText'),
+                          animation(Animation.default, pin.lng),
+                        ]}
+                      >
+                        {pin.lng.toFixed(3)}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                </Button>
+                <Spacer />
+              </HStack>
+            </Section>
+          ) : null}
 
           {inputKind?.type === 'resolving' ? (
             <Section>
@@ -199,22 +272,29 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
               {photonResults.map((r, i) => (
                 <Button
                   key={`${r.title}-${i}`}
-                  label={r.title}
                   onPress={() =>
                     onConfirm({
-                      address: r.address,
+                      // Display-only: navigation uses the coords, so the place name
+                      // alone identifies the location without the address detail.
+                      address: r.title,
                       lat: r.coords.lat,
                       lng: r.coords.lng,
                     })
                   }
-                />
+                >
+                  <VStack alignment="leading" spacing={2}>
+                    <Text>{r.title}</Text>
+                    {r.address ? (
+                      <Text modifiers={[font({ size: 13 }), foregroundStyle('#8E8E93')]}>
+                        {r.address}
+                      </Text>
+                    ) : null}
+                  </VStack>
+                </Button>
               ))}
             </Section>
           ) : null}
 
-          <Section>
-            <Button label="Drop a pin on a map" onPress={() => setShowPin(true)} />
-          </Section>
         </Form>
       </Host>
     </>

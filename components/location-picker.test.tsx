@@ -13,6 +13,8 @@ vi.mock('@expo/ui/swift-ui', async () => {
   return {
     Host: pass('div'),
     Form: pass('div'),
+    RNHostView: ({ children }: { children?: React.ReactNode }) => children,
+    Spacer: () => null,
     VStack: pass('div'),
     HStack: pass('div'),
     LabeledContent: pass('div'),
@@ -35,7 +37,13 @@ vi.mock('@expo/ui/swift-ui', async () => {
           text,
           placeholder,
           onTextChange,
-        }: { text?: { value: string }; placeholder?: string; onTextChange?: (t: string) => void },
+          onFocusChange,
+        }: {
+          text?: { value: string };
+          placeholder?: string;
+          onTextChange?: (t: string) => void;
+          onFocusChange?: (focused: boolean) => void;
+        },
         ref: React.Ref<{ setText: (t: string) => void }>,
       ) => {
         const inputRef = React.useRef<HTMLInputElement>(null);
@@ -50,21 +58,29 @@ vi.mock('@expo/ui/swift-ui', async () => {
           'aria-label': placeholder,
           defaultValue: text?.value,
           onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
+          onFocus: () => onFocusChange?.(true),
+          onBlur: () => onFocusChange?.(false),
         });
       },
     ),
     Button: ({
       label,
+      children,
       onPress,
       modifiers,
     }: {
       label?: string;
+      children?: React.ReactNode;
       onPress?: () => void;
       modifiers?: { __accessibilityLabel?: string }[];
     }) => {
       const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
-      return typeof label === 'string'
-        ? React.createElement('button', { onClick: onPress, 'aria-label': a11y ?? label }, label)
+      return typeof label === 'string' || children
+        ? React.createElement(
+            'button',
+            { onClick: onPress, 'aria-label': a11y },
+            children ?? label,
+          )
         : null;
     },
   };
@@ -78,6 +94,12 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   labelsHidden: vi.fn(() => ({})),
   multilineTextAlignment: vi.fn(() => ({})),
   background: vi.fn(() => ({})),
+  animation: vi.fn(() => ({})),
+  Animation: { default: {}, spring: vi.fn(() => ({})) },
+  buttonStyle: vi.fn(() => ({})),
+  clipShape: vi.fn(() => ({})),
+  contentTransition: vi.fn(() => ({})),
+  listRowBackground: vi.fn(() => ({})),
   listRowInsets: vi.fn(() => ({})),
   listRowSeparator: vi.fn(() => ({})),
   frame: vi.fn(() => ({})),
@@ -197,9 +219,12 @@ describe('LocationPicker', () => {
     });
     await flushDebounce();
 
+    // Each result shows its address as a distinguishing subtitle.
+    expect(screen.getByText('Seattle, US')).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('button', { name: /pike place market/i }));
     expect(onConfirm).toHaveBeenCalledWith({
-      address: 'Seattle, US',
+      address: 'Pike Place Market',
       lat: 47.6097,
       lng: -122.3422,
     });
@@ -230,6 +255,16 @@ describe('LocationPicker', () => {
     });
     await flushDebounce();
     expect(firstSignal.aborted).toBe(true);
+  });
+
+  it('focusing the search field collapses the map', async () => {
+    render(<LocationPicker onConfirm={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /drop a pin/i }));
+    await screen.findByTestId('apple-maps-view');
+
+    fireEvent.focus(screen.getByLabelText('Search or paste a location'));
+    expect(screen.queryByTestId('apple-maps-view')).not.toBeInTheDocument();
   });
 
   it('shows the map drop-pin affordance and confirming a dropped pin returns coords', async () => {
