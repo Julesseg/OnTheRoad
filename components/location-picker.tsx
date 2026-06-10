@@ -30,6 +30,7 @@ import { parseLatLng, resolveMapsUrl } from '@/lib/coords';
 import { searchPlaces, type PhotonResult } from '@/lib/photon';
 import { AppleMaps } from 'expo-maps';
 import type { Item } from '@/lib/schema';
+import { useThemeColors } from '@/constants/theme';
 
 export interface LocationPickerProps {
   initialLocation?: Item['location'];
@@ -57,6 +58,7 @@ function classifyInput(text: string): InputKind {
 
 export function LocationPicker({ initialLocation, onConfirm, onCancel }: LocationPickerProps) {
   const colorScheme = useColorScheme();
+  const { accent, textSubtle } = useThemeColors();
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [inputKind, setInputKind] = useState<InputKind>(null);
@@ -175,7 +177,7 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
                 modifiers={[
                   accessibilityLabel('Drop a pin'),
                   buttonStyle('borderless'),
-                  tint(showMap ? '#007AFF' : '#8E8E93'),
+                  tint(showMap ? accent : textSubtle),
                 ]}
               />
             </HStack>
@@ -285,7 +287,7 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
                   <VStack alignment="leading" spacing={2}>
                     <Text>{r.title}</Text>
                     {r.address ? (
-                      <Text modifiers={[font({ size: 13 }), foregroundStyle('#8E8E93')]}>
+                      <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>
                         {r.address}
                       </Text>
                     ) : null}

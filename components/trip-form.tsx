@@ -24,6 +24,7 @@ import {
   parseLocalDate,
   clampRange,
 } from '@/lib/trip-form';
+import { useThemeColors } from '@/constants/theme';
 
 /** The trip's cover photo as the form currently holds it. `existing` is an
  * already-saved wallpaper (shown by its display uri), `picked` is a freshly
@@ -55,8 +56,6 @@ export interface TripFormProps {
   onCancel: () => void;
 }
 
-const DELETE_RED = '#FF3B30';
-
 /** Warm, rounded-font section header (matches the native-form direction of ADR-0003). */
 function SectionHeader({ children }: { children: string }) {
   return (
@@ -65,8 +64,9 @@ function SectionHeader({ children }: { children: string }) {
 }
 
 function FieldError({ message }: { message?: string }) {
+  const { destructive } = useThemeColors();
   if (!message) return null;
-  return <Text modifiers={[font({ size: 13 }), foregroundStyle('#d11')]}>{message}</Text>;
+  return <Text modifiers={[font({ size: 13 }), foregroundStyle(destructive)]}>{message}</Text>;
 }
 
 export function TripForm({
@@ -83,6 +83,7 @@ export function TripForm({
 }: TripFormProps) {
   const today = formatLocalDate(new Date());
   const colorScheme = useColorScheme();
+  const { destructive } = useThemeColors();
   // Native two-way binding seeds the field's initial text (edit path); the
   // mirror into react-hook-form below keeps validation in sync.
   const titleState = useNativeState(initialTitle);
@@ -196,7 +197,7 @@ export function TripForm({
                   systemImage="trash"
                   role="destructive"
                   onPress={() => setCover({ kind: 'none' })}
-                  modifiers={[foregroundStyle(DELETE_RED)]}
+                  modifiers={[foregroundStyle(destructive)]}
                 />
               </>
             ) : (

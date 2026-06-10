@@ -76,7 +76,7 @@ describe('TripMap', () => {
 
     render(<TripMap trip={trip} activeDate="2099-07-02" />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-marker-tints')).toBe(
-      '#8E8E93;#0a7ea4',
+      `#8E8E93;${EmberPalette.coral}`,
     );
   });
 
@@ -110,7 +110,7 @@ describe('TripMap', () => {
     const map = screen.getByTestId('apple-maps-view');
     // A→B crosses days (grey); B→C is within the active day (accent).
     expect(map.getAttribute('data-polylines')).toBe('40,-120;42,-110|42,-110;44,-100');
-    expect(map.getAttribute('data-polyline-colors')).toBe('#8E8E93;#0a7ea4');
+    expect(map.getAttribute('data-polyline-colors')).toBe(`#8E8E93;${EmberPalette.coral}`);
   });
 
   it('keeps all pins accent-tinted when no activeDate is given', () => {
@@ -120,7 +120,7 @@ describe('TripMap', () => {
     ]);
     render(<TripMap trip={trip} />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-marker-tints')).toBe(
-      '#0a7ea4;#0a7ea4',
+      `${EmberPalette.coral};${EmberPalette.coral}`,
     );
   });
 

@@ -61,9 +61,6 @@ export interface ItemEditorProps {
   onCancel?: () => void;
 }
 
-const LABEL_GRAY = '#8A8580';
-const ERROR_RED = '#d11';
-
 const ALL_CATEGORIES = Object.keys(ITEM_IDENTITY) as ItemCategory[];
 
 function parseLocalDate(s: string, hour = 12): Date {
@@ -84,13 +81,14 @@ function dateToTime(d: Date): string {
 
 // Native form rows label themselves; when a field is invalid we tint its
 // leading label red to match the error message in the section footer.
-function fieldLabel(label: string, error?: string): string | React.ReactNode {
-  return error ? <Text modifiers={[foregroundStyle(ERROR_RED)]}>{label}</Text> : label;
+function fieldLabel(label: string, error?: string, errColor = '#d11'): string | React.ReactNode {
+  return error ? <Text modifiers={[foregroundStyle(errColor)]}>{label}</Text> : label;
 }
 
 function FieldError({ message }: { message?: string }) {
+  const { destructive } = useThemeColors();
   if (!message) return null;
-  return <Text modifiers={[font({ size: 13 }), foregroundStyle(ERROR_RED)]}>{message}</Text>;
+  return <Text modifiers={[font({ size: 13 }), foregroundStyle(destructive)]}>{message}</Text>;
 }
 
 function NoteLinks({ text }: { text: string }) {
@@ -128,6 +126,7 @@ function TimeRow({
   onChange: (v: string) => void;
   error?: string;
 }) {
+  const { textSubtle } = useThemeColors();
   if (!value) {
     return (
       <LabeledContent label={fieldLabel('Time', error)}>
@@ -152,7 +151,7 @@ function TimeRow({
             label=""
             systemImage="xmark.circle.fill"
             onPress={() => onChange('')}
-            modifiers={[accessibilityLabel('Clear time'), foregroundStyle(LABEL_GRAY)]}
+            modifiers={[accessibilityLabel('Clear time'), foregroundStyle(textSubtle)]}
           />
         </HStack>
       </LabeledContent>
@@ -250,7 +249,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           <Section
             footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
           >
-            <LabeledContent label={fieldLabel('Name', errors.name?.message)}>
+            <LabeledContent label={fieldLabel('Name', errors.name?.message, c.destructive)}>
               <TextField
                 text={nameState}
                 placeholder="What is it?"
@@ -309,7 +308,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                     onPress={() => setLocation(null)}
                     modifiers={[
                       accessibilityLabel('Clear location'),
-                      foregroundStyle(LABEL_GRAY),
+                      foregroundStyle(c.textSubtle),
                       buttonStyle('borderless'),
                     ]}
                   />
