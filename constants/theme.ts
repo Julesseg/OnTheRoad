@@ -39,6 +39,7 @@ export interface ThemeTokens {
   text: string;
   textSubtle: string;
   accent: string;
+  accentFaint: string; // accent at ~10 % opacity — for row / card backgrounds
   onAccent: string;
   secondaryAction: string;
   destructive: string;
@@ -51,6 +52,7 @@ export const LightTokens: ThemeTokens = {
   text:            EmberPalette.lightFg,     // #282418
   textSubtle:      '#81765f',                // H40 S15% L44%
   accent:          EmberPalette.coralLight,  // #b84c30 — interactive (replaces #007AFF / #0a7ea4)
+  accentFaint:     '#b84c301a',              // coralLight at 10 % opacity
   onAccent:        '#ffffff',
   secondaryAction: EmberPalette.steelLight,  // #3a6080
   destructive:     EmberPalette.roseLight,   // #905050
@@ -63,6 +65,7 @@ export const DarkTokens: ThemeTokens = {
   text:            EmberPalette.darkFg,   // #d8d0c0
   textSubtle:      '#938976',             // H40 S12% L52%
   accent:          EmberPalette.coral,    // #e08060 — interactive (replaces #007AFF / #0a7ea4)
+  accentFaint:     '#e080601a',           // coral at 10 % opacity
   onAccent:        EmberPalette.darkBg,   // #1c1b19 — dark text on coral (6.13:1 contrast)
   secondaryAction: EmberPalette.steel,    // #7890a0
   destructive:     EmberPalette.rose,     // #b07878

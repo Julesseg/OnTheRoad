@@ -182,7 +182,7 @@ export function ItineraryPanel({
         spacing={2}
         modifiers={[
           onTapGesture(edit),
-          ...(isToday ? [listRowBackground(c.accent + '1a')] : []),
+          ...(isToday ? [listRowBackground(c.accentFaint)] : []),
         ]}
       >
         <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>

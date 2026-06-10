@@ -1,4 +1,4 @@
-import { DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -22,10 +22,10 @@ const EmberLightTheme = {
 };
 
 const EmberDarkTheme = {
-  ...DefaultTheme,
+  ...DarkTheme,
   dark: true,
   colors: {
-    ...DefaultTheme.colors,
+    ...DarkTheme.colors,
     primary:      DarkTokens.accent,
     background:   DarkTokens.background,
     card:         DarkTokens.surface,

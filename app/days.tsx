@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -47,8 +47,6 @@ export default function DaysSheet() {
     removeTrip,
     setTodayFilterOverride,
   } = useTripStore();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const c = useThemeColors();
   const text = c.text;
   const subtext = c.textSubtle;

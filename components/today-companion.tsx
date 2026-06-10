@@ -20,7 +20,7 @@ function CompanionItem({ item, highlighted }: { item: Item; highlighted: boolean
   const body = itemBody(item);
 
   return (
-    <View style={[styles.card, highlighted && { backgroundColor: c.accent + '1f' }]}>
+    <View style={[styles.card, highlighted && { backgroundColor: c.accentFaint }]}>
       {highlighted ? <Text style={[styles.nextUp, { color: c.accent }]}>Next up</Text> : null}
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: text }]}>{title}</Text>
@@ -40,7 +40,7 @@ function CompanionItem({ item, highlighted }: { item: Item; highlighted: boolean
               ) : (
                 <Text
                   key={i}
-                  style={[styles.link, { color: c.accent }]}
+                  style={{ color: c.accent }}
                   onPress={() => Linking.openURL(seg.href).catch(() => {})}
                 >
                   {seg.value}
@@ -77,5 +77,4 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontSize: 26, fontWeight: '700' },
   time: { fontSize: 22, fontWeight: '600' },
   body: { marginTop: 6, fontSize: 16, lineHeight: 22 },
-  link: {},
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EmberPalette, LightTokens, DarkTokens } from '@/constants/theme';
 
-const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const HEX_RE = /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/;
 
 describe('EmberPalette', () => {
   const ACCENT_KEYS = ['coral', 'orange', 'gold', 'olive', 'sage', 'steel', 'rose', 'mauve'] as const;
@@ -37,7 +37,7 @@ describe('EmberPalette', () => {
 
 describe('LightTokens', () => {
   it('has all required fields as valid hex strings', () => {
-    const fields = ['background', 'surface', 'text', 'textSubtle', 'accent', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
+    const fields = ['background', 'surface', 'text', 'textSubtle', 'accent', 'accentFaint', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
     for (const f of fields) {
       expect(LightTokens[f], f).toMatch(HEX_RE);
     }
@@ -62,7 +62,7 @@ describe('LightTokens', () => {
 
 describe('DarkTokens', () => {
   it('has all required fields as valid hex strings', () => {
-    const fields = ['background', 'surface', 'text', 'textSubtle', 'accent', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
+    const fields = ['background', 'surface', 'text', 'textSubtle', 'accent', 'accentFaint', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
     for (const f of fields) {
       expect(DarkTokens[f], f).toMatch(HEX_RE);
     }

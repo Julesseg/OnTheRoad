@@ -189,6 +189,5 @@ const styles = StyleSheet.create({
   swipeActions: { flexDirection: 'row', marginVertical: 4, marginRight: 16, borderRadius: 14, overflow: 'hidden' },
   swipeAction: { width: 80, alignItems: 'center', justifyContent: 'center' },
   swipeExport: { backgroundColor: '#30d158' },
-  swipeDelete: {},
   swipeActionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 });
