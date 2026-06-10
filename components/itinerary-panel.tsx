@@ -72,12 +72,14 @@ export function ItineraryPanel({
   now = new Date(),
   titleRow,
   scrollModifier,
+  onDayPress,
 }: {
   trip: Trip;
   days?: import('@/lib/schema').Day[];
   now?: Date;
   titleRow?: ReactNode;
   scrollModifier?: BuiltInModifier | null;
+  onDayPress?: (date: string) => void;
 }) {
   const colorScheme = useColorScheme();
   const subtext = colorScheme === 'dark' ? '#9a9a9a' : '#888';
@@ -254,7 +256,13 @@ export function ItineraryPanel({
               key={day.id}
               header={
                 <VStack alignment="leading" spacing={2}>
-                  <HStack spacing={8}>
+                  <HStack
+                    spacing={8}
+                    // Tapping a day header filters the map/list to that day
+                    // (toggles off on a second tap). The + Button still wins
+                    // its own taps over the row gesture.
+                    modifiers={onDayPress ? [onTapGesture(() => onDayPress(day.date))] : []}
+                  >
                     <Text
                       modifiers={[
                         font({ size: 18, weight: 'bold' }),

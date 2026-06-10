@@ -144,7 +144,7 @@ export default function DaysSheet() {
 
   const badge = tripCountdownBadge(summary, today);
   const dateRange = formatDateRange(summary.startDate, summary.endDate);
-  const filterModel = trip ? todayFilterModel(trip.days, badge, todayFilterOverride, today) : { canFilter: false, active: false };
+  const filterModel = trip ? todayFilterModel(trip.days, badge, todayFilterOverride, today) : { canFilter: false, active: false, activeDate: null };
 
   // The native navigation row: a leading back-arrow while browsing a non-default
   // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Edit / Make
@@ -173,10 +173,10 @@ export default function DaysSheet() {
             }}
           />
         ) : null}
-          {filterModel.canFilter ? (
+          {filterModel.canFilter || filterModel.active ? (
             <Stack.Toolbar.Button
             icon="line.3.horizontal.decrease"
-            accessibilityLabel="Today only"
+            accessibilityLabel="Filter day"
             selected={filterModel.active}
             onPress={() => setTodayFilterOverride(!filterModel.active)}
             />
@@ -259,12 +259,21 @@ export default function DaysSheet() {
     );
   }
 
-  const visibleDays = filterModel.active ? trip.days.filter((d) => d.date === today) : trip.days;
+  const visibleDays = filterModel.active
+    ? trip.days.filter((d) => d.date === filterModel.activeDate)
+    : trip.days;
 
   return (
     <View style={styles.sheet}>
       {chrome}
-      <ItineraryPanel trip={trip} days={visibleDays} titleRow={titleRow} scrollModifier={scrollModifier} />
+      <ItineraryPanel
+        trip={trip}
+        days={visibleDays}
+        titleRow={titleRow}
+        scrollModifier={scrollModifier}
+        // Day-header tap filters the map/list to that day; tapping it again clears.
+        onDayPress={(date) => setTodayFilterOverride(filterModel.activeDate === date ? false : date)}
+      />
       {/* Progressive blur behind the transparent nav bar: full strength at the top
           edge, easing to clear by the bar's bottom so list content stays sharp. It
           renders within RN content, i.e. beneath the native toolbar buttons/title. */}

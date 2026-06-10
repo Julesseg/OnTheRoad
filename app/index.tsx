@@ -51,15 +51,16 @@ export default function HomeScreen() {
   const badge = summary ? tripCountdownBadge(summary, today) : null;
   const filterModel = trip && badge
     ? todayFilterModel(trip.days, badge, todayFilterOverride, today)
-    : { canFilter: false, active: false };
-  // Frame today's pins when the filter is active, but fall back to the whole
-  // route when today has no map-able locations (only activities/accommodations)
-  // so the camera never collapses to the empty-coords world view.
+    : { canFilter: false, active: false, activeDate: null };
+  // Frame the filtered day's pins when the filter is active, but fall back to
+  // the whole route when that day has no map-able locations (only
+  // activities/accommodations) so the camera never collapses to the
+  // empty-coords world view.
   const fullCoords = trip ? tripRouteCoords(trip) : [];
-  const todayCoords = trip && filterModel.active
-    ? tripRouteCoords({ ...trip, days: trip.days.filter((d) => d.date === today) })
+  const filteredCoords = trip && filterModel.active
+    ? tripRouteCoords({ ...trip, days: trip.days.filter((d) => d.date === filterModel.activeDate) })
     : fullCoords;
-  const coords = todayCoords.length > 0 ? todayCoords : fullCoords;
+  const coords = filteredCoords.length > 0 ? filteredCoords : fullCoords;
   const viewport = framedViewport(coords, PANEL_FRACTION);
 
   // The map is interactive — pan, pinch-zoom, two-finger rotate, and two-finger
@@ -73,12 +74,21 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={StyleSheet.absoluteFill}>
-        <TripMap ref={tripMapRef} trip={trip} viewport={viewport} />
+        <TripMap
+          ref={tripMapRef}
+          trip={trip}
+          viewport={viewport}
+          // Any active day filter dims the other days' pins and route legs —
+          // even when the filtered day has no pins of its own (the viewport
+          // still falls back to the whole route so the camera doesn't collapse).
+          activeDate={filterModel.active ? (filterModel.activeDate ?? undefined) : undefined}
+        />
       </View>
       {/* Manual pan/zoom persists across /days sheet re-presents and resets only
-          when the route coords change (trip switch or itinerary edit). Recenter
-          undoes a manual pan by re-applying the framed viewport. Hidden when no
-          trip is loaded so it can't snap the camera to the world-view default. */}
+          when the framed viewport changes (trip switch, itinerary edit, or
+          today-filter toggle). Recenter undoes a manual pan by re-applying the
+          framed viewport. Hidden when no trip is loaded so it can't snap the
+          camera to the world-view default. */}
       {trip && (
         <Pressable
           style={[styles.recenterBtn, { top: insets.top + 12 }]}

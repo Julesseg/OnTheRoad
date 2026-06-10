@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,8 +29,10 @@ import {
   accessibilityLabel,
   multilineTextAlignment,
   labelsHidden,
-  background,
+  buttonStyle,
   frame,
+  lineLimit,
+  truncationMode,
   onTapGesture,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -45,6 +47,7 @@ import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
 import type { Item, ItemCategory } from '@/lib/schema';
+import { beginLocationPick } from '@/lib/location-picker-session';
 
 export interface ItemEditorProps {
   itemId: string;
@@ -158,6 +161,13 @@ function TimeRow({
   );
 }
 
+function locationLabel(loc: Item['location'] | null): string {
+  if (!loc) return 'Add location';
+  if (loc.address) return loc.address;
+  if (loc.lat != null && loc.lng != null) return `${loc.lat}, ${loc.lng}`;
+  return 'Add location';
+}
+
 export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
   const defaults = useMemo(
@@ -167,6 +177,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
 
   const [category, setCategory] = useState<ItemCategory>(defaults.category);
   const [date, setDate] = useState(initialDate ?? '');
+  const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
   const identity = itemIdentity(category);
 
   const nameState = useNativeState(defaults.name);
@@ -189,10 +200,18 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
 
   const submit = handleSubmit(() => {
     const values = { ...getValues(), category };
-    onSubmit(formToItem(values, itemId, initialItem), date);
+    onSubmit(formToItem(values, itemId, initialItem, location), date);
   });
 
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
+
+  function openLocationPicker() {
+    beginLocationPick({
+      initialLocation: location ?? undefined,
+      onConfirm: (loc) => setLocation(loc ?? null),
+    });
+    router.push('/trip/location-picker');
+  }
 
   return (
     <>
@@ -230,6 +249,15 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           <Section
             footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
           >
+            <LabeledContent label={fieldLabel('Name', errors.name?.message)}>
+              <TextField
+                text={nameState}
+                placeholder="What is it?"
+                onTextChange={(t) => setValue('name', t)}
+                modifiers={[multilineTextAlignment('trailing')]}
+              />
+            </LabeledContent>
+
             <Picker
               label="Category"
               selection={category}
@@ -264,13 +292,28 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               />
             ) : null}
 
-            <LabeledContent label={fieldLabel('Name', errors.name?.message)}>
-              <TextField
-                text={nameState}
-                placeholder="What is it?"
-                onTextChange={(t) => setValue('name', t)}
-                modifiers={[multilineTextAlignment('trailing')]}
-              />
+            <LabeledContent label="Location">
+              <HStack spacing={8}>
+                <Button
+                  label={locationLabel(location)}
+                  onPress={openLocationPicker}
+                  // Borderless confines the tap target to the label — the default
+                  // style makes the whole Form row tappable.
+                  modifiers={[buttonStyle('borderless'), lineLimit(1), truncationMode('tail')]}
+                />
+                {location ? (
+                  <Button
+                    label=""
+                    systemImage="xmark.circle.fill"
+                    onPress={() => setLocation(null)}
+                    modifiers={[
+                      accessibilityLabel('Clear location'),
+                      foregroundStyle(LABEL_GRAY),
+                      buttonStyle('borderless'),
+                    ]}
+                  />
+                ) : null}
+              </HStack>
             </LabeledContent>
 
             <TimeRow

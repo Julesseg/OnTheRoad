@@ -68,8 +68,11 @@ const View = forwardRef<AppleMapsViewHandle, MapViewProps>(function View(props, 
         : '',
     'data-markers': pairsToString(markerCoords),
     'data-marker-tint': props.markers?.[0]?.tintColor ?? '',
+    'data-marker-tints': props.markers?.map((m) => m.tintColor ?? '').join(';') ?? '',
     'data-polyline': pairsToString(polyline),
     'data-polyline-color': props.polylines?.[0]?.color ?? '',
+    'data-polylines': props.polylines?.map((p) => pairsToString(p.coordinates)).join('|') ?? '',
+    'data-polyline-colors': props.polylines?.map((p) => p.color ?? '').join(';') ?? '',
     onClick: (e: { clientX?: number; clientY?: number }) => {
       const latitude = e.clientX ?? 12.34;
       const longitude = e.clientY ?? 56.78;

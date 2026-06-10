@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ItemEditor } from '@/components/item-editor';
+import { getLocationPickSession, endLocationPick } from '@/lib/location-picker-session';
 import type { Item } from '@/lib/schema';
 
 // Capture DatePicker props keyed by title, and Picker props keyed by label.
@@ -15,6 +16,8 @@ const dpickers = vi.hoisted(
 const pickers = vi.hoisted(
   () => ({}) as Record<string, { onSelectionChange?: (v: unknown) => void; selection?: unknown }>,
 );
+
+const routerMock = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
 
 /* eslint-disable react/display-name */
 vi.mock('@expo/ui/swift-ui', async () => {
@@ -114,6 +117,9 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   labelsHidden: vi.fn(() => ({})),
   multilineTextAlignment: vi.fn(() => ({})),
   background: vi.fn(() => ({})),
+  buttonStyle: vi.fn(() => ({})),
+  lineLimit: vi.fn(() => ({})),
+  truncationMode: vi.fn(() => ({})),
   listRowInsets: vi.fn(() => ({})),
   listRowSeparator: vi.fn(() => ({})),
   frame: vi.fn(() => ({})),
@@ -141,12 +147,15 @@ vi.mock('expo-router', async () => {
     onPress?: () => void;
     accessibilityLabel?: string;
   }) => React.createElement('button', { onClick: onPress, 'aria-label': accessibilityLabel }, children);
-  return { Stack };
+  return { Stack, router: routerMock };
 });
 
 beforeEach(() => {
   for (const k of Object.keys(dpickers)) delete dpickers[k];
   for (const k of Object.keys(pickers)) delete pickers[k];
+  routerMock.push.mockClear();
+  routerMock.back.mockClear();
+  endLocationPick();
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -313,5 +322,71 @@ describe('ItemEditor', () => {
     expect(range!.end!.getFullYear()).toBe(2025);
     expect(range!.end!.getMonth()).toBe(5);
     expect(range!.end!.getDate()).toBe(7);
+  });
+
+  // --- Location field (issue #76) ---
+
+  it('shows an "Add location" button when the item has no location', () => {
+    render(<ItemEditor itemId="x" onSubmit={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Add location' })).toBeInTheDocument();
+  });
+
+  it('shows the address in the location row when item has location.address', () => {
+    const initial: Item = { id: 'x', name: 'Hike', category: 'activity', location: { address: 'Santorini' } };
+    render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Santorini' })).toBeInTheDocument();
+  });
+
+  it('shows lat,lng in the location row when item has only coords', () => {
+    const initial: Item = { id: 'x', name: 'Hike', category: 'activity', location: { lat: 36.39, lng: 25.46 } };
+    render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByRole('button', { name: '36.39, 25.46' })).toBeInTheDocument();
+  });
+
+  it('clear button removes location; saved item omits location field', async () => {
+    const onSubmit = vi.fn();
+    const initial: Item = { id: 'loc-1', name: 'Hotel', category: 'stay', location: { address: 'Santorini' } };
+    render(<ItemEditor itemId="loc-1" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear location' }));
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'loc-1', name: 'Hotel', category: 'stay' }, INIT_DATE),
+    );
+  });
+
+  it('tapping the location row opens the picker sheet with the current location', () => {
+    const initial: Item = { id: 'x', name: 'Hike', category: 'activity', location: { address: 'Santorini' } };
+    render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Santorini' }));
+
+    expect(routerMock.push).toHaveBeenCalledWith('/trip/location-picker');
+    expect(getLocationPickSession()?.initialLocation).toEqual({ address: 'Santorini' });
+  });
+
+  it('location set via picker is included in the submitted item', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="loc-2" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Caldera view' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add location' }));
+    // The picker sheet lives on its own route; the editor hands it a session.
+    const session = getLocationPickSession();
+    expect(session).not.toBeNull();
+    act(() => session!.onConfirm({ address: 'Santorini', lat: 36.39, lng: 25.46 }));
+
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        {
+          id: 'loc-2',
+          name: 'Caldera view',
+          category: 'activity',
+          location: { address: 'Santorini', lat: 36.39, lng: 25.46 },
+        },
+        INIT_DATE,
+      ),
+    );
   });
 });
