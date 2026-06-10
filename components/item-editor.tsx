@@ -45,6 +45,7 @@ import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
 import type { Item, ItemCategory } from '@/lib/schema';
+import { LocationPicker } from '@/components/location-picker';
 
 export interface ItemEditorProps {
   itemId: string;
@@ -158,6 +159,13 @@ function TimeRow({
   );
 }
 
+function locationLabel(loc: Item['location'] | null): string {
+  if (!loc) return 'Add location';
+  if (loc.address) return loc.address;
+  if (loc.lat != null && loc.lng != null) return `${loc.lat}, ${loc.lng}`;
+  return 'Add location';
+}
+
 export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
   const defaults = useMemo(
@@ -167,6 +175,8 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
 
   const [category, setCategory] = useState<ItemCategory>(defaults.category);
   const [date, setDate] = useState(initialDate ?? '');
+  const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
+  const [showPicker, setShowPicker] = useState(false);
   const identity = itemIdentity(category);
 
   const nameState = useNativeState(defaults.name);
@@ -189,10 +199,23 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
 
   const submit = handleSubmit(() => {
     const values = { ...getValues(), category };
-    onSubmit(formToItem(values, itemId, initialItem), date);
+    onSubmit(formToItem(values, itemId, initialItem, location), date);
   });
 
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
+
+  if (showPicker) {
+    return (
+      <LocationPicker
+        initialLocation={location ?? undefined}
+        onConfirm={(loc) => {
+          setLocation(loc ?? null);
+          setShowPicker(false);
+        }}
+        onCancel={() => setShowPicker(false)}
+      />
+    );
+  }
 
   return (
     <>
@@ -289,6 +312,23 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               />
               <NoteLinks text={notesText as string} />
             </VStack>
+
+            <LabeledContent label="Location">
+              <HStack spacing={8}>
+                <Button
+                  label={locationLabel(location)}
+                  onPress={() => setShowPicker(true)}
+                />
+                {location ? (
+                  <Button
+                    label=""
+                    systemImage="xmark.circle.fill"
+                    onPress={() => setLocation(null)}
+                    modifiers={[accessibilityLabel('Clear location'), foregroundStyle(LABEL_GRAY)]}
+                  />
+                ) : null}
+              </HStack>
+            </LabeledContent>
           </Section>
 
           {initialItem && onDelete ? (

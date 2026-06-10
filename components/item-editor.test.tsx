@@ -16,6 +16,38 @@ const pickers = vi.hoisted(
   () => ({}) as Record<string, { onSelectionChange?: (v: unknown) => void; selection?: unknown }>,
 );
 
+vi.mock('@/components/location-picker', async () => {
+  const React = await import('react');
+  return {
+    LocationPicker: ({
+      onConfirm,
+      onCancel,
+    }: {
+      onConfirm: (loc: { address?: string; lat?: number; lng?: number }) => void;
+      onCancel?: () => void;
+    }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'location-picker' },
+        React.createElement(
+          'button',
+          {
+            'aria-label': 'Confirm test location',
+            onClick: () => onConfirm({ address: 'Santorini', lat: 36.39, lng: 25.46 }),
+          },
+          'Confirm test location',
+        ),
+        onCancel
+          ? React.createElement(
+              'button',
+              { 'aria-label': 'Cancel location picker', onClick: onCancel },
+              'Cancel location picker',
+            )
+          : null,
+      ),
+  };
+});
+
 /* eslint-disable react/display-name */
 vi.mock('@expo/ui/swift-ui', async () => {
   const React = await import('react');
@@ -313,5 +345,58 @@ describe('ItemEditor', () => {
     expect(range!.end!.getFullYear()).toBe(2025);
     expect(range!.end!.getMonth()).toBe(5);
     expect(range!.end!.getDate()).toBe(7);
+  });
+
+  // --- Location field (issue #76) ---
+
+  it('shows an "Add location" button when the item has no location', () => {
+    render(<ItemEditor itemId="x" onSubmit={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Add location' })).toBeInTheDocument();
+  });
+
+  it('shows the address in the location row when item has location.address', () => {
+    const initial: Item = { id: 'x', name: 'Hike', category: 'activity', location: { address: 'Santorini' } };
+    render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Santorini' })).toBeInTheDocument();
+  });
+
+  it('shows lat,lng in the location row when item has only coords', () => {
+    const initial: Item = { id: 'x', name: 'Hike', category: 'activity', location: { lat: 36.39, lng: 25.46 } };
+    render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByRole('button', { name: '36.39, 25.46' })).toBeInTheDocument();
+  });
+
+  it('clear button removes location; saved item omits location field', async () => {
+    const onSubmit = vi.fn();
+    const initial: Item = { id: 'loc-1', name: 'Hotel', category: 'stay', location: { address: 'Santorini' } };
+    render(<ItemEditor itemId="loc-1" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear location' }));
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({ id: 'loc-1', name: 'Hotel', category: 'stay' }, INIT_DATE),
+    );
+  });
+
+  it('location set via picker is included in the submitted item', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="loc-2" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Caldera view' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add location' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm test location' }));
+
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        {
+          id: 'loc-2',
+          name: 'Caldera view',
+          category: 'activity',
+          location: { address: 'Santorini', lat: 36.39, lng: 25.46 },
+        },
+        INIT_DATE,
+      ),
+    );
   });
 });

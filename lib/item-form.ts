@@ -46,19 +46,30 @@ function omitUndefined<T extends Record<string, unknown>>(obj: T): T {
 }
 
 /**
- * Convert validated form strings into a domain Item. Pass `original` on the edit
- * path so fields the form doesn't surface (location, checklist) are carried over.
+ * Convert validated form strings into a domain Item.
+ *
+ * `location`:
+ *   undefined → carry from `original` (name/notes-only edit, location unchanged)
+ *   null      → explicitly cleared
+ *   object    → new/updated value set via the location picker
+ *
+ * `original` is still used to carry checklist data the form doesn't surface.
  */
-export function formToItem(v: ItemFormValues, id: string, original?: Item): Item {
+export function formToItem(
+  v: ItemFormValues,
+  id: string,
+  original?: Item,
+  location?: Item['location'] | null,
+): Item {
+  const resolvedLocation =
+    location === undefined ? original?.location : location === null ? undefined : location;
   return omitUndefined({
     id,
     name: v.name.trim(),
     category: v.category,
     time: trimToUndefined(v.time),
     notes: trimToUndefined(v.notes),
-    // location and checklist are not surfaced in the form; carry them over so a name/notes
-    // edit or category change never silently drops persisted location or checklist data.
-    ...(original?.location ? { location: original.location } : {}),
+    ...(resolvedLocation ? { location: resolvedLocation } : {}),
     ...(original?.checklist ? { checklist: original.checklist } : {}),
   }) as Item;
 }
