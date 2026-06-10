@@ -5,6 +5,7 @@ import { Host, Form, Section, Picker, Button, Text } from '@expo/ui/swift-ui';
 import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { MAPS_APP_LABELS } from '@/lib/maps';
 import type { MapsApp } from '@/lib/schema';
@@ -23,6 +24,7 @@ export default function SettingsSheet() {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const c = useThemeColors();
   const mapsApps = ALL_MAPS_APPS.filter((app) => installedMapsApps.includes(app));
 
   async function onImport() {
@@ -47,7 +49,7 @@ export default function SettingsSheet() {
   // Same chrome as the trips/days sheets: a transparent native nav bar with the
   // title, plus a progressive-blur RN overlay that frosts content scrolling under it.
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>Settings</Stack.Title>
 

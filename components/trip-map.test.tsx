@@ -4,6 +4,7 @@ import { act, render, screen } from '@testing-library/react';
 import type { Trip } from '@/lib/schema';
 import type { Viewport } from '@/lib/trip-route';
 import { TripMap, type TripMapHandle } from './trip-map';
+import { EmberPalette } from '@/constants/theme';
 
 function makeTrip(items: Trip['days'][number]['items']): Trip {
   return {
@@ -24,7 +25,7 @@ describe('TripMap', () => {
     expect(screen.getByTestId('apple-maps-view')).toBeInTheDocument();
   });
 
-  it('renders a teal-tinted marker per location with coords, in itinerary order', () => {
+  it('renders a coral-tinted marker per location with coords, in itinerary order', () => {
     const trip = makeTrip([
       { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8199, lng: -122.4783 } },
       { category: 'note' as const, id: 'n', name: 'skip me' },
@@ -33,10 +34,10 @@ describe('TripMap', () => {
     render(<TripMap trip={trip} />);
     const map = screen.getByTestId('apple-maps-view');
     expect(map.getAttribute('data-markers')).toBe('37.8199,-122.4783;36.2704,-121.8081');
-    expect(map.getAttribute('data-marker-tint')).toBe('#0a7ea4');
+    expect(map.getAttribute('data-marker-tint')).toBe(EmberPalette.coral);
   });
 
-  it('connects the markers with a teal polyline in itinerary order', () => {
+  it('connects the markers with a coral polyline in itinerary order', () => {
     const trip = makeTrip([
       { category: 'location' as const, id: 'a', name: 'A', location: { lat: 37.8199, lng: -122.4783 } },
       { category: 'location' as const, id: 'b', name: 'B', location: { lat: 36.2704, lng: -121.8081 } },
@@ -47,7 +48,7 @@ describe('TripMap', () => {
     expect(map.getAttribute('data-polyline')).toBe(
       '37.8199,-122.4783;36.2704,-121.8081;35.6852,-121.1685',
     );
-    expect(map.getAttribute('data-polyline-color')).toBe('#0a7ea4');
+    expect(map.getAttribute('data-polyline-color')).toBe(EmberPalette.coral);
   });
 
   it('dims pins outside the active date and keeps accent on the active day', () => {

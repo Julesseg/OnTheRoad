@@ -14,6 +14,7 @@ import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { partitionTrips } from '@/lib/trip-partition';
 import { todayString } from '@/lib/date-utils';
@@ -31,6 +32,7 @@ export default function ArchivedSheet() {
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const c = useThemeColors();
 
   const { archived } = partitionTrips(trips, today);
 
@@ -61,7 +63,7 @@ export default function ArchivedSheet() {
   // Same chrome as the trips/days sheets: a transparent native nav bar with the
   // title, plus a progressive-blur RN overlay that frosts content scrolling under it.
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>Archived trips</Stack.Title>
 
@@ -107,6 +109,7 @@ type ArchivedRowProps = {
 
 function ArchivedRow({ summary, onTap, onExport, onDelete }: ArchivedRowProps) {
   const swipeRef = useRef<Swipeable>(null);
+  const c = useThemeColors();
 
   function renderRightActions() {
     return (
@@ -120,7 +123,7 @@ function ArchivedRow({ summary, onTap, onExport, onDelete }: ArchivedRowProps) {
         </Pressable>
         <Pressable
           onPress={() => { swipeRef.current?.close(); onDelete(); }}
-          style={[styles.swipeAction, styles.swipeDelete]}
+          style={[styles.swipeAction, { backgroundColor: c.destructive }]}
           accessibilityLabel="Delete"
         >
           <Text style={styles.swipeActionText}>Delete</Text>
@@ -186,6 +189,6 @@ const styles = StyleSheet.create({
   swipeActions: { flexDirection: 'row', marginVertical: 4, marginRight: 16, borderRadius: 14, overflow: 'hidden' },
   swipeAction: { width: 80, alignItems: 'center', justifyContent: 'center' },
   swipeExport: { backgroundColor: '#30d158' },
-  swipeDelete: { backgroundColor: '#ff3b30' },
+  swipeDelete: {},
   swipeActionText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 });

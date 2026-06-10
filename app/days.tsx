@@ -14,6 +14,7 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { ItineraryPanel } from '@/components/itinerary-panel';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { tripHeaderModel } from '@/lib/trip-header';
@@ -26,7 +27,6 @@ import { todayString, formatDateRange } from '@/lib/date-utils';
 import { exportTripAsFile } from '@/lib/storage';
 import { todayFilterModel } from '@/lib/today-filter';
 
-const TINT = '#007AFF';
 const WHITE = '#ffffff';
 // Height of the progressive-blur layer behind the transparent nav bar — the
 // screen content already starts at the safe-area top, so this spans just the
@@ -49,8 +49,9 @@ export default function DaysSheet() {
   } = useTripStore();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const text = isDark ? '#fff' : '#111';
-  const subtext = isDark ? '#9a9a9a' : '#888';
+  const c = useThemeColors();
+  const text = c.text;
+  const subtext = c.textSubtle;
 
   const today = todayString();
   const model = tripHeaderModel(displayedTripId, trips, activeTripId, today);
@@ -240,7 +241,7 @@ export default function DaysSheet() {
             font({ size: 13, weight: 'semibold' }),
             foregroundStyle(WHITE),
             padding({ horizontal: 10, vertical: 3 }),
-            glassEffect({ glass: { variant: 'regular', tint: TINT }, shape: 'capsule' }),
+            glassEffect({ glass: { variant: 'regular', tint: c.accent }, shape: 'capsule' }),
             clipShape('capsule'),
           ]}
         >

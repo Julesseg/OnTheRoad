@@ -4,8 +4,9 @@ import { AppleMaps } from 'expo-maps';
 
 import type { Trip } from '@/lib/schema';
 import { routeViewport, type Viewport } from '@/lib/trip-route';
+import { EmberPalette } from '@/constants/theme';
 
-const ACCENT = '#0a7ea4';
+const ACCENT = EmberPalette.coral;
 const DIMMED = '#8E8E93';
 
 export interface TripMapHandle {

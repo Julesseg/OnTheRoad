@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { itemIdentity, ITEM_IDENTITY } from './item-identity';
 import type { ItemCategory } from './schema';
+import { EmberPalette } from '@/constants/theme';
 
 describe('item identity — v3 category-keyed', () => {
   it('maps each of the 5 categories to a label, SF Symbol, and accent', () => {
@@ -19,11 +20,11 @@ describe('item identity — v3 category-keyed', () => {
     }
   });
 
-  it('keeps every accent clear of destructive-red and action-blue', () => {
-    const reserved = new Set(['#FF3B30', '#007AFF']);
+  it('keeps every accent clear of interactive (coral) and destructive (rose) palette colours', () => {
+    const reserved = new Set<string>([EmberPalette.coral, EmberPalette.rose]);
     const categories: ItemCategory[] = ['activity', 'location', 'stay', 'meal', 'note'];
     for (const cat of categories) {
-      expect(reserved.has(ITEM_IDENTITY[cat].accent.toUpperCase())).toBe(false);
+      expect(reserved.has(ITEM_IDENTITY[cat].accent.toLowerCase())).toBe(false);
     }
   });
 });

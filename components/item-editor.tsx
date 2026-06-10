@@ -43,6 +43,7 @@ import {
   formToItem,
   itemFormSchema,
 } from '@/lib/item-form';
+import { useThemeColors } from '@/constants/theme';
 import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
@@ -62,8 +63,6 @@ export interface ItemEditorProps {
 
 const LABEL_GRAY = '#8A8580';
 const ERROR_RED = '#d11';
-const DELETE_RED = '#FF3B30';
-const LINK_BLUE = '#007AFF';
 
 const ALL_CATEGORIES = Object.keys(ITEM_IDENTITY) as ItemCategory[];
 
@@ -95,6 +94,7 @@ function FieldError({ message }: { message?: string }) {
 }
 
 function NoteLinks({ text }: { text: string }) {
+  const { accent } = useThemeColors();
   const links = useMemo(() => extractLinks(text), [text]);
   if (links.length === 0) return null;
   return (
@@ -111,8 +111,8 @@ function NoteLinks({ text }: { text: string }) {
             }),
           ]}
         >
-          <Image systemName="link" color={LINK_BLUE} size={13} />
-          <Text modifiers={[font({ size: 14 }), foregroundStyle(LINK_BLUE)]}>{link.label}</Text>
+          <Image systemName="link" color={accent} size={13} />
+          <Text modifiers={[font({ size: 14 }), foregroundStyle(accent)]}>{link.label}</Text>
         </HStack>
       ))}
     </VStack>
@@ -170,6 +170,7 @@ function locationLabel(loc: Item['location'] | null): string {
 
 export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
+  const c = useThemeColors();
   const defaults = useMemo(
     () => (initialItem ? itemToForm(initialItem) : { ...emptyForm(), category: defaultCategory ?? 'activity' }),
     [initialItem, defaultCategory],
@@ -341,7 +342,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                 systemImage="trash"
                 role="destructive"
                 onPress={onDelete}
-                modifiers={[foregroundStyle(DELETE_RED)]}
+                modifiers={[foregroundStyle(c.destructive)]}
               />
             </Section>
           ) : null}
