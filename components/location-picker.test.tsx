@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
+import { LocationPicker } from '@/components/location-picker';
 
 /* eslint-disable react/display-name */
 vi.mock('@expo/ui/swift-ui', async () => {
@@ -134,8 +135,6 @@ const PIKE_FEATURE = {
   geometry: { coordinates: [-122.3422, 47.6097] },
   properties: { name: 'Pike Place Market', city: 'Seattle', country: 'US' },
 };
-
-import { LocationPicker } from '@/components/location-picker';
 
 describe('LocationPicker', () => {
   it('calls onCancel when the Cancel button is tapped', () => {

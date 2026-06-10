@@ -6,13 +6,11 @@ import {
   Form,
   Section,
   Button,
+  Text,
   TextField,
 } from '@expo/ui/swift-ui';
-import {
-  accessibilityLabel,
-} from '@expo/ui/swift-ui/modifiers';
 
-import { parseLatLng, parseMapsUrl, resolveMapsUrl } from '@/lib/coords';
+import { parseLatLng, resolveMapsUrl } from '@/lib/coords';
 import { searchPlaces, type PhotonResult } from '@/lib/photon';
 import { AppleMaps } from 'expo-maps';
 import type { Item } from '@/lib/schema';
@@ -31,7 +29,6 @@ type InputKind =
 
 const FALLBACK_CENTER = { lat: 39.8283, lng: -98.5795 };
 const SEARCH_DEBOUNCE_MS = 250;
-const LABEL_GRAY = '#8A8580';
 
 function classifyInput(text: string): InputKind {
   const trimmed = text.trim();
@@ -73,12 +70,12 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
     return () => ctrl.abort();
   }, [query]);
 
-  // Debounced Photon search for free-text input
+  // Debounced Photon search for free-text input.
+  // photonResults is cleared eagerly in handleQueryChange so there's no need
+  // to reset it here when kind != 'address' — that would be a synchronous setState
+  // in an effect body (react-hooks/set-state-in-effect).
   useEffect(() => {
-    if (inputKind?.type !== 'address') {
-      setPhotonResults([]);
-      return;
-    }
+    if (inputKind?.type !== 'address') return;
     const timer = setTimeout(() => {
       abortRef.current?.abort();
       const ctrl = new AbortController();
@@ -113,19 +110,18 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
     setInputKind(kind);
   }
 
-  const center = pin ?? (initialLocation?.lat != null && initialLocation?.lng != null
-    ? { lat: initialLocation.lat, lng: initialLocation.lng }
-    : FALLBACK_CENTER);
+  const center =
+    pin ??
+    (initialLocation?.lat != null && initialLocation?.lng != null
+      ? { lat: initialLocation.lat, lng: initialLocation.lng }
+      : FALLBACK_CENTER);
 
   if (showPin) {
     return (
       <>
         <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button
-            accessibilityLabel="Back"
-            onPress={() => setShowPin(false)}
-          >
+          <Stack.Toolbar.Button accessibilityLabel="Back" onPress={() => setShowPin(false)}>
             Back
           </Stack.Toolbar.Button>
         </Stack.Toolbar>
@@ -133,6 +129,7 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
           <Stack.Toolbar.Button
             accessibilityLabel="Use pin"
             variant="prominent"
+            disabled={!pin}
             onPress={() => pin && onConfirm({ lat: pin.lat, lng: pin.lng })}
           >
             Use pin
@@ -182,7 +179,11 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
             />
           </Section>
 
-          {inputKind?.type === 'coords' ? (
+          {inputKind?.type === 'resolving' ? (
+            <Section>
+              <Text>Resolving…</Text>
+            </Section>
+          ) : inputKind?.type === 'coords' ? (
             <Section>
               <Button
                 label={`Use ${inputKind.lat}, ${inputKind.lng} as coordinates`}
@@ -212,10 +213,7 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
           ) : null}
 
           <Section>
-            <Button
-              label="Drop a pin on a map"
-              onPress={() => setShowPin(true)}
-            />
+            <Button label="Drop a pin on a map" onPress={() => setShowPin(true)} />
           </Section>
         </Form>
       </Host>
