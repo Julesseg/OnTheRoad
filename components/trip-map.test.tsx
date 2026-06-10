@@ -50,6 +50,79 @@ describe('TripMap', () => {
     expect(map.getAttribute('data-polyline-color')).toBe('#0a7ea4');
   });
 
+  it('dims pins outside the active date and keeps accent on the active day', () => {
+    const trip: Trip = {
+      id: '00000000-0000-0000-0000-000000000002',
+      schemaVersion: 3,
+      title: 'Two-day trip',
+      startDate: '2099-07-01',
+      endDate: '2099-07-02',
+      days: [
+        {
+          id: 'd1',
+          date: '2099-07-01',
+          items: [{ category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } }],
+        },
+        {
+          id: 'd2',
+          date: '2099-07-02',
+          items: [{ category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } }],
+        },
+      ],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    render(<TripMap trip={trip} activeDate="2099-07-02" />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-marker-tints')).toBe(
+      '#8E8E93;#0a7ea4',
+    );
+  });
+
+  it('dims route legs unless both endpoints are on the active date', () => {
+    const trip: Trip = {
+      id: '00000000-0000-0000-0000-000000000003',
+      schemaVersion: 3,
+      title: 'Two-day trip',
+      startDate: '2099-07-01',
+      endDate: '2099-07-02',
+      days: [
+        {
+          id: 'd1',
+          date: '2099-07-01',
+          items: [{ category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } }],
+        },
+        {
+          id: 'd2',
+          date: '2099-07-02',
+          items: [
+            { category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
+            { category: 'location' as const, id: 'c', name: 'C', location: { lat: 44, lng: -100 } },
+          ],
+        },
+      ],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    render(<TripMap trip={trip} activeDate="2099-07-02" />);
+    const map = screen.getByTestId('apple-maps-view');
+    // A→B crosses days (grey); B→C is within the active day (accent).
+    expect(map.getAttribute('data-polylines')).toBe('40,-120;42,-110|42,-110;44,-100');
+    expect(map.getAttribute('data-polyline-colors')).toBe('#8E8E93;#0a7ea4');
+  });
+
+  it('keeps all pins accent-tinted when no activeDate is given', () => {
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
+    ]);
+    render(<TripMap trip={trip} />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-marker-tints')).toBe(
+      '#0a7ea4;#0a7ea4',
+    );
+  });
+
   it('omits the polyline when fewer than two coords are available', () => {
     const trip = makeTrip([
       { category: 'location' as const, id: 'a', name: 'Alone', location: { lat: 37.8199, lng: -122.4783 } },
@@ -98,13 +171,13 @@ describe('TripMap', () => {
     const vpB: Viewport = { coordinates: { latitude: 50, longitude: -100 }, zoom: 6 };
 
     const { rerender } = render(<TripMap ref={ref} trip={trip} viewport={vpA} />);
-    // useEffect fires on mount (coords key is set) and calls setCameraPosition(vpA).
+    // useEffect fires on mount and calls setCameraPosition(vpA).
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
 
-    // Change the viewport prop without changing coords — the useEffect is keyed on
-    // coords only, so it won't fire again; the camera stays at vpA.
+    // Changing the viewport values (e.g. today-filter reframe) re-fits the camera
+    // imperatively — the animated path — even though coords are unchanged.
     rerender(<TripMap ref={ref} trip={trip} viewport={vpB} />);
-    expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('50,-100');
 
     // recenter() re-applies the current (vpB) viewport — simulating a drift recovery.
     act(() => ref.current!.recenter());

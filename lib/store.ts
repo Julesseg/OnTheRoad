@@ -9,6 +9,7 @@ import {
   reorderItemInDay,
 } from './trip-mutations';
 import { resolveActiveTrip } from './active-trip';
+import type { DayFilterOverride } from './today-filter';
 import { todayString } from './date-utils';
 
 interface TripStore {
@@ -16,7 +17,7 @@ interface TripStore {
   loadedTrips: Record<string, Trip>;
   activeTripId: string | null;
   displayedTripId: string | null;
-  todayFilterOverride: boolean | null;
+  todayFilterOverride: DayFilterOverride;
   preferredMapsApp: MapsApp;
   installedMapsApps: MapsApp[];
   initialized: boolean;
@@ -37,7 +38,7 @@ interface TripStore {
   clearFavorite: () => void;
   setDisplayedTrip: (id: string) => void;
   resetDisplayedTrip: () => void;
-  setTodayFilterOverride: (value: boolean) => void;
+  setTodayFilterOverride: (value: string | boolean) => void;
 }
 
 type StateSnapshot = { trips: TripSummary[]; activeTripId: string | null; preferredMapsApp: MapsApp };
@@ -226,7 +227,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     set({ displayedTripId: null, todayFilterOverride: null });
   },
 
-  setTodayFilterOverride(value: boolean) {
+  setTodayFilterOverride(value: string | boolean) {
     set({ todayFilterOverride: value });
   },
 }));
