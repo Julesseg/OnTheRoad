@@ -129,6 +129,7 @@ export default function DaysSheet() {
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             icon="list.bullet"
+            tintColor={c.accent}
             accessibilityLabel="Trips"
             onPress={() => router.push('/trips')}
           />
@@ -158,6 +159,7 @@ export default function DaysSheet() {
           <Stack.Toolbar.Button
             icon="chevron.backward"
             accessibilityLabel="Back to default trip"
+            tintColor={c.accent}
             onPress={() => {
               // Dismiss BEFORE mutating the store so the two motions run together.
               // react-navigation marks this sheet for dismissal first, so the
@@ -176,6 +178,7 @@ export default function DaysSheet() {
             <Stack.Toolbar.Button
             icon="line.3.horizontal.decrease"
             accessibilityLabel="Filter day"
+            tintColor={c.accent}
             selected={filterModel.active}
             onPress={() => setTodayFilterOverride(!filterModel.active)}
             />
@@ -185,9 +188,10 @@ export default function DaysSheet() {
         <Stack.Toolbar.Button
           icon="list.bullet"
           accessibilityLabel="Trips"
+          tintColor={c.accent}
           onPress={() => router.push('/trips')}
         />
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More">
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" tintColor={c.accent}>
           <Stack.Toolbar.MenuAction
             icon="pencil"
             onPress={() => router.push(`/trip/${summary.id}/edit`)}

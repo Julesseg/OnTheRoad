@@ -22,7 +22,9 @@ import {
   background,
   padding,
   lineLimit,
+  listRowBackground,
   onTapGesture,
+  scrollContentBackground,
   tint,
   glassEffect,
   shapes,
@@ -216,6 +218,7 @@ export default function TripsSheet() {
         <Stack.Toolbar.Button
           icon="gearshape"
           accessibilityLabel="Settings"
+          tintColor={c.accent}
           onPress={() => router.push('/settings')}
         />
       </Stack.Toolbar>
@@ -223,6 +226,7 @@ export default function TripsSheet() {
         <Stack.Toolbar.Button
           icon="plus"
           accessibilityLabel="New trip"
+          tintColor={c.accent}
           onPress={() => router.push('/trip/new')}
         />
       </Stack.Toolbar>
@@ -234,13 +238,24 @@ export default function TripsSheet() {
           </RNText>
         </View>
       ) : (
-        <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'}>
+        // tint() seeds the SwiftUI accent inside the Host — SwiftUI otherwise
+        // falls back to system blue. Hiding the List's system grouped background
+        // lets the warm container background show through; rows take the surface.
+        <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'} modifiers={[tint(c.accent)]}>
           {/* Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
               row count. Removing role="destructive" took away the swipe's built-in
               delete animation, so we drive it here — when removeTrip drops the count
               the row slides out instead of vanishing. */}
-          <List modifiers={[listStyle('insetGrouped'), animation(Animation.default, visibleTrips.length)]}>
-            <Section>{visibleTrips.map((summary) => renderRow(summary))}</Section>
+          <List
+            modifiers={[
+              listStyle('insetGrouped'),
+              scrollContentBackground('hidden'),
+              animation(Animation.default, visibleTrips.length),
+            ]}
+          >
+            <Section modifiers={[listRowBackground(c.surface)]}>
+              {visibleTrips.map((summary) => renderRow(summary))}
+            </Section>
           </List>
         </Host>
       )}

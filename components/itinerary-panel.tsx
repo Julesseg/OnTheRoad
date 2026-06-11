@@ -20,6 +20,7 @@ import {
   listSectionSpacing,
   listSectionMargins,
   onTapGesture,
+  scrollContentBackground,
   tint,
   animation,
   Animation,
@@ -221,10 +222,21 @@ export function ItineraryPanel({
 
   return (
     <View style={styles.container}>
-      <Host style={styles.host} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+      {/* tint() seeds the SwiftUI accent inside the Host (e.g. the day-header +
+          buttons) — SwiftUI otherwise falls back to system blue. The List swaps
+          its system grouped background for a translucent warm wash so the sheet
+          keeps its liquid-glass look over the map; day sections paint their rows
+          with the translucent surface (today/next-up rows override per-row). */}
+      <Host
+        style={styles.host}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        modifiers={[tint(c.accent)]}
+      >
         <List
           modifiers={[
             listStyle('insetGrouped'),
+            scrollContentBackground('hidden'),
+            background(c.backgroundGlass),
             // Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
             // total item count. Dropping role="destructive" removed the swipe's built-in
             // delete animation, so we drive it here — when deleteItem lowers the count
@@ -252,6 +264,7 @@ export function ItineraryPanel({
           {days.map((day) => (
             <Section
               key={day.id}
+              modifiers={[listRowBackground(c.surfaceGlass)]}
               header={
                 <VStack alignment="leading" spacing={2}>
                   <HStack

@@ -15,7 +15,16 @@ import {
   Image,
   useNativeState,
 } from '@expo/ui/swift-ui';
-import { datePickerStyle, font, frame, foregroundStyle } from '@expo/ui/swift-ui/modifiers';
+import {
+  background,
+  datePickerStyle,
+  font,
+  frame,
+  foregroundStyle,
+  listRowBackground,
+  scrollContentBackground,
+  tint,
+} from '@expo/ui/swift-ui/modifiers';
 
 import {
   tripFormSchema,
@@ -83,7 +92,7 @@ export function TripForm({
 }: TripFormProps) {
   const today = formatLocalDate(new Date());
   const colorScheme = useColorScheme();
-  const { destructive } = useThemeColors();
+  const c = useThemeColors();
   // Native two-way binding seeds the field's initial text (edit path); the
   // mirror into react-hook-form below keeps validation in sync.
   const titleState = useNativeState(initialTitle);
@@ -144,7 +153,7 @@ export function TripForm({
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>{heading}</Stack.Title>
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onCancel}>
+        <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={c.accent} onPress={onCancel}>
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
@@ -152,6 +161,7 @@ export function TripForm({
         <Stack.Toolbar.Button
           accessibilityLabel={submitLabel}
           variant="prominent"
+          tintColor={c.accent}
           disabled={submitting}
           onPress={submit}
         >
@@ -159,9 +169,21 @@ export function TripForm({
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
-      <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-        <Form>
-          <Section header={<SectionHeader>What should we call it?</SectionHeader>} footer={<FieldError message={errors.title?.message} />}>
+      {/* tint() seeds the SwiftUI accent for everything in the Host (buttons,
+          date pickers, cursors) — SwiftUI otherwise falls back to system blue.
+          The Form swaps its system grouped background for the warm theme bg,
+          and each Section paints its rows with the theme surface. */}
+      <Host
+        style={{ flex: 1 }}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        modifiers={[tint(c.accent)]}
+      >
+        <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
+          <Section
+            header={<SectionHeader>What should we call it?</SectionHeader>}
+            footer={<FieldError message={errors.title?.message} />}
+            modifiers={[listRowBackground(c.surface)]}
+          >
             <TextField
               text={titleState}
               placeholder="e.g. Pacific Coast Highway"
@@ -170,7 +192,11 @@ export function TripForm({
             />
           </Section>
 
-          <Section header={<SectionHeader>When are you going?</SectionHeader>} footer={<FieldError message={errors.endDate?.message} />}>
+          <Section
+            header={<SectionHeader>When are you going?</SectionHeader>}
+            footer={<FieldError message={errors.endDate?.message} />}
+            modifiers={[listRowBackground(c.surface)]}
+          >
             <DatePicker
               title="Start"
               selection={parseLocalDate(startDate)}
@@ -187,7 +213,10 @@ export function TripForm({
             />
           </Section>
 
-          <Section header={<SectionHeader>Cover photo</SectionHeader>}>
+          <Section
+            header={<SectionHeader>Cover photo</SectionHeader>}
+            modifiers={[listRowBackground(c.surface)]}
+          >
             {coverPreviewUri ? (
               <>
                 <Image uiImage={coverPreviewUri} modifiers={[frame({ height: 160 })]} />
@@ -197,7 +226,7 @@ export function TripForm({
                   systemImage="trash"
                   role="destructive"
                   onPress={() => setCover({ kind: 'none' })}
-                  modifiers={[foregroundStyle(destructive)]}
+                  modifiers={[foregroundStyle(c.destructive)]}
                 />
               </>
             ) : (

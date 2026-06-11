@@ -17,12 +17,14 @@ import {
   accessibilityLabel,
   animation,
   Animation,
+  background,
   buttonStyle,
   contentTransition,
   font,
   foregroundStyle,
   listRowBackground,
   listRowSeparator,
+  scrollContentBackground,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -58,7 +60,8 @@ function classifyInput(text: string): InputKind {
 
 export function LocationPicker({ initialLocation, onConfirm, onCancel }: LocationPickerProps) {
   const colorScheme = useColorScheme();
-  const { accent, textSubtle } = useThemeColors();
+  const c = useThemeColors();
+  const { accent, textSubtle } = c;
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [inputKind, setInputKind] = useState<InputKind>(null);
@@ -149,18 +152,29 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       {onCancel ? (
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onCancel}>
+          <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={accent} onPress={onCancel}>
             Cancel
           </Stack.Toolbar.Button>
         </Stack.Toolbar>
       ) : null}
 
-      <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+      {/* tint() seeds the SwiftUI accent for everything in the Host — SwiftUI
+          otherwise falls back to system blue. The Form swaps its system grouped
+          background for the warm theme bg; Sections paint rows with the surface. */}
+      <Host
+        style={{ flex: 1 }}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        modifiers={[tint(accent)]}
+      >
         {/* Keyed to map visibility and pin presence so their rows animate in and out. */}
         <Form
-          modifiers={[animation(Animation.spring({ duration: 0.35 }), (showMap ? 1 : 0) + (pin ? 2 : 0))]}
+          modifiers={[
+            scrollContentBackground('hidden'),
+            background(c.background),
+            animation(Animation.spring({ duration: 0.35 }), (showMap ? 1 : 0) + (pin ? 2 : 0)),
+          ]}
         >
-          <Section>
+          <Section modifiers={[listRowBackground(c.surface)]}>
             <HStack spacing={8}>
               <TextField
                 placeholder="Search or paste a location"
@@ -255,18 +269,18 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
           ) : null}
 
           {inputKind?.type === 'resolving' ? (
-            <Section>
+            <Section modifiers={[listRowBackground(c.surface)]}>
               <Text>Resolving…</Text>
             </Section>
           ) : inputKind?.type === 'coords' ? (
-            <Section>
+            <Section modifiers={[listRowBackground(c.surface)]}>
               <Button
                 label={`Use ${inputKind.lat}, ${inputKind.lng} as coordinates`}
                 onPress={() => onConfirm({ lat: inputKind.lat, lng: inputKind.lng })}
               />
             </Section>
           ) : inputKind?.type === 'address' ? (
-            <Section>
+            <Section modifiers={[listRowBackground(c.surface)]}>
               <Button
                 label={`Use '${inputKind.text}' as a plain address`}
                 onPress={() => onConfirm({ address: inputKind.text })}

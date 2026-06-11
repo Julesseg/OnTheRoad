@@ -29,9 +29,13 @@ import {
   accessibilityLabel,
   multilineTextAlignment,
   labelsHidden,
+  background,
   buttonStyle,
   frame,
   lineLimit,
+  listRowBackground,
+  scrollContentBackground,
+  tint,
   truncationMode,
   onTapGesture,
 } from '@expo/ui/swift-ui/modifiers';
@@ -81,7 +85,7 @@ function dateToTime(d: Date): string {
 
 // Native form rows label themselves; when a field is invalid we tint its
 // leading label red to match the error message in the section footer.
-function fieldLabel(label: string, error?: string, errColor = '#d11'): string | React.ReactNode {
+function fieldLabel(label: string, error: string | undefined, errColor: string): string | React.ReactNode {
   return error ? <Text modifiers={[foregroundStyle(errColor)]}>{label}</Text> : label;
 }
 
@@ -126,10 +130,10 @@ function TimeRow({
   onChange: (v: string) => void;
   error?: string;
 }) {
-  const { textSubtle } = useThemeColors();
+  const { textSubtle, destructive } = useThemeColors();
   if (!value) {
     return (
-      <LabeledContent label={fieldLabel('Time', error)}>
+      <LabeledContent label={fieldLabel('Time', error, destructive)}>
         <Button label="Add time" onPress={() => onChange('09:00')} />
       </LabeledContent>
     );
@@ -138,7 +142,7 @@ function TimeRow({
     // The compact picker makes the Form drop this row's bottom separator, so we
     // draw our own line just below it to keep the divider down to Notes.
     <VStack spacing={14}>
-      <LabeledContent label={fieldLabel('Time', error)}>
+      <LabeledContent label={fieldLabel('Time', error, destructive)}>
         <HStack spacing={8}>
           <DatePicker
             title="Time"
@@ -233,21 +237,29 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
       </Stack.Title>
       {onCancel ? (
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onCancel}>
+          <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={c.accent} onPress={onCancel}>
             Cancel
           </Stack.Toolbar.Button>
         </Stack.Toolbar>
       ) : null}
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button accessibilityLabel="Save" variant="prominent" onPress={submit}>
+        <Stack.Toolbar.Button accessibilityLabel="Save" variant="prominent" tintColor={c.accent} onPress={submit}>
           Save
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
-      <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-        <Form>
+      {/* tint() seeds the SwiftUI accent for everything in the Host — SwiftUI
+          otherwise falls back to system blue. The Form swaps its system grouped
+          background for the warm theme bg; Sections paint rows with the surface. */}
+      <Host
+        style={{ flex: 1 }}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        modifiers={[tint(c.accent)]}
+      >
+        <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
           <Section
             footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
+            modifiers={[listRowBackground(c.surface)]}
           >
             <LabeledContent label={fieldLabel('Name', errors.name?.message, c.destructive)}>
               <TextField
@@ -335,7 +347,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Section>
 
           {initialItem && onDelete ? (
-            <Section>
+            <Section modifiers={[listRowBackground(c.surface)]}>
               <Button
                 label="Delete"
                 systemImage="trash"
