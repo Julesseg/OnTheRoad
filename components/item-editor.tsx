@@ -46,8 +46,10 @@ import {
 import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
-import type { Item, ItemCategory } from '@/lib/schema';
+import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
 import { beginLocationPick } from '@/lib/location-picker-session';
+import { moveEntry, sanitizeChecklist } from '@/lib/checklist';
+import { newId } from '@/lib/id';
 
 export interface ItemEditorProps {
   itemId: string;
@@ -161,6 +163,65 @@ function TimeRow({
   );
 }
 
+// One editable checklist entry. Its own component so each row gets its own
+// native text state; keyed by entry id, so the state follows the entry through
+// reorders. Structure edits commit on Save like the rest of the form — only
+// ticking (which lives in the itinerary, not here) autosaves.
+function ChecklistEntryRow({
+  entry,
+  position,
+  onRename,
+  onMove,
+  onRemove,
+}: {
+  entry: ChecklistItem;
+  position: number;
+  onRename: (label: string) => void;
+  onMove: (offset: -1 | 1) => void;
+  onRemove: () => void;
+}) {
+  const labelState = useNativeState(entry.label);
+  return (
+    <HStack spacing={4}>
+      <TextField
+        text={labelState}
+        placeholder="Checklist entry"
+        onTextChange={onRename}
+      />
+      <Button
+        label=""
+        systemImage="chevron.up"
+        onPress={() => onMove(-1)}
+        modifiers={[
+          accessibilityLabel(`Move entry ${position} up`),
+          buttonStyle('borderless'),
+          foregroundStyle(LABEL_GRAY),
+        ]}
+      />
+      <Button
+        label=""
+        systemImage="chevron.down"
+        onPress={() => onMove(1)}
+        modifiers={[
+          accessibilityLabel(`Move entry ${position} down`),
+          buttonStyle('borderless'),
+          foregroundStyle(LABEL_GRAY),
+        ]}
+      />
+      <Button
+        label=""
+        systemImage="minus.circle.fill"
+        onPress={onRemove}
+        modifiers={[
+          accessibilityLabel(`Remove entry ${position}`),
+          buttonStyle('borderless'),
+          foregroundStyle(DELETE_RED),
+        ]}
+      />
+    </HStack>
+  );
+}
+
 function locationLabel(loc: Item['location'] | null): string {
   if (!loc) return 'Add location';
   if (loc.address) return loc.address;
@@ -178,6 +239,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   const [category, setCategory] = useState<ItemCategory>(defaults.category);
   const [date, setDate] = useState(initialDate ?? '');
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
   const identity = itemIdentity(category);
 
   const nameState = useNativeState(defaults.name);
@@ -200,7 +262,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
 
   const submit = handleSubmit(() => {
     const values = { ...getValues(), category };
-    onSubmit(formToItem(values, itemId, initialItem, location), date);
+    onSubmit(formToItem(values, itemId, initialItem, location, sanitizeChecklist(checklist)), date);
   });
 
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
@@ -332,6 +394,28 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               />
               <NoteLinks text={notesText as string} />
             </VStack>
+          </Section>
+
+          <Section header={<Text>Checklist</Text>}>
+            {checklist.map((entry, i) => (
+              <ChecklistEntryRow
+                key={entry.id}
+                entry={entry}
+                position={i + 1}
+                onRename={(label) =>
+                  setChecklist((cl) => cl.map((e) => (e.id === entry.id ? { ...e, label } : e)))
+                }
+                onMove={(offset) => setChecklist((cl) => moveEntry(cl, entry.id, offset))}
+                onRemove={() => setChecklist((cl) => cl.filter((e) => e.id !== entry.id))}
+              />
+            ))}
+            <Button
+              label="Add entry"
+              systemImage="plus"
+              onPress={() =>
+                setChecklist((cl) => [...cl, { id: newId(), label: '', checked: false }])
+              }
+            />
           </Section>
 
           {initialItem && onDelete ? (
