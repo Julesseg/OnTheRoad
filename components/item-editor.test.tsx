@@ -85,7 +85,19 @@ vi.mock('@expo/ui/swift-ui', async () => {
       header?: React.ReactNode;
       footer?: React.ReactNode;
     }) => React.createElement('div', null, header, children, footer),
-    Text: pass('span'),
+    // Text carrying an onTapGesture modifier (the location label) renders as
+    // a button so taps stay assertable; plain Text stays a span.
+    Text: ({
+      children,
+      modifiers,
+    }: {
+      children?: React.ReactNode;
+      modifiers?: Record<string, unknown>[];
+    }) => {
+      const onTap = modifiers?.find((m) => m && '__onTap' in m)?.__onTap as (() => void) | undefined;
+      if (onTap) return React.createElement('button', { onClick: onTap }, children);
+      return React.createElement('span', null, children);
+    },
     useNativeState: (initial: string) => ({ value: initial }),
     TextField: React.forwardRef(
       (
