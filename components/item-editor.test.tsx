@@ -367,6 +367,121 @@ describe('ItemEditor', () => {
     expect(getLocationPickSession()?.initialLocation).toEqual({ address: 'Santorini' });
   });
 
+  // --- Checklist section (issue #77) ---
+
+  it('shows existing checklist entries as editable fields in the Checklist section', () => {
+    const initial: Item = {
+      id: 'x', name: 'Pack bags', category: 'activity',
+      checklist: [
+        { id: 'c1', label: 'Passport', checked: false },
+        { id: 'c2', label: 'Sunscreen', checked: true },
+      ],
+    };
+    render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByText('Checklist')).toBeInTheDocument();
+    const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    expect(fields.map((f) => f.defaultValue)).toEqual(['Passport', 'Sunscreen']);
+  });
+
+  it('adds a checklist entry and includes it on save, unchecked with a fresh id', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="cl-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack bags' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    fireEvent.change(screen.getByPlaceholderText('Checklist entry'), { target: { value: 'Passport' } });
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    const item = onSubmit.mock.calls[0][0] as Item;
+    expect(item.checklist).toHaveLength(1);
+    expect(item.checklist![0]).toMatchObject({ label: 'Passport', checked: false });
+    expect(item.checklist![0].id).toBeTruthy();
+  });
+
+  const PACK_ITEM: Item = {
+    id: 'cl-2', name: 'Pack bags', category: 'activity',
+    checklist: [
+      { id: 'c1', label: 'Passport', checked: true },
+      { id: 'c2', label: 'Sunscreen', checked: false },
+    ],
+  };
+
+  it('renames an entry on save, preserving its id and checked state', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="cl-2" initialItem={PACK_ITEM} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    const fields = screen.getAllByPlaceholderText('Checklist entry');
+    fireEvent.change(fields[0], { target: { value: 'Passport + visa' } });
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist).toEqual([
+      { id: 'c1', label: 'Passport + visa', checked: true },
+      { id: 'c2', label: 'Sunscreen', checked: false },
+    ]);
+  });
+
+  it('removes an entry on save', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="cl-2" initialItem={PACK_ITEM} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist).toEqual([
+      { id: 'c2', label: 'Sunscreen', checked: false },
+    ]);
+  });
+
+  it('removing the last entry drops the checklist field entirely', async () => {
+    const onSubmit = vi.fn();
+    const oneEntry: Item = {
+      id: 'cl-3', name: 'Pack', category: 'activity',
+      checklist: [{ id: 'c1', label: 'Passport', checked: false }],
+    };
+    render(<ItemEditor itemId="cl-3" initialItem={oneEntry} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect('checklist' in (onSubmit.mock.calls[0][0] as Item)).toBe(false);
+  });
+
+  it('reorders entries with the move buttons and saves the new order', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="cl-2" initialItem={PACK_ITEM} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move entry 2 up' }));
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist!.map((e) => e.label)).toEqual([
+      'Sunscreen',
+      'Passport',
+    ]);
+  });
+
+  it('drops entries left blank instead of saving them', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="cl-4" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack bags' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    const fields = screen.getAllByPlaceholderText('Checklist entry');
+    fireEvent.change(fields[0], { target: { value: '  Passport  ' } });
+    // second entry stays blank
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    const item = onSubmit.mock.calls[0][0] as Item;
+    expect(item.checklist).toHaveLength(1);
+    expect(item.checklist![0]).toMatchObject({ label: 'Passport', checked: false });
+  });
+
   it('location set via picker is included in the submitted item', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="loc-2" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);

@@ -11,6 +11,7 @@ import {
   Text,
   Button,
   SwipeActions,
+  Toggle,
 } from '@expo/ui/swift-ui';
 import {
   listStyle,
@@ -34,6 +35,7 @@ import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
+import { checklistProgress } from '@/lib/checklist';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
@@ -86,6 +88,7 @@ export function ItineraryPanel({
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const reorderItem = useTripStore((s) => s.reorderItem);
+  const toggleChecklistEntry = useTripStore((s) => s.toggleChecklistEntry);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
 
   const today = localDateString(now);
@@ -145,56 +148,80 @@ export function ItineraryPanel({
       ? () => openInMaps(mapsTarget, { app: preferredMapsApp }).catch(() => {})
       : null;
 
+    const checklist = item.checklist ?? [];
+    // Toggles tick straight through to storage (no editor, no Save step), so
+    // they sit outside the header's edit tap gesture and own their taps.
+    const checklistToggles = checklist.map((entry) => (
+      <Toggle
+        key={entry.id}
+        label={entry.label}
+        isOn={entry.checked}
+        onIsOnChange={() => toggleChecklistEntry(trip.id, dayId, item.id, entry.id)}
+      />
+    ));
+
+    const progress = (color: string) =>
+      checklist.length > 0 ? (
+        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(color)]}>
+          {checklistProgress(checklist)}
+        </Text>
+      ) : null;
+
     const rowContent = isNextUp ? (
       // Solid accent row with a white capsule "NEXT UP" pill in upper-right.
-      <HStack
-        alignment="top"
-        spacing={8}
-        modifiers={[onTapGesture(edit), listRowBackground(c.accent)]}
+      <VStack alignment="leading" spacing={6} modifiers={[listRowBackground(c.accent)]}>
+        <HStack alignment="top" spacing={8} modifiers={[onTapGesture(edit)]}>
+          <VStack alignment="leading" spacing={2}>
+            <HStack spacing={8}>
+              <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
+                {typeLabel.toUpperCase()}
+              </Text>
+              {progress(WHITE)}
+            </HStack>
+            <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(WHITE)]}>
+              {title}
+            </Text>
+            {lines.map((line, i) => (
+              <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(WHITE)]}>
+                {line}
+              </Text>
+            ))}
+          </VStack>
+          <Spacer />
+          <Text
+            modifiers={[
+              font({ size: 10, weight: 'bold' }),
+              foregroundStyle(c.accent),
+              padding({ horizontal: 8, vertical: 4 }),
+              background(WHITE, shapes.capsule()),
+            ]}
+          >
+            NEXT UP
+          </Text>
+        </HStack>
+        {checklistToggles}
+      </VStack>
+    ) : (
+      <VStack
+        alignment="leading"
+        spacing={6}
+        modifiers={isToday ? [listRowBackground(c.accentFaint)] : []}
       >
-        <VStack alignment="leading" spacing={2}>
-          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
-            {typeLabel.toUpperCase()}
-          </Text>
-          <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(WHITE)]}>
-            {title}
-          </Text>
+        <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
+          <HStack spacing={8}>
+            <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+              {typeLabel.toUpperCase()}
+            </Text>
+            {progress(subtext)}
+          </HStack>
+          <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
           {lines.map((line, i) => (
-            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(WHITE)]}>
+            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
               {line}
             </Text>
           ))}
         </VStack>
-        <Spacer />
-        <Text
-          modifiers={[
-            font({ size: 10, weight: 'bold' }),
-            foregroundStyle(c.accent),
-            padding({ horizontal: 8, vertical: 4 }),
-            background(WHITE, shapes.capsule()),
-          ]}
-        >
-          NEXT UP
-        </Text>
-      </HStack>
-    ) : (
-      <VStack
-        alignment="leading"
-        spacing={2}
-        modifiers={[
-          onTapGesture(edit),
-          ...(isToday ? [listRowBackground(c.accentFaint)] : []),
-        ]}
-      >
-        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
-          {typeLabel.toUpperCase()}
-        </Text>
-        <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
-        {lines.map((line, i) => (
-          <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
-            {line}
-          </Text>
-        ))}
+        {checklistToggles}
       </VStack>
     );
 

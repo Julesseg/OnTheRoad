@@ -37,6 +37,21 @@ vi.mock('@expo/ui/swift-ui', async () => {
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
   const ForEach = pass('div');
+  const Toggle = ({
+    label,
+    isOn,
+    onIsOnChange,
+  }: {
+    label?: string;
+    isOn?: boolean;
+    onIsOnChange?: (isOn: boolean) => void;
+  }) =>
+    React.createElement('input', {
+      type: 'checkbox',
+      'aria-label': label,
+      checked: !!isOn,
+      onChange: () => onIsOnChange?.(!isOn),
+    });
   return {
     Host: pass('div'),
     List: Object.assign(pass('div'), { ForEach }),
@@ -49,6 +64,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
     Menu: pass('div'),
     Button,
     SwipeActions,
+    Toggle,
   };
 });
 
@@ -79,18 +95,24 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
 // can't mount under jsdom; stub it out.
 vi.mock('@/components/progressive-blur', () => ({ ProgressiveBlurView: () => null }));
 
+const storeActions = vi.hoisted(() => ({
+  deleteItem: vi.fn(),
+  reorderItem: vi.fn(),
+  toggleChecklistEntry: vi.fn(),
+}));
+
 vi.mock('@/lib/store', () => ({
   useTripStore: (
     selector: (s: {
       preferredMapsApp: string;
       deleteItem: () => void;
       reorderItem: () => void;
+      toggleChecklistEntry: () => void;
     }) => unknown,
   ) =>
     selector({
       preferredMapsApp: 'apple',
-      deleteItem: vi.fn(),
-      reorderItem: vi.fn(),
+      ...storeActions,
     }),
 }));
 
@@ -153,6 +175,51 @@ describe('ItineraryPanel', () => {
       pathname: '/trip/[id]/item',
       params: { id: 'trip-1', dayId: 'day-1' },
     });
+  });
+
+  // --- Inline checklists (issue #77) ---
+
+  function tripWithChecklist(): Trip {
+    return {
+      ...TRIP,
+      days: [
+        {
+          id: 'day-1',
+          date: '2026-07-01',
+          items: [
+            {
+              id: 'a1',
+              name: 'Pack bags',
+              category: 'activity',
+              checklist: [
+                { id: 'c1', label: 'Passport', checked: false },
+                { id: 'c2', label: 'Sunscreen', checked: true },
+                { id: 'c3', label: 'Charger', checked: false },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  it('shows checklist entries as toggles with a progress count on the item row', () => {
+    render(<ItineraryPanel trip={tripWithChecklist()} now={BEFORE_TRIP} />);
+    expect(screen.getByText('1/3')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Passport' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Sunscreen' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Charger' })).not.toBeChecked();
+  });
+
+  it('ticking a toggle writes through to the store immediately', () => {
+    render(<ItineraryPanel trip={tripWithChecklist()} now={BEFORE_TRIP} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Passport' }));
+    expect(storeActions.toggleChecklistEntry).toHaveBeenCalledWith('trip-1', 'day-1', 'a1', 'c1');
+  });
+
+  it('renders no toggles or progress on items without a checklist', () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
   });
 
   it('renders a NEXT UP pill on the item row when In progress with an upcoming timed item', () => {

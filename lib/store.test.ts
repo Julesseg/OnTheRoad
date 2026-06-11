@@ -96,6 +96,45 @@ describe('updateTrip', () => {
   });
 });
 
+describe('toggleChecklistEntry', () => {
+  function tripWithChecklist(): Trip {
+    return tripFixture({
+      days: [
+        {
+          id: 'd1',
+          date: '2026-07-01',
+          items: [
+            {
+              id: 'i1',
+              name: 'Pack bags',
+              category: 'activity',
+              checklist: [{ id: 'c1', label: 'Passport', checked: false }],
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  it('flips the entry in the loaded trip and writes through to storage immediately', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithChecklist() } });
+
+    useTripStore.getState().toggleChecklistEntry('trip-1', 'd1', 'i1', 'c1');
+
+    const updated = useTripStore.getState().loadedTrips['trip-1'];
+    expect(updated.days[0].items[0].checklist![0].checked).toBe(true);
+    // Synchronous save — ticking persists without a Save step or debounce.
+    expect(storage.saveTrip).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(storage.saveTrip).mock.calls[0][0]).toBe(updated);
+  });
+
+  it('does not save when the toggle is a no-op (unknown entry)', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithChecklist() } });
+    useTripStore.getState().toggleChecklistEntry('trip-1', 'd1', 'i1', 'missing');
+    expect(storage.saveTrip).not.toHaveBeenCalled();
+  });
+});
+
 describe('Displayed Trip', () => {
   it('setDisplayedTrip records the displayed trip id', () => {
     useTripStore.getState().setDisplayedTrip('trip-1');

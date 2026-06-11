@@ -8,6 +8,7 @@ import {
   deleteItemFromTrip,
   moveItemToDay,
   reorderItemInDay,
+  toggleChecklistEntryInTrip,
 } from './trip-mutations';
 import { resolveActiveTrip } from './active-trip';
 import type { DayFilterOverride } from './today-filter';
@@ -35,6 +36,7 @@ interface TripStore {
   deleteItem: (tripId: string, dayId: string, itemId: string) => void;
   moveItem: (tripId: string, fromDayId: string, toDayId: string, itemId: string) => void;
   reorderItem: (tripId: string, dayId: string, sourceIndices: number[], destination: number) => void;
+  toggleChecklistEntry: (tripId: string, dayId: string, itemId: string, entryId: string) => void;
   setPreferredMapsApp: (app: MapsApp) => void;
   setAppearance: (mode: AppearanceMode) => void;
   setFavorite: (id: string) => void;
@@ -195,6 +197,17 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const trip = get().loadedTrips[tripId];
     if (!trip) return;
     const next = reorderItemInDay(trip, dayId, sourceIndices, destination, new Date().toISOString());
+    if (next === trip) return;
+    saveTrip(next);
+    set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+  },
+
+  // Ticking is autosaved: the flipped trip hits storage synchronously, with no
+  // Save step and no debounce — independent of any open editor's Save/Cancel.
+  toggleChecklistEntry(tripId: string, dayId: string, itemId: string, entryId: string) {
+    const trip = get().loadedTrips[tripId];
+    if (!trip) return;
+    const next = toggleChecklistEntryInTrip(trip, dayId, itemId, entryId, new Date().toISOString());
     if (next === trip) return;
     saveTrip(next);
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));

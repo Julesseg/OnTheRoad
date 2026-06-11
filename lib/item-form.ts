@@ -53,16 +53,21 @@ function omitUndefined<T extends Record<string, unknown>>(obj: T): T {
  *   null      → explicitly cleared
  *   object    → new/updated value set via the location picker
  *
- * `original` is still used to carry checklist data the form doesn't surface.
+ * `checklist`:
+ *   undefined → carry from `original` (checklist untouched by this edit)
+ *   []        → emptied — the field is dropped from the item
+ *   array     → new/updated entries from the editor's Checklist section
  */
 export function formToItem(
   v: ItemFormValues,
   id: string,
   original?: Item,
   location?: Item['location'] | null,
+  checklist?: Item['checklist'],
 ): Item {
   const resolvedLocation =
     location === undefined ? original?.location : location === null ? undefined : location;
+  const resolvedChecklist = checklist === undefined ? original?.checklist : checklist;
   return omitUndefined({
     id,
     name: v.name.trim(),
@@ -70,6 +75,6 @@ export function formToItem(
     time: trimToUndefined(v.time),
     notes: trimToUndefined(v.notes),
     ...(resolvedLocation ? { location: resolvedLocation } : {}),
-    ...(original?.checklist ? { checklist: original.checklist } : {}),
+    ...(resolvedChecklist?.length ? { checklist: resolvedChecklist } : {}),
   }) as Item;
 }
