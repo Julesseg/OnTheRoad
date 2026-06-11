@@ -19,6 +19,16 @@ const pickers = vi.hoisted(
 
 const routerMock = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
 
+// Capture the checklist List.ForEach handlers so tests can drive the system
+// swipe-to-delete (onDelete) and drag-to-reorder (onMove) callbacks.
+const forEachHandlers = vi.hoisted(
+  () =>
+    ({}) as {
+      onDelete?: (indices: number[]) => void;
+      onMove?: (sourceIndices: number[], destination: number) => void;
+    },
+);
+
 /* eslint-disable react/display-name */
 vi.mock('@expo/ui/swift-ui', async () => {
   const React = await import('react');
@@ -33,7 +43,39 @@ vi.mock('@expo/ui/swift-ui', async () => {
     HStack: pass('div'),
     LabeledContent: pass('div'),
     Divider: () => null,
-    Image: () => null,
+    // Images carrying an onTapGesture modifier (the checklist circles) render
+    // as buttons so taps and the shown symbol stay assertable.
+    Image: ({
+      systemName,
+      modifiers,
+    }: {
+      systemName?: string;
+      modifiers?: Record<string, unknown>[];
+    }) => {
+      const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
+      const onTap = modifiers?.find((m) => m && '__onTap' in m)?.__onTap;
+      if (!onTap) return null;
+      return React.createElement('button', {
+        'data-system-image': systemName,
+        'aria-label': a11y,
+        onClick: onTap,
+      });
+    },
+    List: Object.assign(pass('div'), {
+      ForEach: ({
+        children,
+        onDelete,
+        onMove,
+      }: {
+        children?: React.ReactNode;
+        onDelete?: (indices: number[]) => void;
+        onMove?: (sourceIndices: number[], destination: number) => void;
+      }) => {
+        forEachHandlers.onDelete = onDelete;
+        forEachHandlers.onMove = onMove;
+        return React.createElement('div', null, children);
+      },
+    }),
     Section: ({
       children,
       header,
@@ -124,8 +166,11 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   listRowSeparator: vi.fn(() => ({})),
   frame: vi.fn(() => ({})),
   tint: vi.fn(() => ({})),
-  onTapGesture: vi.fn(() => ({})),
+  onTapGesture: (fn: () => void) => ({ __onTap: fn }),
   accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
+  contentTransition: vi.fn(() => ({})),
+  animation: vi.fn(() => ({})),
+  Animation: { default: {} },
 }));
 
 vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
@@ -153,6 +198,8 @@ vi.mock('expo-router', async () => {
 beforeEach(() => {
   for (const k of Object.keys(dpickers)) delete dpickers[k];
   for (const k of Object.keys(pickers)) delete pickers[k];
+  delete forEachHandlers.onDelete;
+  delete forEachHandlers.onMove;
   routerMock.push.mockClear();
   routerMock.back.mockClear();
   endLocationPick();
@@ -420,11 +467,11 @@ describe('ItemEditor', () => {
     ]);
   });
 
-  it('removes an entry on save', async () => {
+  it('removes an entry via system swipe-to-delete and saves', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="cl-2" initialItem={PACK_ITEM} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+    act(() => forEachHandlers.onDelete!([0]));
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
@@ -441,24 +488,47 @@ describe('ItemEditor', () => {
     };
     render(<ItemEditor itemId="cl-3" initialItem={oneEntry} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+    act(() => forEachHandlers.onDelete!([0]));
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect('checklist' in (onSubmit.mock.calls[0][0] as Item)).toBe(false);
   });
 
-  it('reorders entries with the move buttons and saves the new order', async () => {
+  it('reorders entries via drag (onMove) and saves the new order', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="cl-2" initialItem={PACK_ITEM} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move entry 2 up' }));
+    act(() => forEachHandlers.onMove!([1], 0));
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect((onSubmit.mock.calls[0][0] as Item).checklist!.map((e) => e.label)).toEqual([
       'Sunscreen',
       'Passport',
+    ]);
+  });
+
+  it('renders a circle per entry and tapping it toggles checked state on save', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="cl-2" initialItem={PACK_ITEM} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    expect(screen.getByRole('button', { name: 'Toggle entry 1' })).toHaveAttribute(
+      'data-system-image',
+      'checkmark.circle.fill',
+    );
+    expect(screen.getByRole('button', { name: 'Toggle entry 2' })).toHaveAttribute(
+      'data-system-image',
+      'circle',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle entry 2' }));
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist).toEqual([
+      { id: 'c1', label: 'Passport', checked: true },
+      { id: 'c2', label: 'Sunscreen', checked: true },
     ]);
   });
 
