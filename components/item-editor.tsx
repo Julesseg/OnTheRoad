@@ -17,7 +17,6 @@ import {
   HStack,
   VStack,
   LabeledContent,
-  Divider,
   List,
   useNativeState,
 } from '@expo/ui/swift-ui';
@@ -35,7 +34,6 @@ import {
   lineLimit,
   truncationMode,
   onTapGesture,
-  padding,
   contentTransition,
   animation,
   Animation,
@@ -143,30 +141,26 @@ function TimeRow({
     );
   }
   return (
-    // The clear button makes iOS drop this row's bottom separator, and
-    // listRowSeparator('visible') does not override that on iOS 26 — so we
-    // draw our own. Negative bottom padding swallows the row's bottom inset
-    // so the line sits where the native separator would.
-    <VStack spacing={12} modifiers={[padding({ bottom: -11 })]}>
-      <LabeledContent label={fieldLabel('Time', error)}>
-        <HStack spacing={8}>
-          <DatePicker
-            title="Time"
-            selection={timeToDate(value)}
-            displayedComponents={['hourAndMinute']}
-            onDateChange={(d) => onChange(dateToTime(d))}
-            modifiers={[datePickerStyle('compact'), labelsHidden()]}
-          />
-          <Button
-            label=""
-            systemImage="xmark.circle.fill"
-            onPress={() => onChange('')}
-            modifiers={[accessibilityLabel('Clear time'), foregroundStyle(LABEL_GRAY)]}
-          />
-        </HStack>
-      </LabeledContent>
-      <Divider modifiers={[frame({ height: 1 })]} />
-    </VStack>
+    // The clear control is an Image with a tap gesture, not a Button — iOS 26
+    // permanently drops the row's bottom separator when the row contains a
+    // button, and listRowSeparator('visible') cannot override that.
+    <LabeledContent label={fieldLabel('Time', error)}>
+      <HStack spacing={8}>
+        <DatePicker
+          title="Time"
+          selection={timeToDate(value)}
+          displayedComponents={['hourAndMinute']}
+          onDateChange={(d) => onChange(dateToTime(d))}
+          modifiers={[datePickerStyle('compact'), labelsHidden()]}
+        />
+        <Image
+          systemName="xmark.circle.fill"
+          color={LABEL_GRAY}
+          size={20}
+          modifiers={[accessibilityLabel('Clear time'), onTapGesture(() => onChange(''))]}
+        />
+      </HStack>
+    </LabeledContent>
   );
 }
 
@@ -222,38 +216,32 @@ function LocationRow({
   onPick: () => void;
   onClear: () => void;
 }) {
-  const row = (
+  return (
+    // Tappable Text/Image instead of Buttons — see TimeRow for why (iOS 26
+    // drops the row separator around button rows). The gesture also confines
+    // the tap target to the label, like buttonStyle('borderless') did.
     <LabeledContent label="Location">
       <HStack spacing={8}>
-        <Button
-          label={locationLabel(location)}
-          onPress={onPick}
-          // Borderless confines the tap target to the label — the default
-          // style makes the whole Form row tappable.
-          modifiers={[buttonStyle('borderless'), lineLimit(1), truncationMode('tail')]}
-        />
+        <Text
+          modifiers={[
+            foregroundStyle(LINK_BLUE),
+            lineLimit(1),
+            truncationMode('tail'),
+            onTapGesture(onPick),
+          ]}
+        >
+          {locationLabel(location)}
+        </Text>
         {location ? (
-          <Button
-            label=""
-            systemImage="xmark.circle.fill"
-            onPress={onClear}
-            modifiers={[
-              accessibilityLabel('Clear location'),
-              foregroundStyle(LABEL_GRAY),
-              buttonStyle('borderless'),
-            ]}
+          <Image
+            systemName="xmark.circle.fill"
+            color={LABEL_GRAY}
+            size={20}
+            modifiers={[accessibilityLabel('Clear location'), onTapGesture(onClear)]}
           />
         ) : null}
       </HStack>
     </LabeledContent>
-  );
-  if (!location) return row;
-  return (
-    // Same separator workaround as TimeRow, triggered once a location is set.
-    <VStack spacing={12} modifiers={[padding({ bottom: -11 })]}>
-      {row}
-      <Divider modifiers={[frame({ height: 1 })]} />
-    </VStack>
   );
 }
 
