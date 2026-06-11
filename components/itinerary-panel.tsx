@@ -11,7 +11,7 @@ import {
   Text,
   Button,
   SwipeActions,
-  Toggle,
+  Image,
 } from '@expo/ui/swift-ui';
 import {
   listStyle,
@@ -25,6 +25,8 @@ import {
   tint,
   animation,
   Animation,
+  contentTransition,
+  accessibilityLabel,
   background,
   padding,
   shapes,
@@ -149,17 +151,35 @@ export function ItineraryPanel({
       : null;
 
     const checklist = item.checklist ?? [];
-    // Toggles tick straight through to storage (no editor, no Save step), so
-    // they sit outside the header's edit tap gesture and own their taps.
-    const checklistToggles = checklist.map((entry) => (
-      <Toggle
-        key={entry.id}
-        label={entry.label}
-        isOn={entry.checked}
-        // isOn arg ignored — source of truth is the store; the mutation flips the stored value.
-        onIsOnChange={() => toggleChecklistEntry(trip.id, dayId, item.id, entry.id)}
-      />
-    ));
+    // A leading circle that fills into a checkmark when ticked. Only the circle
+    // owns the tap (not the whole line), and it writes straight through to
+    // storage — so it sits outside the header's edit tap gesture. The
+    // contentTransition + animation pair animates the circle → checkmark swap.
+    const checklistRows = (palette: { tick: string; idle: string; label?: string }) =>
+      checklist.map((entry) => (
+        <HStack key={entry.id} spacing={10}>
+          <Image
+            systemName={entry.checked ? 'checkmark.circle.fill' : 'circle'}
+            color={entry.checked ? palette.tick : palette.idle}
+            size={20}
+            modifiers={[
+              contentTransition('interpolate'),
+              animation(Animation.default, entry.checked ? 1 : 0),
+              accessibilityLabel(entry.label),
+              onTapGesture(() => toggleChecklistEntry(trip.id, dayId, item.id, entry.id)),
+            ]}
+          />
+          <Text
+            modifiers={[
+              font({ size: 14 }),
+              ...(palette.label ? [foregroundStyle(palette.label)] : []),
+            ]}
+          >
+            {entry.label}
+          </Text>
+          <Spacer />
+        </HStack>
+      ));
 
     const progress = (color: string) =>
       checklist.length > 0 ? (
@@ -200,7 +220,7 @@ export function ItineraryPanel({
             NEXT UP
           </Text>
         </HStack>
-        {checklistToggles}
+        {checklistRows({ tick: WHITE, idle: WHITE, label: WHITE })}
       </VStack>
     ) : (
       <VStack
@@ -222,7 +242,7 @@ export function ItineraryPanel({
             </Text>
           ))}
         </VStack>
-        {checklistToggles}
+        {checklistRows({ tick: c.accent, idle: subtext })}
       </VStack>
     );
 

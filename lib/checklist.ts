@@ -6,19 +6,24 @@ export function checklistProgress(checklist: ChecklistItem[]): string {
   return `${done}/${checklist.length}`;
 }
 
-/** Move `entryId` by `offset` positions (-1 = up, +1 = down). Pure.
- * Returns the input list unchanged when the entry is unknown or the move
- * would leave the bounds. */
-export function moveEntry(
+/** Reorder entries per SwiftUI's `onMove` semantics (same contract as
+ * `reorderItemInDay`): `destination` indexes the original array. Pure.
+ * Returns the input list unchanged when the move is a no-op. */
+export function moveEntries(
   checklist: ChecklistItem[],
-  entryId: string,
-  offset: number,
+  sourceIndices: number[],
+  destination: number,
 ): ChecklistItem[] {
-  const from = checklist.findIndex((e) => e.id === entryId);
-  const to = from + offset;
-  if (from === -1 || to < 0 || to >= checklist.length) return checklist;
-  const next = [...checklist];
-  next.splice(to, 0, ...next.splice(from, 1));
+  const sources = [...new Set(sourceIndices)]
+    .filter((i) => i >= 0 && i < checklist.length)
+    .sort((a, b) => a - b);
+  const moved = sources.map((i) => checklist[i]);
+  const remaining = checklist.filter((_, i) => !sources.includes(i));
+  // SwiftUI's `destination` indexes the original array; shift it left by the
+  // number of moved entries that sat before it so the drop lands where expected.
+  const insertAt = destination - sources.filter((i) => i < destination).length;
+  const next = [...remaining.slice(0, insertAt), ...moved, ...remaining.slice(insertAt)];
+  if (next.every((e, i) => e === checklist[i])) return checklist;
   return next;
 }
 

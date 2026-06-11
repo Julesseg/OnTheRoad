@@ -37,21 +37,23 @@ vi.mock('@expo/ui/swift-ui', async () => {
   const Actions = pass('div');
   const SwipeActions = Object.assign(pass('div'), { Actions });
   const ForEach = pass('div');
-  const Toggle = ({
-    label,
-    isOn,
-    onIsOnChange,
+  // Images carrying an onTapGesture modifier (the checklist circles) render as
+  // buttons so taps and the shown symbol stay assertable.
+  const Image = ({
+    systemName,
+    modifiers,
   }: {
-    label?: string;
-    isOn?: boolean;
-    onIsOnChange?: (isOn: boolean) => void;
-  }) =>
-    React.createElement('input', {
-      type: 'checkbox',
-      'aria-label': label,
-      checked: !!isOn,
-      onChange: () => onIsOnChange?.(!isOn),
+    systemName?: string;
+    modifiers?: Record<string, unknown>[];
+  }) => {
+    const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
+    const onTap = modifiers?.find((m) => m && '__onTap' in m)?.__onTap;
+    return React.createElement('button', {
+      'data-system-image': systemName,
+      'aria-label': a11y,
+      onClick: onTap,
     });
+  };
   return {
     Host: pass('div'),
     List: Object.assign(pass('div'), { ForEach }),
@@ -60,11 +62,10 @@ vi.mock('@expo/ui/swift-ui', async () => {
     HStack: pass('div'),
     Spacer: () => null,
     Text: pass('span'),
-    Image: () => null,
+    Image,
     Menu: pass('div'),
     Button,
     SwipeActions,
-    Toggle,
   };
 });
 
@@ -75,12 +76,14 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => {
     listStyle: noop,
     font: noop,
     foregroundStyle: noop,
+    contentTransition: noop,
+    accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
     listRowBackground: noop,
     listRowSeparator: noop,
     listSectionSpacing: noop,
     listSectionMargins: noop,
     frame: noop,
-    onTapGesture: noop,
+    onTapGesture: (fn: () => void) => ({ __onTap: fn }),
     tint: noop,
     animation: noop,
     Animation: { default: {} },
@@ -203,23 +206,36 @@ describe('ItineraryPanel', () => {
     };
   }
 
-  it('shows checklist entries as toggles with a progress count on the item row', () => {
+  it('shows checklist entries as leading circles (empty / filled checkmark) with a progress count', () => {
     render(<ItineraryPanel trip={tripWithChecklist()} now={BEFORE_TRIP} />);
     expect(screen.getByText('1/3')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Passport' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Sunscreen' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Charger' })).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Passport' })).toHaveAttribute(
+      'data-system-image',
+      'circle',
+    );
+    expect(screen.getByRole('button', { name: 'Sunscreen' })).toHaveAttribute(
+      'data-system-image',
+      'checkmark.circle.fill',
+    );
+    expect(screen.getByRole('button', { name: 'Charger' })).toHaveAttribute(
+      'data-system-image',
+      'circle',
+    );
   });
 
-  it('ticking a toggle writes through to the store immediately', () => {
+  it('tapping the circle writes through to the store immediately', () => {
     render(<ItineraryPanel trip={tripWithChecklist()} now={BEFORE_TRIP} />);
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Passport' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Passport' }));
     expect(storeActions.toggleChecklistEntry).toHaveBeenCalledWith('trip-1', 'day-1', 'a1', 'c1');
   });
 
-  it('renders no toggles or progress on items without a checklist', () => {
-    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
-    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+  it('renders no circles or progress on items without a checklist', () => {
+    const { container } = render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    expect(
+      container.querySelectorAll(
+        '[data-system-image="circle"], [data-system-image="checkmark.circle.fill"]',
+      ),
+    ).toHaveLength(0);
   });
 
   it('renders a NEXT UP pill on the item row when In progress with an upcoming timed item', () => {

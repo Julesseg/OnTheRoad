@@ -18,6 +18,7 @@ import {
   VStack,
   LabeledContent,
   Divider,
+  List,
   useNativeState,
 } from '@expo/ui/swift-ui';
 import {
@@ -38,6 +39,9 @@ import {
   tint,
   truncationMode,
   onTapGesture,
+  contentTransition,
+  animation,
+  Animation,
 } from '@expo/ui/swift-ui/modifiers';
 
 import {
@@ -53,7 +57,7 @@ import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
 import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
 import { beginLocationPick } from '@/lib/location-picker-session';
-import { moveEntry, sanitizeChecklist } from '@/lib/checklist';
+import { moveEntries, sanitizeChecklist } from '@/lib/checklist';
 import { newId } from '@/lib/id';
 
 export interface ItemEditorProps {
@@ -168,59 +172,36 @@ function TimeRow({
 
 // One editable checklist entry. Its own component so each row gets its own
 // native text state; keyed by entry id, so the state follows the entry through
-// reorders. Structure edits commit on Save like the rest of the form — only
-// ticking (which lives in the itinerary, not here) autosaves.
+// reorders. The leading circle toggles `checked` (animating into a filled
+// checkmark); everything commits on Save like the rest of the form. Removal is
+// the system swipe-to-delete and reorder the system long-press drag — both
+// wired on the surrounding List.ForEach, not here.
 function ChecklistEntryRow({
   entry,
   position,
   onRename,
-  onMove,
-  onRemove,
+  onToggle,
 }: {
   entry: ChecklistItem;
   position: number;
   onRename: (label: string) => void;
-  onMove: (offset: -1 | 1) => void;
-  onRemove: () => void;
+  onToggle: () => void;
 }) {
   const labelState = useNativeState(entry.label);
   return (
-    <HStack spacing={4}>
-      <TextField
-        text={labelState}
-        placeholder="Checklist entry"
-        onTextChange={onRename}
-      />
-      <Button
-        label=""
-        systemImage="chevron.up"
-        onPress={() => onMove(-1)}
+    <HStack spacing={12}>
+      <Image
+        systemName={entry.checked ? 'checkmark.circle.fill' : 'circle'}
+        color={entry.checked ? LINK_BLUE : LABEL_GRAY}
+        size={20}
         modifiers={[
-          accessibilityLabel(`Move entry ${position} up`),
-          buttonStyle('borderless'),
-          foregroundStyle(LABEL_GRAY),
+          contentTransition('interpolate'),
+          animation(Animation.default, entry.checked ? 1 : 0),
+          accessibilityLabel(`Toggle entry ${position}`),
+          onTapGesture(onToggle),
         ]}
       />
-      <Button
-        label=""
-        systemImage="chevron.down"
-        onPress={() => onMove(1)}
-        modifiers={[
-          accessibilityLabel(`Move entry ${position} down`),
-          buttonStyle('borderless'),
-          foregroundStyle(LABEL_GRAY),
-        ]}
-      />
-      <Button
-        label=""
-        systemImage="minus.circle.fill"
-        onPress={onRemove}
-        modifiers={[
-          accessibilityLabel(`Remove entry ${position}`),
-          buttonStyle('borderless'),
-          foregroundStyle(DELETE_RED),
-        ]}
-      />
+      <TextField text={labelState} placeholder="Checklist entry" onTextChange={onRename} />
     </HStack>
   );
 }
@@ -409,18 +390,32 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Section>
 
           <Section header={<Text>Checklist</Text>}>
-            {checklist.map((entry, i) => (
-              <ChecklistEntryRow
-                key={entry.id}
-                entry={entry}
-                position={i + 1}
-                onRename={(label) =>
-                  setChecklist((cl) => cl.map((e) => (e.id === entry.id ? { ...e, label } : e)))
-                }
-                onMove={(offset) => setChecklist((cl) => moveEntry(cl, entry.id, offset))}
-                onRemove={() => setChecklist((cl) => cl.filter((e) => e.id !== entry.id))}
-              />
-            ))}
+            {/* List.ForEach gives the rows the system swipe-to-delete (onDelete)
+                and long-press drag-to-reorder (onMove), matching the itinerary. */}
+            <List.ForEach
+              onDelete={(indices) =>
+                setChecklist((cl) => cl.filter((_, i) => !indices.includes(i)))
+              }
+              onMove={(sourceIndices, destination) =>
+                setChecklist((cl) => moveEntries(cl, sourceIndices, destination))
+              }
+            >
+              {checklist.map((entry, i) => (
+                <ChecklistEntryRow
+                  key={entry.id}
+                  entry={entry}
+                  position={i + 1}
+                  onRename={(label) =>
+                    setChecklist((cl) => cl.map((e) => (e.id === entry.id ? { ...e, label } : e)))
+                  }
+                  onToggle={() =>
+                    setChecklist((cl) =>
+                      cl.map((e) => (e.id === entry.id ? { ...e, checked: !e.checked } : e)),
+                    )
+                  }
+                />
+              ))}
+            </List.ForEach>
             <Button
               label="Add entry"
               systemImage="plus"
