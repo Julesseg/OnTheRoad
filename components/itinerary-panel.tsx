@@ -156,6 +156,7 @@ export function ItineraryPanel({
         key={entry.id}
         label={entry.label}
         isOn={entry.checked}
+        // isOn arg ignored — source of truth is the store; the mutation flips the stored value.
         onIsOnChange={() => toggleChecklistEntry(trip.id, dayId, item.id, entry.id)}
       />
     ));
