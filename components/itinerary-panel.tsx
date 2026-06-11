@@ -183,9 +183,12 @@ export function ItineraryPanel({
 
     const progress = (color: string) =>
       checklist.length > 0 ? (
-        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(color)]}>
-          {checklistProgress(checklist)}
-        </Text>
+        <HStack spacing={3}>
+          <Image systemName="checklist" color={color} size={10} />
+          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(color)]}>
+            {checklistProgress(checklist)}
+          </Text>
+        </HStack>
       ) : null;
 
     const rowContent = isNextUp ? (
