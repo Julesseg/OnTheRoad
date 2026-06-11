@@ -164,6 +164,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   truncationMode: vi.fn(() => ({})),
   listRowInsets: vi.fn(() => ({})),
   listRowSeparator: vi.fn(() => ({})),
+  padding: vi.fn(() => ({})),
   frame: vi.fn(() => ({})),
   tint: vi.fn(() => ({})),
   onTapGesture: (fn: () => void) => ({ __onTap: fn }),

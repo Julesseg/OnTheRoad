@@ -39,6 +39,7 @@ import {
   tint,
   truncationMode,
   onTapGesture,
+  padding,
   contentTransition,
   animation,
   Animation,
@@ -145,9 +146,11 @@ function TimeRow({
     );
   }
   return (
-    // The compact picker makes the Form drop this row's bottom separator, so we
-    // draw our own line just below it to keep the divider down to Notes.
-    <VStack spacing={14}>
+    // The clear button makes iOS drop this row's bottom separator, and
+    // listRowSeparator('visible') does not override that on iOS 26 — so we
+    // draw our own. Negative bottom padding swallows the row's bottom inset
+    // so the line sits where the native separator would.
+    <VStack spacing={12} modifiers={[padding({ bottom: -11 })]}>
       <LabeledContent label={fieldLabel('Time', error, destructive)}>
         <HStack spacing={8}>
           <DatePicker
@@ -251,9 +254,8 @@ function LocationRow({
   );
   if (!location) return row;
   return (
-    // Like TimeRow: with a location set, the Form drops this row's bottom
-    // separator, so we draw our own line just below it.
-    <VStack spacing={14}>
+    // Same separator workaround as TimeRow, triggered once a location is set.
+    <VStack spacing={12} modifiers={[padding({ bottom: -11 })]}>
       {row}
       <Divider modifiers={[frame({ height: 1 })]} />
     </VStack>
