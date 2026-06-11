@@ -210,6 +210,51 @@ function locationLabel(loc: Item['location'] | null): string {
   return 'Add location';
 }
 
+function LocationRow({
+  location,
+  onPick,
+  onClear,
+}: {
+  location: Item['location'] | null;
+  onPick: () => void;
+  onClear: () => void;
+}) {
+  const row = (
+    <LabeledContent label="Location">
+      <HStack spacing={8}>
+        <Button
+          label={locationLabel(location)}
+          onPress={onPick}
+          // Borderless confines the tap target to the label — the default
+          // style makes the whole Form row tappable.
+          modifiers={[buttonStyle('borderless'), lineLimit(1), truncationMode('tail')]}
+        />
+        {location ? (
+          <Button
+            label=""
+            systemImage="xmark.circle.fill"
+            onPress={onClear}
+            modifiers={[
+              accessibilityLabel('Clear location'),
+              foregroundStyle(LABEL_GRAY),
+              buttonStyle('borderless'),
+            ]}
+          />
+        ) : null}
+      </HStack>
+    </LabeledContent>
+  );
+  if (!location) return row;
+  return (
+    // Like TimeRow: with a location set, the Form drops this row's bottom
+    // separator, so we draw our own line just below it.
+    <VStack spacing={14}>
+      {row}
+      <Divider modifiers={[frame({ height: 1 })]} />
+    </VStack>
+  );
+}
+
 export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
   const defaults = useMemo(
@@ -335,29 +380,11 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               />
             ) : null}
 
-            <LabeledContent label="Location">
-              <HStack spacing={8}>
-                <Button
-                  label={locationLabel(location)}
-                  onPress={openLocationPicker}
-                  // Borderless confines the tap target to the label — the default
-                  // style makes the whole Form row tappable.
-                  modifiers={[buttonStyle('borderless'), lineLimit(1), truncationMode('tail')]}
-                />
-                {location ? (
-                  <Button
-                    label=""
-                    systemImage="xmark.circle.fill"
-                    onPress={() => setLocation(null)}
-                    modifiers={[
-                      accessibilityLabel('Clear location'),
-                      foregroundStyle(LABEL_GRAY),
-                      buttonStyle('borderless'),
-                    ]}
-                  />
-                ) : null}
-              </HStack>
-            </LabeledContent>
+            <LocationRow
+              location={location}
+              onPick={openLocationPicker}
+              onClear={() => setLocation(null)}
+            />
 
             <TimeRow
               value={time as string}
