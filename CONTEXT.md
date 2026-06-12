@@ -88,8 +88,9 @@ id · name* · category · time? · location?{ address?, lat?, lng? } · notes? 
   migration.
 
 Each category carries a fixed visual identity — SF Symbol + accent — defined in
-`item-identity.ts` (Activity = green, Location = terracotta, Stay = indigo,
-Meal = amber, Note = warm gray). In user-facing copy the categories are labelled
+`item-identity.ts`, with each accent drawn from the Ember ramp (Activity =
+Sage, Location = Olive, Stay = Steel, Meal = Gold, Note = Mauve; see ADR-0005).
+In user-facing copy the categories are labelled
 **Activity**, **Place** (Location), **Stay**, **Meal**, and **Note**.
 
 Prefer **Item** over "entry", "event", or "stop". Prefer **category** over
