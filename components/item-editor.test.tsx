@@ -528,16 +528,18 @@ describe('ItemEditor', () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="cl-2" initialItem={PACK_ITEM} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
-    expect(screen.getByRole('button', { name: 'Toggle entry 1' })).toHaveAttribute(
+    // Toggles are announced by the entry's own label (positional "Toggle
+    // entry N" is only the fallback for entries not yet named).
+    expect(screen.getByRole('button', { name: 'Passport' })).toHaveAttribute(
       'data-system-image',
       'checkmark.circle.fill',
     );
-    expect(screen.getByRole('button', { name: 'Toggle entry 2' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Sunscreen' })).toHaveAttribute(
       'data-system-image',
       'circle',
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle entry 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sunscreen' }));
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
