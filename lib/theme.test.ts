@@ -37,7 +37,7 @@ describe('EmberPalette', () => {
 
 describe('LightTokens', () => {
   it('has all required fields as valid hex strings', () => {
-    const fields = ['background', 'surface', 'text', 'textSubtle', 'accent', 'accentFaint', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
+    const fields = ['background', 'surface', 'backgroundGlass', 'surfaceGlass', 'text', 'textSubtle', 'accent', 'accentFaint', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
     for (const f of fields) {
       expect(LightTokens[f], f).toMatch(HEX_RE);
     }
@@ -62,7 +62,7 @@ describe('LightTokens', () => {
 
 describe('DarkTokens', () => {
   it('has all required fields as valid hex strings', () => {
-    const fields = ['background', 'surface', 'text', 'textSubtle', 'accent', 'accentFaint', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
+    const fields = ['background', 'surface', 'backgroundGlass', 'surfaceGlass', 'text', 'textSubtle', 'accent', 'accentFaint', 'onAccent', 'secondaryAction', 'destructive', 'separator'] as const;
     for (const f of fields) {
       expect(DarkTokens[f], f).toMatch(HEX_RE);
     }

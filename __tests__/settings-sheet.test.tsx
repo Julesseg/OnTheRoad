@@ -24,6 +24,10 @@ vi.mock('@/components/progressive-blur', () => ({ ProgressiveBlurView: () => nul
 vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   pickerStyle: () => ({}),
   tag: (value: string | number) => ({ __tag: value }),
+  tint: () => ({}),
+  background: () => ({}),
+  listRowBackground: () => ({}),
+  scrollContentBackground: () => ({}),
 }));
 
 // @expo/ui renders native SwiftUI views that can't mount under jsdom. Stand the
