@@ -71,6 +71,33 @@ export function reorderItemInDay(
   };
 }
 
+/** Flip the `checked` state of one checklist entry on `itemId` in `dayId`. Pure.
+ * No-op if the day, item, or entry doesn't exist — toggles must never write
+ * anything but the intended flip. */
+export function toggleChecklistEntryInTrip(
+  trip: Trip,
+  dayId: string,
+  itemId: string,
+  entryId: string,
+  now: string,
+): Trip {
+  const item = trip.days.find((d) => d.id === dayId)?.items.find((i) => i.id === itemId);
+  if (!item?.checklist?.some((e) => e.id === entryId)) return trip;
+  const toggled: Item = {
+    ...item,
+    checklist: item.checklist.map((e) => (e.id === entryId ? { ...e, checked: !e.checked } : e)),
+  };
+  return {
+    ...trip,
+    updatedAt: now,
+    days: trip.days.map((day) =>
+      day.id === dayId
+        ? { ...day, items: day.items.map((i) => (i.id === itemId ? toggled : i)) }
+        : day,
+    ),
+  };
+}
+
 /** Remove the item with `itemId` from `dayId`. Pure. */
 export function deleteItemFromTrip(trip: Trip, dayId: string, itemId: string, now: string): Trip {
   return {

@@ -17,7 +17,7 @@ import {
   HStack,
   VStack,
   LabeledContent,
-  Divider,
+  List,
   useNativeState,
 } from '@expo/ui/swift-ui';
 import {
@@ -30,7 +30,6 @@ import {
   multilineTextAlignment,
   labelsHidden,
   background,
-  buttonStyle,
   frame,
   lineLimit,
   listRowBackground,
@@ -38,6 +37,9 @@ import {
   tint,
   truncationMode,
   onTapGesture,
+  contentTransition,
+  animation,
+  Animation,
 } from '@expo/ui/swift-ui/modifiers';
 
 import {
@@ -51,8 +53,10 @@ import { useThemeColors } from '@/constants/theme';
 import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
-import type { Item, ItemCategory } from '@/lib/schema';
+import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
 import { beginLocationPick } from '@/lib/location-picker-session';
+import { moveEntries, sanitizeChecklist } from '@/lib/checklist';
+import { newId } from '@/lib/id';
 
 export interface ItemEditorProps {
   itemId: string;
@@ -139,28 +143,63 @@ function TimeRow({
     );
   }
   return (
-    // The compact picker makes the Form drop this row's bottom separator, so we
-    // draw our own line just below it to keep the divider down to Notes.
-    <VStack spacing={14}>
-      <LabeledContent label={fieldLabel('Time', error, destructive)}>
-        <HStack spacing={8}>
-          <DatePicker
-            title="Time"
-            selection={timeToDate(value)}
-            displayedComponents={['hourAndMinute']}
-            onDateChange={(d) => onChange(dateToTime(d))}
-            modifiers={[datePickerStyle('compact'), labelsHidden()]}
-          />
-          <Button
-            label=""
-            systemImage="xmark.circle.fill"
-            onPress={() => onChange('')}
-            modifiers={[accessibilityLabel('Clear time'), foregroundStyle(textSubtle)]}
-          />
-        </HStack>
-      </LabeledContent>
-      <Divider modifiers={[frame({ height: 1 })]} />
-    </VStack>
+    // The clear control is an Image with a tap gesture, not a Button — iOS 26
+    // permanently drops the row's bottom separator when the row contains a
+    // button, and listRowSeparator('visible') cannot override that.
+    <LabeledContent label={fieldLabel('Time', error, destructive)}>
+      <HStack spacing={8}>
+        <DatePicker
+          title="Time"
+          selection={timeToDate(value)}
+          displayedComponents={['hourAndMinute']}
+          onDateChange={(d) => onChange(dateToTime(d))}
+          modifiers={[datePickerStyle('compact'), labelsHidden()]}
+        />
+        <Image
+          systemName="xmark.circle.fill"
+          color={textSubtle}
+          size={20}
+          modifiers={[accessibilityLabel('Clear time'), onTapGesture(() => onChange(''))]}
+        />
+      </HStack>
+    </LabeledContent>
+  );
+}
+
+// One editable checklist entry. Its own component so each row gets its own
+// native text state; keyed by entry id, so the state follows the entry through
+// reorders. The leading circle toggles `checked` (animating into a filled
+// checkmark); everything commits on Save like the rest of the form. Removal is
+// the system swipe-to-delete and reorder the system long-press drag — both
+// wired on the surrounding List.ForEach, not here.
+function ChecklistEntryRow({
+  entry,
+  position,
+  onRename,
+  onToggle,
+}: {
+  entry: ChecklistItem;
+  position: number;
+  onRename: (label: string) => void;
+  onToggle: () => void;
+}) {
+  const { accent, textSubtle } = useThemeColors();
+  const labelState = useNativeState(entry.label);
+  return (
+    <HStack spacing={12}>
+      <Image
+        systemName={entry.checked ? 'checkmark.circle.fill' : 'circle'}
+        color={entry.checked ? accent : textSubtle}
+        size={20}
+        modifiers={[
+          contentTransition('interpolate'),
+          animation(Animation.default, entry.checked ? 1 : 0),
+          accessibilityLabel(entry.label || `Toggle entry ${position}`),
+          onTapGesture(onToggle),
+        ]}
+      />
+      <TextField text={labelState} placeholder="Checklist entry" onTextChange={onRename} />
+    </HStack>
   );
 }
 
@@ -169,6 +208,45 @@ function locationLabel(loc: Item['location'] | null): string {
   if (loc.address) return loc.address;
   if (loc.lat != null && loc.lng != null) return `${loc.lat}, ${loc.lng}`;
   return 'Add location';
+}
+
+function LocationRow({
+  location,
+  onPick,
+  onClear,
+}: {
+  location: Item['location'] | null;
+  onPick: () => void;
+  onClear: () => void;
+}) {
+  const { accent, textSubtle } = useThemeColors();
+  return (
+    // Tappable Text/Image instead of Buttons — see TimeRow for why (iOS 26
+    // drops the row separator around button rows). The gesture also confines
+    // the tap target to the label, like buttonStyle('borderless') did.
+    <LabeledContent label="Location">
+      <HStack spacing={8}>
+        <Text
+          modifiers={[
+            foregroundStyle(accent),
+            lineLimit(1),
+            truncationMode('tail'),
+            onTapGesture(onPick),
+          ]}
+        >
+          {locationLabel(location)}
+        </Text>
+        {location ? (
+          <Image
+            systemName="xmark.circle.fill"
+            color={textSubtle}
+            size={20}
+            modifiers={[accessibilityLabel('Clear location'), onTapGesture(onClear)]}
+          />
+        ) : null}
+      </HStack>
+    </LabeledContent>
+  );
 }
 
 export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
@@ -182,6 +260,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   const [category, setCategory] = useState<ItemCategory>(defaults.category);
   const [date, setDate] = useState(initialDate ?? '');
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
   const identity = itemIdentity(category);
 
   const nameState = useNativeState(defaults.name);
@@ -204,7 +283,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
 
   const submit = handleSubmit(() => {
     const values = { ...getValues(), category };
-    onSubmit(formToItem(values, itemId, initialItem, location), date);
+    onSubmit(formToItem(values, itemId, initialItem, location, sanitizeChecklist(checklist)), date);
   });
 
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
@@ -304,29 +383,11 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               />
             ) : null}
 
-            <LabeledContent label="Location">
-              <HStack spacing={8}>
-                <Button
-                  label={locationLabel(location)}
-                  onPress={openLocationPicker}
-                  // Borderless confines the tap target to the label — the default
-                  // style makes the whole Form row tappable.
-                  modifiers={[buttonStyle('borderless'), lineLimit(1), truncationMode('tail')]}
-                />
-                {location ? (
-                  <Button
-                    label=""
-                    systemImage="xmark.circle.fill"
-                    onPress={() => setLocation(null)}
-                    modifiers={[
-                      accessibilityLabel('Clear location'),
-                      foregroundStyle(c.textSubtle),
-                      buttonStyle('borderless'),
-                    ]}
-                  />
-                ) : null}
-              </HStack>
-            </LabeledContent>
+            <LocationRow
+              location={location}
+              onPick={openLocationPicker}
+              onClear={() => setLocation(null)}
+            />
 
             <TimeRow
               value={time as string}
@@ -344,6 +405,42 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               />
               <NoteLinks text={notesText as string} />
             </VStack>
+          </Section>
+
+          <Section header={<Text>Checklist</Text>}>
+            {/* List.ForEach gives the rows the system swipe-to-delete (onDelete)
+                and long-press drag-to-reorder (onMove), matching the itinerary. */}
+            <List.ForEach
+              onDelete={(indices) =>
+                setChecklist((cl) => cl.filter((_, i) => !indices.includes(i)))
+              }
+              onMove={(sourceIndices, destination) =>
+                setChecklist((cl) => moveEntries(cl, sourceIndices, destination))
+              }
+            >
+              {checklist.map((entry, i) => (
+                <ChecklistEntryRow
+                  key={entry.id}
+                  entry={entry}
+                  position={i + 1}
+                  onRename={(label) =>
+                    setChecklist((cl) => cl.map((e) => (e.id === entry.id ? { ...e, label } : e)))
+                  }
+                  onToggle={() =>
+                    setChecklist((cl) =>
+                      cl.map((e) => (e.id === entry.id ? { ...e, checked: !e.checked } : e)),
+                    )
+                  }
+                />
+              ))}
+            </List.ForEach>
+            <Button
+              label="Add entry"
+              systemImage="plus"
+              onPress={() =>
+                setChecklist((cl) => [...cl, { id: newId(), label: '', checked: false }])
+              }
+            />
           </Section>
 
           {initialItem && onDelete ? (

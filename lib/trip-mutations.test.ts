@@ -4,6 +4,7 @@ import {
   deleteItemFromTrip,
   moveItemToDay,
   reorderItemInDay,
+  toggleChecklistEntryInTrip,
 } from './trip-mutations';
 import type { Trip, Item } from './schema';
 
@@ -142,5 +143,55 @@ describe('reorderItemInDay', () => {
     const next = reorderItemInDay(trip, 'day-1', [0], 2, NOW);
     expect(next.updatedAt).toBe(NOW);
     expect(trip.days[0].items.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('toggleChecklistEntryInTrip', () => {
+  function tripWithChecklist(): Trip {
+    const trip = tripFixture();
+    trip.days[0].items = [
+      {
+        category: 'activity',
+        id: 'i1',
+        name: 'Pack bags',
+        checklist: [
+          { id: 'c1', label: 'Passport', checked: false },
+          { id: 'c2', label: 'Sunscreen', checked: true },
+        ],
+      },
+    ];
+    return trip;
+  }
+
+  it('flips an unchecked entry to checked and bumps updatedAt', () => {
+    const next = toggleChecklistEntryInTrip(tripWithChecklist(), 'day-1', 'i1', 'c1', NOW);
+    expect(next.days[0].items[0].checklist).toEqual([
+      { id: 'c1', label: 'Passport', checked: true },
+      { id: 'c2', label: 'Sunscreen', checked: true },
+    ]);
+    expect(next.updatedAt).toBe(NOW);
+  });
+
+  it('flips a checked entry back to unchecked', () => {
+    const next = toggleChecklistEntryInTrip(tripWithChecklist(), 'day-1', 'i1', 'c2', NOW);
+    expect(next.days[0].items[0].checklist![1]).toEqual({ id: 'c2', label: 'Sunscreen', checked: false });
+  });
+
+  it('does not mutate the input trip', () => {
+    const trip = tripWithChecklist();
+    toggleChecklistEntryInTrip(trip, 'day-1', 'i1', 'c1', NOW);
+    expect(trip.days[0].items[0].checklist![0].checked).toBe(false);
+  });
+
+  it('returns the trip unchanged when the entry does not exist', () => {
+    const trip = tripWithChecklist();
+    const next = toggleChecklistEntryInTrip(trip, 'day-1', 'i1', 'missing', NOW);
+    expect(next).toBe(trip);
+  });
+
+  it('returns the trip unchanged when the item has no checklist', () => {
+    const trip = tripFixture();
+    const next = toggleChecklistEntryInTrip(trip, 'day-1', 'i1', 'c1', NOW);
+    expect(next).toBe(trip);
   });
 });

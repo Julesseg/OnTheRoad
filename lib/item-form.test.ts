@@ -67,6 +67,39 @@ describe('formToItem', () => {
     const edited = formToItem(itemToForm(original), ITEM_ID, original);
     expect(edited.location).toEqual({ address: '1 Bridge Way', lat: 37.8, lng: -122.4 });
   });
+
+  it('carries the original checklist when no checklist edit is passed', () => {
+    const original: Item = {
+      id: ITEM_ID, name: 'Pack', category: 'activity',
+      checklist: [{ id: 'c1', label: 'Passport', checked: true }],
+    };
+    const edited = formToItem(itemToForm(original), ITEM_ID, original);
+    expect(edited.checklist).toEqual([{ id: 'c1', label: 'Passport', checked: true }]);
+  });
+
+  it('uses the edited checklist over the original when one is passed', () => {
+    const original: Item = {
+      id: ITEM_ID, name: 'Pack', category: 'activity',
+      checklist: [{ id: 'c1', label: 'Passport', checked: true }],
+    };
+    const edited = formToItem(itemToForm(original), ITEM_ID, original, undefined, [
+      { id: 'c1', label: 'Passport + visa', checked: true },
+      { id: 'c2', label: 'Sunscreen', checked: false },
+    ]);
+    expect(edited.checklist).toEqual([
+      { id: 'c1', label: 'Passport + visa', checked: true },
+      { id: 'c2', label: 'Sunscreen', checked: false },
+    ]);
+  });
+
+  it('omits the checklist field when the edit empties it', () => {
+    const original: Item = {
+      id: ITEM_ID, name: 'Pack', category: 'activity',
+      checklist: [{ id: 'c1', label: 'Passport', checked: true }],
+    };
+    const edited = formToItem(itemToForm(original), ITEM_ID, original, undefined, []);
+    expect('checklist' in edited).toBe(false);
+  });
 });
 
 describe('itemToForm round-trips through formToItem', () => {

@@ -11,6 +11,7 @@ import {
   Text,
   Button,
   SwipeActions,
+  Image,
 } from '@expo/ui/swift-ui';
 import {
   listStyle,
@@ -24,6 +25,8 @@ import {
   tint,
   animation,
   Animation,
+  contentTransition,
+  accessibilityLabel,
   background,
   padding,
   shapes,
@@ -34,6 +37,7 @@ import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
+import { checklistProgress } from '@/lib/checklist';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
@@ -86,6 +90,7 @@ export function ItineraryPanel({
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const reorderItem = useTripStore((s) => s.reorderItem);
+  const toggleChecklistEntry = useTripStore((s) => s.toggleChecklistEntry);
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
 
   const today = localDateString(now);
@@ -145,56 +150,102 @@ export function ItineraryPanel({
       ? () => openInMaps(mapsTarget, { app: preferredMapsApp }).catch(() => {})
       : null;
 
+    const checklist = item.checklist ?? [];
+    // A leading circle that fills into a checkmark when ticked. Only the circle
+    // owns the tap (not the whole line), and it writes straight through to
+    // storage — so it sits outside the header's edit tap gesture. The
+    // contentTransition + animation pair animates the circle → checkmark swap.
+    const checklistRows = (palette: { tick: string; idle: string; label?: string }) =>
+      checklist.map((entry) => (
+        <HStack key={entry.id} spacing={10}>
+          <Image
+            systemName={entry.checked ? 'checkmark.circle.fill' : 'circle'}
+            color={entry.checked ? palette.tick : palette.idle}
+            size={20}
+            modifiers={[
+              contentTransition('interpolate'),
+              animation(Animation.default, entry.checked ? 1 : 0),
+              accessibilityLabel(entry.label),
+              onTapGesture(() => toggleChecklistEntry(trip.id, dayId, item.id, entry.id)),
+            ]}
+          />
+          <Text
+            modifiers={[
+              font({ size: 14 }),
+              ...(palette.label ? [foregroundStyle(palette.label)] : []),
+            ]}
+          >
+            {entry.label}
+          </Text>
+          <Spacer />
+        </HStack>
+      ));
+
+    const progress = (color: string) =>
+      checklist.length > 0 ? (
+        <HStack spacing={3}>
+          <Image systemName="checklist" color={color} size={10} />
+          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(color)]}>
+            {checklistProgress(checklist)}
+          </Text>
+        </HStack>
+      ) : null;
+
     const rowContent = isNextUp ? (
       // Solid accent row with a white capsule "NEXT UP" pill in upper-right.
-      <HStack
-        alignment="top"
-        spacing={8}
-        modifiers={[onTapGesture(edit), listRowBackground(c.accent)]}
+      <VStack alignment="leading" spacing={6} modifiers={[listRowBackground(c.accent)]}>
+        <HStack alignment="top" spacing={8} modifiers={[onTapGesture(edit)]}>
+          <VStack alignment="leading" spacing={2}>
+            <HStack spacing={8}>
+              <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
+                {typeLabel.toUpperCase()}
+              </Text>
+              {progress(WHITE)}
+            </HStack>
+            <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(WHITE)]}>
+              {title}
+            </Text>
+            {lines.map((line, i) => (
+              <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(WHITE)]}>
+                {line}
+              </Text>
+            ))}
+          </VStack>
+          <Spacer />
+          <Text
+            modifiers={[
+              font({ size: 10, weight: 'bold' }),
+              foregroundStyle(c.accent),
+              padding({ horizontal: 8, vertical: 4 }),
+              background(WHITE, shapes.capsule()),
+            ]}
+          >
+            NEXT UP
+          </Text>
+        </HStack>
+        {checklistRows({ tick: WHITE, idle: WHITE, label: WHITE })}
+      </VStack>
+    ) : (
+      <VStack
+        alignment="leading"
+        spacing={6}
+        modifiers={isToday ? [listRowBackground(c.accentFaint)] : []}
       >
-        <VStack alignment="leading" spacing={2}>
-          <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
-            {typeLabel.toUpperCase()}
-          </Text>
-          <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(WHITE)]}>
-            {title}
-          </Text>
+        <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
+          <HStack spacing={8}>
+            <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+              {typeLabel.toUpperCase()}
+            </Text>
+            {progress(subtext)}
+          </HStack>
+          <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
           {lines.map((line, i) => (
-            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(WHITE)]}>
+            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
               {line}
             </Text>
           ))}
         </VStack>
-        <Spacer />
-        <Text
-          modifiers={[
-            font({ size: 10, weight: 'bold' }),
-            foregroundStyle(c.accent),
-            padding({ horizontal: 8, vertical: 4 }),
-            background(WHITE, shapes.capsule()),
-          ]}
-        >
-          NEXT UP
-        </Text>
-      </HStack>
-    ) : (
-      <VStack
-        alignment="leading"
-        spacing={2}
-        modifiers={[
-          onTapGesture(edit),
-          ...(isToday ? [listRowBackground(c.accentFaint)] : []),
-        ]}
-      >
-        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
-          {typeLabel.toUpperCase()}
-        </Text>
-        <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
-        {lines.map((line, i) => (
-          <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
-            {line}
-          </Text>
-        ))}
+        {checklistRows({ tick: c.accent, idle: subtext })}
       </VStack>
     );
 
