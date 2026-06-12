@@ -2,7 +2,9 @@
 
 ## Status
 
-accepted
+accepted — governs the [Smart Import](../../CONTEXT.md#smart-import) feature;
+supersedes nothing (extends the local-first stance in
+[Local-first storage](../../CONTEXT.md#local-first-storage) to AI inference).
 
 ## Context
 
