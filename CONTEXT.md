@@ -189,13 +189,26 @@ day (a booking reminder lands on the day it concerns; trip-wide content like a
 packing list defaults to day 1) as Note [Items](#item), with a packing list
 becoming a checklist. A too-long or unusable document **fails
 loud and saves nothing**. Runs on-device only, with no cloud fallback; without
-Apple Intelligence the entry point explains itself instead of working (see
+Apple Intelligence the entry point explains itself instead of working and
+offers the [Schema Prompt](#schema-prompt) as the manual way through (see
 [ADR-0006](docs/adr/0006-smart-import-on-device-only.md)). Locations are
 captured as address text only, never coordinates.
 
 User-facing label: **Import Planning Document**. Prefer **Smart Import** over
 "AI import" or "text import"; prefer [Import](#import--export) for the exact
 JSON restore.
+
+### Schema Prompt
+
+A copyable, ready-to-paste prompt bundling the trip JSON schema and output
+instructions, offered when [Smart Import](#smart-import) is unavailable (no
+Apple Intelligence): the user pastes it — together with their
+[Planning Document](#planning-document) — into any LLM of their choice, and
+the LLM's JSON output comes back in through the ordinary
+[Import](#import--export). The app itself still makes no network call; the
+user carries the text across by hand.
+
+Prefer **Schema Prompt** over "export schema" or "LLM template".
 
 ### Local-first storage
 

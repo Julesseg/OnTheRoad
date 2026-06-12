@@ -23,8 +23,13 @@ window.
 
 Smart Import uses the on-device Foundation Models framework exclusively.
 There is **no cloud fallback**: on devices without Apple Intelligence the
-entry point shows an explanatory alert instead of working, and the universal
-JSON Import remains the path that works everywhere. The model generates a
+entry point shows an explanatory alert instead of working. The alert offers a
+manual escape hatch — a **Copy Schema Prompt** button that puts a
+ready-to-paste prompt (the trip JSON schema plus output instructions) on the
+clipboard, so the user can have any LLM of their choice produce a valid trip
+file and bring it back through the universal JSON Import. The app makes no
+network call either way; the user carries the text across by hand. The model
+generates a
 *draft* schema (no UUIDs, timestamps, or `schemaVersion` — the app assigns
 those deterministically), and the result passes through the same `TripSchema`
 validation gate as JSON import before being saved.
@@ -33,7 +38,11 @@ validation gate as JSON import before being saved.
 
 - The local-first guarantee survives: no account, no network, no API key, and
   the user's planning text never leaves the device.
-- The feature is hardware-gated; users on older iPhones simply don't get it.
+- The feature is hardware-gated; users on older iPhones get the Schema Prompt
+  hand-off instead of in-app generation. The Schema Prompt must describe the
+  *full* persisted schema (ids, timestamps, `schemaVersion`) since its output
+  enters through JSON Import's strict `TripSchema` gate, not the lenient
+  draft-schema path.
 - The ~4k context window means long documents **fail loud** with a "split this
   up" message — no truncation, no chunking in v1.
 - Item locations are captured as address strings only, never `lat`/`lng`:
