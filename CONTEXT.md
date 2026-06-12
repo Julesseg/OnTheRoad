@@ -162,7 +162,38 @@ A trip can be shared as standalone JSON. **Import** reads a `.json` file,
 validates it against `TripSchema`, and assigns a **fresh id** so it never
 overwrites an existing trip; invalid files yield a human-readable error naming
 the offending field. **Export** serializes a trip to pretty-printed JSON in the
-cache directory for sharing (`lib/trip-io.ts`, `lib/storage.ts`).
+cache directory for sharing (`lib/trip-io.ts`, `lib/storage.ts`). Import is the
+*exact restore* of an On the Road file — distinct from
+[Smart Import](#smart-import), which structures free text.
+
+### Planning Document
+
+Any unstructured free-text description of a trip — pasted text or a shared
+`.txt` file — written anywhere (Notes, an email, a doc) in no particular
+format. The source material for a [Smart Import](#smart-import).
+
+Prefer **Planning Document** over "freeform document" (collides with the Apple
+Freeform app, which is not involved).
+
+### Smart Import
+
+AI-assisted trip creation: the on-device Apple Intelligence model structures a
+[Planning Document](#planning-document) into a schema-valid [Trip](#trip),
+which is **saved immediately** with a fresh id — corrections happen in the
+normal edit flows, there is no review screen. If the document carries no
+calendar dates, the flow asks for a start date inline before saving (never
+placeholder dates, which the calendar-anchored [Day](#day) reconciliation would
+punish). Trip-wide content with no day — packing lists, budgets, link dumps —
+lands as Note [Items](#item) on day 1 (a packing list becomes a checklist), so
+nothing the user wrote is dropped. A too-long or unusable document **fails
+loud and saves nothing**. Runs on-device only, with no cloud fallback; without
+Apple Intelligence the entry point explains itself instead of working (see
+[ADR-0006](docs/adr/0006-smart-import-on-device-only.md)). Locations are
+captured as address text only, never coordinates.
+
+User-facing label: **Import Planning Document**. Prefer **Smart Import** over
+"AI import" or "text import"; prefer [Import](#import--export) for the exact
+JSON restore.
 
 ### Local-first storage
 
