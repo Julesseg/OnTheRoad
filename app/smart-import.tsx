@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 
 import { useThemeColors } from '@/constants/theme';
@@ -10,8 +10,6 @@ import { useThemeColors } from '@/constants/theme';
  * here and explains itself instead of working.
  */
 export default function SmartImportSheet() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const c = useThemeColors();
 
   return (
@@ -20,7 +18,7 @@ export default function SmartImportSheet() {
       <Stack.Title>Import Planning Document</Stack.Title>
 
       <View style={styles.empty}>
-        <Text style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
+        <Text style={[styles.emptyText, { color: c.textSubtle }]}>
           Smart Import isn’t available yet.
         </Text>
       </View>
