@@ -15,8 +15,12 @@ vi.mock('./maps', () => ({
   getInstalledMapsApps: vi.fn().mockResolvedValue(['apple']),
   reconcilePreferredMapsApp: vi.fn((app: unknown) => app),
 }));
+vi.mock('./appearance', () => ({
+  applyAppearance: vi.fn(),
+}));
 
 import * as storage from './storage';
+import { applyAppearance } from './appearance';
 import { useTripStore } from './store';
 import type { Trip, TripSummary } from './schema';
 
@@ -124,6 +128,42 @@ const trip = (id: string): TripSummary => ({
   startDate: '2026-07-01',
   endDate: '2026-07-10',
   wallpaperUri: undefined,
+});
+
+describe('Appearance', () => {
+  it('initialize restores the stored appearance and applies it app-wide', async () => {
+    vi.mocked(storage.loadState).mockResolvedValue({
+      activeTripId: null,
+      trips: [],
+      preferredMapsApp: 'apple',
+      appearance: 'dark',
+      lastUpdated: '2026-05-01T00:00:00.000Z',
+    });
+
+    await useTripStore.getState().initialize();
+
+    expect(useTripStore.getState().appearance).toBe('dark');
+    expect(applyAppearance).toHaveBeenCalledWith('dark');
+  });
+
+  it('initialize falls back to system when state.json has no appearance', async () => {
+    vi.mocked(storage.loadState).mockResolvedValue(undefined as never);
+
+    await useTripStore.getState().initialize();
+
+    expect(useTripStore.getState().appearance).toBe('system');
+    expect(applyAppearance).toHaveBeenCalledWith('system');
+  });
+
+  it('setAppearance records the choice, applies it app-wide, and persists it', () => {
+    useTripStore.getState().setAppearance('dark');
+
+    expect(useTripStore.getState().appearance).toBe('dark');
+    expect(applyAppearance).toHaveBeenCalledWith('dark');
+    expect(storage.saveState).toHaveBeenCalledWith(
+      expect.objectContaining({ appearance: 'dark' }),
+    );
+  });
 });
 
 describe('removeTrip — Displayed Trip & favorite', () => {

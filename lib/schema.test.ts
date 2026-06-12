@@ -223,4 +223,34 @@ describe('AppStateSchema', () => {
       }),
     ).toThrow();
   });
+
+  it('defaults appearance to system when the field is absent', () => {
+    const state = AppStateSchema.parse({
+      activeTripId: null,
+      trips: [],
+      lastUpdated: '2026-05-01T10:00:00.000Z',
+    });
+    expect(state.appearance).toBe('system');
+  });
+
+  it.each(['system', 'light', 'dark'] as const)('accepts an explicit appearance of %s', (mode) => {
+    const state = AppStateSchema.parse({
+      activeTripId: null,
+      trips: [],
+      lastUpdated: '2026-05-01T10:00:00.000Z',
+      appearance: mode,
+    });
+    expect(state.appearance).toBe(mode);
+  });
+
+  it('rejects an unknown appearance value', () => {
+    expect(() =>
+      AppStateSchema.parse({
+        activeTripId: null,
+        trips: [],
+        lastUpdated: '2026-05-01T10:00:00.000Z',
+        appearance: 'sepia',
+      }),
+    ).toThrow();
+  });
 });

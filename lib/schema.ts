@@ -82,10 +82,15 @@ export const MapsAppSchema = z.enum(['apple', 'google', 'waze']);
 
 export type MapsApp = z.infer<typeof MapsAppSchema>;
 
+export const AppearanceSchema = z.enum(['system', 'light', 'dark']);
+
+export type AppearanceMode = z.infer<typeof AppearanceSchema>;
+
 export const AppStateSchema = z.object({
   activeTripId: z.string().uuid().nullable(),
   trips: z.array(TripSummarySchema),
   preferredMapsApp: MapsAppSchema.default('apple'),
+  appearance: AppearanceSchema.default('system'),
   lastUpdated: z.string().datetime(),
 });
 

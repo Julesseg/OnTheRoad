@@ -15,9 +15,15 @@ import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { MAPS_APP_LABELS } from '@/lib/maps';
-import type { MapsApp } from '@/lib/schema';
+import type { AppearanceMode, MapsApp } from '@/lib/schema';
 
 const ALL_MAPS_APPS: MapsApp[] = ['apple', 'google', 'waze'];
+const APPEARANCE_MODES: AppearanceMode[] = ['system', 'light', 'dark'];
+const APPEARANCE_LABELS: Record<AppearanceMode, string> = {
+  system: 'System',
+  light: 'Light',
+  dark: 'Dark',
+};
 // Height of the progressive-blur band behind the transparent nav bar (mirrors
 // the trips and days sheets).
 const NAV_BAR_HEIGHT = 64;
@@ -26,6 +32,8 @@ export default function SettingsSheet() {
   const preferredMapsApp = useTripStore((s) => s.preferredMapsApp);
   const installedMapsApps = useTripStore((s) => s.installedMapsApps);
   const setPreferredMapsApp = useTripStore((s) => s.setPreferredMapsApp);
+  const appearance = useTripStore((s) => s.appearance);
+  const setAppearance = useTripStore((s) => s.setAppearance);
   const importTrip = useTripStore((s) => s.importTrip);
   const setDisplayedTrip = useTripStore((s) => s.setDisplayedTrip);
 
@@ -75,6 +83,21 @@ export default function SettingsSheet() {
               {mapsApps.map((app) => (
                 <Text key={app} modifiers={[tag(app)]}>
                   {MAPS_APP_LABELS[app]}
+                </Text>
+              ))}
+            </Picker>
+          </Section>
+
+          <Section title="Appearance" modifiers={[listRowBackground(c.surface)]}>
+            <Picker
+              label="Appearance"
+              selection={appearance}
+              onSelectionChange={(mode) => setAppearance(mode as AppearanceMode)}
+              modifiers={[pickerStyle('menu')]}
+            >
+              {APPEARANCE_MODES.map((mode) => (
+                <Text key={mode} modifiers={[tag(mode)]}>
+                  {APPEARANCE_LABELS[mode]}
                 </Text>
               ))}
             </Picker>
