@@ -1,6 +1,5 @@
-import { View, StyleSheet, Alert, useColorScheme } from 'react-native';
+import { View, StyleSheet, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
-import * as DocumentPicker from 'expo-document-picker';
 import { Host, Form, Section, Picker, Button, Text } from '@expo/ui/swift-ui';
 import {
   background,
@@ -34,32 +33,11 @@ export default function SettingsSheet() {
   const setPreferredMapsApp = useTripStore((s) => s.setPreferredMapsApp);
   const appearance = useTripStore((s) => s.appearance);
   const setAppearance = useTripStore((s) => s.setAppearance);
-  const importTrip = useTripStore((s) => s.importTrip);
-  const setDisplayedTrip = useTripStore((s) => s.setDisplayedTrip);
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const c = useThemeColors();
   const mapsApps = ALL_MAPS_APPS.filter((app) => installedMapsApps.includes(app));
-
-  async function onImport() {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({
-        type: 'application/json',
-        copyToCacheDirectory: true,
-      });
-      if (res.canceled) return;
-      const uri = res.assets?.[0]?.uri;
-      if (!uri) return;
-      const trip = await importTrip(uri);
-      // Open the freshly imported trip: set it as the Displayed Trip and dismiss
-      // the sheet stack back to the map (same flow as tapping a trip in the list).
-      setDisplayedTrip(trip.id);
-      router.dismissAll();
-    } catch (e) {
-      Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
-    }
-  }
 
   // Same chrome as the trips/days sheets: a transparent native nav bar with the
   // title, plus a progressive-blur RN overlay that frosts content scrolling under it.
@@ -104,7 +82,6 @@ export default function SettingsSheet() {
           </Section>
 
           <Section title="Data" modifiers={[listRowBackground(c.surface)]}>
-            <Button label="Import trip…" systemImage="square.and.arrow.down" onPress={onImport} />
             <Button
               label="Archived trips"
               systemImage="archivebox"

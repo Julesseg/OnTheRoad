@@ -13,7 +13,6 @@ vi.mock('expo-router', async () => {
     React.createElement('span', null, children);
   return { router: { push: vi.fn(), dismiss: vi.fn(), dismissAll: vi.fn() }, Stack };
 });
-vi.mock('expo-document-picker', () => ({ getDocumentAsync: vi.fn() }));
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
 // The progressive-blur overlay pulls native modules (expo-blur, masked-view) that
 // can't mount under jsdom; stub it out.
@@ -88,8 +87,6 @@ const storeWith = (overrides: object) =>
       setPreferredMapsApp: vi.fn(),
       appearance: 'system',
       setAppearance: vi.fn(),
-      importTrip: vi.fn(),
-      setDisplayedTrip: vi.fn(),
       ...overrides,
     })
   );
@@ -141,6 +138,14 @@ describe('SettingsSheet', () => {
     fireEvent.click(screen.getByRole('radio', { name: /light/i }));
 
     expect(setAppearance).toHaveBeenCalledWith('light');
+  });
+
+  it('offers no import entry — import lives in the Trips-tab + menu', async () => {
+    storeWith({});
+    const { default: SettingsSheet } = await import('@/app/settings');
+    render(<SettingsSheet />);
+
+    expect(screen.queryByRole('button', { name: /import/i })).not.toBeInTheDocument();
   });
 
   it('tapping "Archived trips" navigates to /archived', async () => {
