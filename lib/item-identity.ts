@@ -8,7 +8,9 @@ import type { ItemCategory } from './schema';
  * reused by the item editor header and the add-item picker.
  *
  * Accents are drawn from the Ember ramp and stay clear of the interactive (coral)
- * and destructive (rose) colours.
+ * and destructive (rose) colours. Steel deliberately overlaps the secondaryAction
+ * role: category accents render in the item editor, secondary actions on list
+ * swipes, so they never co-occur — an accepted seam per ADR-0005 (Consequences).
  */
 export interface ItemIdentity {
   category: ItemCategory;
