@@ -183,9 +183,11 @@ which is **saved immediately** with a fresh id — corrections happen in the
 normal edit flows, there is no review screen. If the document carries no
 calendar dates, the flow asks for a start date inline before saving (never
 placeholder dates, which the calendar-anchored [Day](#day) reconciliation would
-punish). Trip-wide content with no day — packing lists, budgets, link dumps —
-lands as Note [Items](#item) on day 1 (a packing list becomes a checklist), so
-nothing the user wrote is dropped. A too-long or unusable document **fails
+punish). Content with no explicit day — packing lists, budgets, "book the
+ferry" reminders — is never dropped: the model places it on the most plausible
+day (a booking reminder lands on the day it concerns; trip-wide content like a
+packing list defaults to day 1) as Note [Items](#item), with a packing list
+becoming a checklist. A too-long or unusable document **fails
 loud and saves nothing**. Runs on-device only, with no cloud fallback; without
 Apple Intelligence the entry point explains itself instead of working (see
 [ADR-0006](docs/adr/0006-smart-import-on-device-only.md)). Locations are
