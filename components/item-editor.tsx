@@ -29,9 +29,13 @@ import {
   accessibilityLabel,
   multilineTextAlignment,
   labelsHidden,
+  background,
   buttonStyle,
   frame,
   lineLimit,
+  listRowBackground,
+  scrollContentBackground,
+  tint,
   truncationMode,
   onTapGesture,
 } from '@expo/ui/swift-ui/modifiers';
@@ -43,6 +47,7 @@ import {
   formToItem,
   itemFormSchema,
 } from '@/lib/item-form';
+import { useThemeColors } from '@/constants/theme';
 import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
@@ -59,11 +64,6 @@ export interface ItemEditorProps {
   onDelete?: () => void;
   onCancel?: () => void;
 }
-
-const LABEL_GRAY = '#8A8580';
-const ERROR_RED = '#d11';
-const DELETE_RED = '#FF3B30';
-const LINK_BLUE = '#007AFF';
 
 const ALL_CATEGORIES = Object.keys(ITEM_IDENTITY) as ItemCategory[];
 
@@ -85,16 +85,18 @@ function dateToTime(d: Date): string {
 
 // Native form rows label themselves; when a field is invalid we tint its
 // leading label red to match the error message in the section footer.
-function fieldLabel(label: string, error?: string): string | React.ReactNode {
-  return error ? <Text modifiers={[foregroundStyle(ERROR_RED)]}>{label}</Text> : label;
+function fieldLabel(label: string, error: string | undefined, errColor: string): string | React.ReactNode {
+  return error ? <Text modifiers={[foregroundStyle(errColor)]}>{label}</Text> : label;
 }
 
 function FieldError({ message }: { message?: string }) {
+  const { destructive } = useThemeColors();
   if (!message) return null;
-  return <Text modifiers={[font({ size: 13 }), foregroundStyle(ERROR_RED)]}>{message}</Text>;
+  return <Text modifiers={[font({ size: 13 }), foregroundStyle(destructive)]}>{message}</Text>;
 }
 
 function NoteLinks({ text }: { text: string }) {
+  const { accent } = useThemeColors();
   const links = useMemo(() => extractLinks(text), [text]);
   if (links.length === 0) return null;
   return (
@@ -111,8 +113,8 @@ function NoteLinks({ text }: { text: string }) {
             }),
           ]}
         >
-          <Image systemName="link" color={LINK_BLUE} size={13} />
-          <Text modifiers={[font({ size: 14 }), foregroundStyle(LINK_BLUE)]}>{link.label}</Text>
+          <Image systemName="link" color={accent} size={13} />
+          <Text modifiers={[font({ size: 14 }), foregroundStyle(accent)]}>{link.label}</Text>
         </HStack>
       ))}
     </VStack>
@@ -128,9 +130,10 @@ function TimeRow({
   onChange: (v: string) => void;
   error?: string;
 }) {
+  const { textSubtle, destructive } = useThemeColors();
   if (!value) {
     return (
-      <LabeledContent label={fieldLabel('Time', error)}>
+      <LabeledContent label={fieldLabel('Time', error, destructive)}>
         <Button label="Add time" onPress={() => onChange('09:00')} />
       </LabeledContent>
     );
@@ -139,7 +142,7 @@ function TimeRow({
     // The compact picker makes the Form drop this row's bottom separator, so we
     // draw our own line just below it to keep the divider down to Notes.
     <VStack spacing={14}>
-      <LabeledContent label={fieldLabel('Time', error)}>
+      <LabeledContent label={fieldLabel('Time', error, destructive)}>
         <HStack spacing={8}>
           <DatePicker
             title="Time"
@@ -152,7 +155,7 @@ function TimeRow({
             label=""
             systemImage="xmark.circle.fill"
             onPress={() => onChange('')}
-            modifiers={[accessibilityLabel('Clear time'), foregroundStyle(LABEL_GRAY)]}
+            modifiers={[accessibilityLabel('Clear time'), foregroundStyle(textSubtle)]}
           />
         </HStack>
       </LabeledContent>
@@ -170,6 +173,7 @@ function locationLabel(loc: Item['location'] | null): string {
 
 export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
+  const c = useThemeColors();
   const defaults = useMemo(
     () => (initialItem ? itemToForm(initialItem) : { ...emptyForm(), category: defaultCategory ?? 'activity' }),
     [initialItem, defaultCategory],
@@ -233,23 +237,31 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
       </Stack.Title>
       {onCancel ? (
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onCancel}>
+          <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={c.accent} onPress={onCancel}>
             Cancel
           </Stack.Toolbar.Button>
         </Stack.Toolbar>
       ) : null}
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button accessibilityLabel="Save" variant="prominent" onPress={submit}>
+        <Stack.Toolbar.Button accessibilityLabel="Save" variant="prominent" tintColor={c.accent} onPress={submit}>
           Save
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
-      <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-        <Form>
+      {/* tint() seeds the SwiftUI accent for everything in the Host — SwiftUI
+          otherwise falls back to system blue. The Form swaps its system grouped
+          background for the warm theme bg; Sections paint rows with the surface. */}
+      <Host
+        style={{ flex: 1 }}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        modifiers={[tint(c.accent)]}
+      >
+        <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
           <Section
             footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
+            modifiers={[listRowBackground(c.surface)]}
           >
-            <LabeledContent label={fieldLabel('Name', errors.name?.message)}>
+            <LabeledContent label={fieldLabel('Name', errors.name?.message, c.destructive)}>
               <TextField
                 text={nameState}
                 placeholder="What is it?"
@@ -308,7 +320,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                     onPress={() => setLocation(null)}
                     modifiers={[
                       accessibilityLabel('Clear location'),
-                      foregroundStyle(LABEL_GRAY),
+                      foregroundStyle(c.textSubtle),
                       buttonStyle('borderless'),
                     ]}
                   />
@@ -335,13 +347,13 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Section>
 
           {initialItem && onDelete ? (
-            <Section>
+            <Section modifiers={[listRowBackground(c.surface)]}>
               <Button
                 label="Delete"
                 systemImage="trash"
                 role="destructive"
                 onPress={onDelete}
-                modifiers={[foregroundStyle(DELETE_RED)]}
+                modifiers={[foregroundStyle(c.destructive)]}
               />
             </Section>
           ) : null}

@@ -22,7 +22,9 @@ import {
   background,
   padding,
   lineLimit,
+  listRowBackground,
   onTapGesture,
+  scrollContentBackground,
   tint,
   glassEffect,
   shapes,
@@ -31,6 +33,7 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { partitionTrips } from '@/lib/trip-partition';
 import { tripCountdownBadge, countdownPillLabel } from '@/lib/trip-badge';
@@ -39,12 +42,6 @@ import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
 import type { TripSummary } from '@/lib/schema';
 
 const FAVORITE_GOLD = '#FFD60A';
-const EDIT_BLUE = '#007AFF';
-const EXPORT_GREEN = '#34C759';
-const DELETE_RED = '#FF3B30';
-// The countdown pill mirrors the days sheet: one blue glass capsule across every
-// status, never a green/blue split (the label itself carries the distinction).
-const PILL_TINT = '#007AFF';
 const WHITE = '#ffffff';
 // Height of the progressive-blur band behind the transparent nav bar — spans the
 // standard (collapsed) navigation bar at the top of the sheet (mirrors days.tsx).
@@ -56,7 +53,8 @@ export default function TripsSheet() {
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const subtext = isDark ? '#aeaeb2' : '#6d6d72';
+  const c = useThemeColors();
+  const subtext = c.textSubtle;
 
   // Flat, scannable list: in-progress trips first, then upcoming, each already
   // sorted by start date. Archived/past trips stay hidden.
@@ -153,7 +151,7 @@ export default function TripsSheet() {
                   font({ size: 12, weight: 'semibold' }),
                   foregroundStyle(WHITE),
                   padding({ horizontal: 10, vertical: 2 }),
-                  glassEffect({ glass: { variant: 'regular', tint: PILL_TINT }, shape: 'capsule' }),
+                  glassEffect({ glass: { variant: 'regular', tint: c.accent }, shape: 'capsule' }),
                   clipShape('capsule'),
                 ]}
               >
@@ -175,7 +173,7 @@ export default function TripsSheet() {
             systemImage="pencil"
             label="Edit"
             onPress={() => onEdit(summary)}
-            modifiers={[tint(EDIT_BLUE)]}
+            modifiers={[tint(c.accent)]}
           />
           <Button
             systemImage={isFavorite ? 'star.slash.fill' : 'star.fill'}
@@ -194,13 +192,13 @@ export default function TripsSheet() {
             systemImage="trash"
             label="Delete"
             onPress={() => onDelete(summary)}
-            modifiers={[tint(DELETE_RED)]}
+            modifiers={[tint(c.destructive)]}
           />
           <Button
             systemImage="square.and.arrow.up"
             label="Export"
             onPress={() => onExport(summary)}
-            modifiers={[tint(EXPORT_GREEN)]}
+            modifiers={[tint(c.secondaryAction)]}
           />
         </SwipeActions.Actions>
       </SwipeActions>
@@ -213,13 +211,14 @@ export default function TripsSheet() {
   // progressive-blur RN overlay (below) provides the variable-radius frost, since
   // the native bar can only do a uniform blur.
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>Trips</Stack.Title>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           icon="gearshape"
           accessibilityLabel="Settings"
+          tintColor={c.accent}
           onPress={() => router.push('/settings')}
         />
       </Stack.Toolbar>
@@ -227,6 +226,7 @@ export default function TripsSheet() {
         <Stack.Toolbar.Button
           icon="plus"
           accessibilityLabel="New trip"
+          tintColor={c.accent}
           onPress={() => router.push('/trip/new')}
         />
       </Stack.Toolbar>
@@ -238,13 +238,24 @@ export default function TripsSheet() {
           </RNText>
         </View>
       ) : (
-        <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'}>
+        // tint() seeds the SwiftUI accent inside the Host — SwiftUI otherwise
+        // falls back to system blue. Hiding the List's system grouped background
+        // lets the warm container background show through; rows take the surface.
+        <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'} modifiers={[tint(c.accent)]}>
           {/* Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
               row count. Removing role="destructive" took away the swipe's built-in
               delete animation, so we drive it here — when removeTrip drops the count
               the row slides out instead of vanishing. */}
-          <List modifiers={[listStyle('insetGrouped'), animation(Animation.default, visibleTrips.length)]}>
-            <Section>{visibleTrips.map((summary) => renderRow(summary))}</Section>
+          <List
+            modifiers={[
+              listStyle('insetGrouped'),
+              scrollContentBackground('hidden'),
+              animation(Animation.default, visibleTrips.length),
+            ]}
+          >
+            <Section modifiers={[listRowBackground(c.surface)]}>
+              {visibleTrips.map((summary) => renderRow(summary))}
+            </Section>
           </List>
         </Host>
       )}

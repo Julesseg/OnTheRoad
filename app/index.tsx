@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTripStore } from '@/lib/store';
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useThemeColors } from '@/constants/theme';
 import { effectiveTripId } from '@/lib/active-trip';
 import { framedViewport } from '@/lib/framed-viewport';
 import { tripRouteCoords } from '@/lib/trip-route';
@@ -19,6 +20,7 @@ import { todayFilterModel } from '@/lib/today-filter';
 const PANEL_FRACTION = 0.5;
 
 export default function HomeScreen() {
+  const c = useThemeColors();
   const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, initialized, initialize, loadTripById } =
     useTripStore();
 
@@ -97,7 +99,7 @@ export default function HomeScreen() {
         >
           {/* Liquid glass to match the native MapKit controls (iOS 26+). */}
           <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
-          <IconSymbol name="scope" size={22} color="#007AFF" />
+          <IconSymbol name="scope" size={22} color={c.accent} />
         </Pressable>
       )}
     </View>

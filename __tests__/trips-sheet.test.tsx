@@ -59,6 +59,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   animation: () => ({}),
   Animation: { default: {} },
   shapes: { roundedRectangle: () => ({}), capsule: () => ({}) },
+  listRowBackground: () => ({}),
+  scrollContentBackground: () => ({}),
 }));
 
 // @expo/ui renders native SwiftUI views that can't mount under jsdom. Stand the

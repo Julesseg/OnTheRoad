@@ -2,9 +2,17 @@ import { View, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { Host, Form, Section, Picker, Button, Text } from '@expo/ui/swift-ui';
-import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import {
+  background,
+  listRowBackground,
+  pickerStyle,
+  scrollContentBackground,
+  tag,
+  tint,
+} from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { MAPS_APP_LABELS } from '@/lib/maps';
 import type { MapsApp } from '@/lib/schema';
@@ -23,6 +31,7 @@ export default function SettingsSheet() {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const c = useThemeColors();
   const mapsApps = ALL_MAPS_APPS.filter((app) => installedMapsApps.includes(app));
 
   async function onImport() {
@@ -47,13 +56,16 @@ export default function SettingsSheet() {
   // Same chrome as the trips/days sheets: a transparent native nav bar with the
   // title, plus a progressive-blur RN overlay that frosts content scrolling under it.
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#1c1c1e' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>Settings</Stack.Title>
 
-      <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'}>
-        <Form>
-          <Section title="Maps app">
+      {/* tint() seeds the SwiftUI accent for everything in the Host — SwiftUI
+          otherwise falls back to system blue. The Form swaps its system grouped
+          background for the warm theme bg; Sections paint rows with the surface. */}
+      <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'} modifiers={[tint(c.accent)]}>
+        <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
+          <Section title="Maps app" modifiers={[listRowBackground(c.surface)]}>
             <Picker
               label="Preferred app"
               selection={preferredMapsApp}
@@ -68,7 +80,7 @@ export default function SettingsSheet() {
             </Picker>
           </Section>
 
-          <Section title="Data">
+          <Section title="Data" modifiers={[listRowBackground(c.surface)]}>
             <Button label="Import trip…" systemImage="square.and.arrow.down" onPress={onImport} />
             <Button
               label="Archived trips"

@@ -20,6 +20,7 @@ import {
   listSectionSpacing,
   listSectionMargins,
   onTapGesture,
+  scrollContentBackground,
   tint,
   animation,
   Animation,
@@ -30,14 +31,12 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 import type { Trip, Item } from '@/lib/schema';
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
-const TINT = '#007AFF';
-const FAINT_BLUE = '#007AFF1A'; // ~10% opacity — today's section background
-const DELETE_RED = '#FF3B30';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
 
@@ -82,7 +81,8 @@ export function ItineraryPanel({
   onDayPress?: (date: string) => void;
 }) {
   const colorScheme = useColorScheme();
-  const subtext = colorScheme === 'dark' ? '#9a9a9a' : '#888';
+  const c = useThemeColors();
+  const subtext = c.textSubtle;
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const reorderItem = useTripStore((s) => s.reorderItem);
@@ -146,12 +146,11 @@ export function ItineraryPanel({
       : null;
 
     const rowContent = isNextUp ? (
-      // Solid TINT-blue row with a white capsule "NEXT UP" pill in upper-right.
-      // The pill uses TINT text on white background to stay in the blue family.
+      // Solid accent row with a white capsule "NEXT UP" pill in upper-right.
       <HStack
         alignment="top"
         spacing={8}
-        modifiers={[onTapGesture(edit), listRowBackground(TINT)]}
+        modifiers={[onTapGesture(edit), listRowBackground(c.accent)]}
       >
         <VStack alignment="leading" spacing={2}>
           <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
@@ -170,7 +169,7 @@ export function ItineraryPanel({
         <Text
           modifiers={[
             font({ size: 10, weight: 'bold' }),
-            foregroundStyle(TINT),
+            foregroundStyle(c.accent),
             padding({ horizontal: 8, vertical: 4 }),
             background(WHITE, shapes.capsule()),
           ]}
@@ -184,7 +183,7 @@ export function ItineraryPanel({
         spacing={2}
         modifiers={[
           onTapGesture(edit),
-          ...(isToday ? [listRowBackground(FAINT_BLUE)] : []),
+          ...(isToday ? [listRowBackground(c.accentFaint)] : []),
         ]}
       >
         <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
@@ -204,7 +203,7 @@ export function ItineraryPanel({
         {rowContent}
 
         <SwipeActions.Actions edge="leading">
-          <Button systemImage="pencil" label="Edit" onPress={edit} modifiers={[tint(TINT)]} />
+          <Button systemImage="pencil" label="Edit" onPress={edit} modifiers={[tint(c.accent)]} />
         </SwipeActions.Actions>
         <SwipeActions.Actions edge="trailing" allowsFullSwipe={!!openMaps}>
           {openMaps ? (
@@ -212,10 +211,10 @@ export function ItineraryPanel({
               systemImage="map"
               label="Navigate"
               onPress={openMaps}
-              modifiers={[tint(TINT)]}
+              modifiers={[tint(c.accent)]}
             />
           ) : null}
-          <Button systemImage="trash" label="Delete" onPress={remove} modifiers={[tint(DELETE_RED)]} />
+          <Button systemImage="trash" label="Delete" onPress={remove} modifiers={[tint(c.destructive)]} />
         </SwipeActions.Actions>
       </SwipeActions>
     );
@@ -223,10 +222,21 @@ export function ItineraryPanel({
 
   return (
     <View style={styles.container}>
-      <Host style={styles.host} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+      {/* tint() seeds the SwiftUI accent inside the Host (e.g. the day-header +
+          buttons) — SwiftUI otherwise falls back to system blue. The List swaps
+          its system grouped background for a translucent warm wash so the sheet
+          keeps its liquid-glass look over the map; day sections paint their rows
+          with the translucent surface (today/next-up rows override per-row). */}
+      <Host
+        style={styles.host}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        modifiers={[tint(c.accent)]}
+      >
         <List
           modifiers={[
             listStyle('insetGrouped'),
+            scrollContentBackground('hidden'),
+            background(c.backgroundGlass),
             // Animate row insert/removal: SwiftUI's .animation(_:value:) keyed to the
             // total item count. Dropping role="destructive" removed the swipe's built-in
             // delete animation, so we drive it here — when deleteItem lowers the count
@@ -254,6 +264,7 @@ export function ItineraryPanel({
           {days.map((day) => (
             <Section
               key={day.id}
+              modifiers={[listRowBackground(c.surfaceGlass)]}
               header={
                 <VStack alignment="leading" spacing={2}>
                   <HStack
@@ -266,7 +277,7 @@ export function ItineraryPanel({
                     <Text
                       modifiers={[
                         font({ size: 18, weight: 'bold' }),
-                        foregroundStyle(day.date === today ? TINT : subtext),
+                        foregroundStyle(day.date === today ? c.accent : subtext),
                       ]}
                     >
                       {`Day ${dayPosition.get(day.id) ?? '?'}`}

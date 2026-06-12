@@ -15,7 +15,16 @@ import {
   Image,
   useNativeState,
 } from '@expo/ui/swift-ui';
-import { datePickerStyle, font, frame, foregroundStyle } from '@expo/ui/swift-ui/modifiers';
+import {
+  background,
+  datePickerStyle,
+  font,
+  frame,
+  foregroundStyle,
+  listRowBackground,
+  scrollContentBackground,
+  tint,
+} from '@expo/ui/swift-ui/modifiers';
 
 import {
   tripFormSchema,
@@ -24,6 +33,7 @@ import {
   parseLocalDate,
   clampRange,
 } from '@/lib/trip-form';
+import { useThemeColors } from '@/constants/theme';
 
 /** The trip's cover photo as the form currently holds it. `existing` is an
  * already-saved wallpaper (shown by its display uri), `picked` is a freshly
@@ -55,8 +65,6 @@ export interface TripFormProps {
   onCancel: () => void;
 }
 
-const DELETE_RED = '#FF3B30';
-
 /** Warm, rounded-font section header (matches the native-form direction of ADR-0003). */
 function SectionHeader({ children }: { children: string }) {
   return (
@@ -65,8 +73,9 @@ function SectionHeader({ children }: { children: string }) {
 }
 
 function FieldError({ message }: { message?: string }) {
+  const { destructive } = useThemeColors();
   if (!message) return null;
-  return <Text modifiers={[font({ size: 13 }), foregroundStyle('#d11')]}>{message}</Text>;
+  return <Text modifiers={[font({ size: 13 }), foregroundStyle(destructive)]}>{message}</Text>;
 }
 
 export function TripForm({
@@ -83,6 +92,7 @@ export function TripForm({
 }: TripFormProps) {
   const today = formatLocalDate(new Date());
   const colorScheme = useColorScheme();
+  const c = useThemeColors();
   // Native two-way binding seeds the field's initial text (edit path); the
   // mirror into react-hook-form below keeps validation in sync.
   const titleState = useNativeState(initialTitle);
@@ -143,7 +153,7 @@ export function TripForm({
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>{heading}</Stack.Title>
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button accessibilityLabel="Cancel" onPress={onCancel}>
+        <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={c.accent} onPress={onCancel}>
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
@@ -151,6 +161,7 @@ export function TripForm({
         <Stack.Toolbar.Button
           accessibilityLabel={submitLabel}
           variant="prominent"
+          tintColor={c.accent}
           disabled={submitting}
           onPress={submit}
         >
@@ -158,9 +169,21 @@ export function TripForm({
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
-      <Host style={{ flex: 1 }} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-        <Form>
-          <Section header={<SectionHeader>What should we call it?</SectionHeader>} footer={<FieldError message={errors.title?.message} />}>
+      {/* tint() seeds the SwiftUI accent for everything in the Host (buttons,
+          date pickers, cursors) — SwiftUI otherwise falls back to system blue.
+          The Form swaps its system grouped background for the warm theme bg,
+          and each Section paints its rows with the theme surface. */}
+      <Host
+        style={{ flex: 1 }}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        modifiers={[tint(c.accent)]}
+      >
+        <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
+          <Section
+            header={<SectionHeader>What should we call it?</SectionHeader>}
+            footer={<FieldError message={errors.title?.message} />}
+            modifiers={[listRowBackground(c.surface)]}
+          >
             <TextField
               text={titleState}
               placeholder="e.g. Pacific Coast Highway"
@@ -169,7 +192,11 @@ export function TripForm({
             />
           </Section>
 
-          <Section header={<SectionHeader>When are you going?</SectionHeader>} footer={<FieldError message={errors.endDate?.message} />}>
+          <Section
+            header={<SectionHeader>When are you going?</SectionHeader>}
+            footer={<FieldError message={errors.endDate?.message} />}
+            modifiers={[listRowBackground(c.surface)]}
+          >
             <DatePicker
               title="Start"
               selection={parseLocalDate(startDate)}
@@ -186,7 +213,10 @@ export function TripForm({
             />
           </Section>
 
-          <Section header={<SectionHeader>Cover photo</SectionHeader>}>
+          <Section
+            header={<SectionHeader>Cover photo</SectionHeader>}
+            modifiers={[listRowBackground(c.surface)]}
+          >
             {coverPreviewUri ? (
               <>
                 <Image uiImage={coverPreviewUri} modifiers={[frame({ height: 160 })]} />
@@ -196,7 +226,7 @@ export function TripForm({
                   systemImage="trash"
                   role="destructive"
                   onPress={() => setCover({ kind: 'none' })}
-                  modifiers={[foregroundStyle(DELETE_RED)]}
+                  modifiers={[foregroundStyle(c.destructive)]}
                 />
               </>
             ) : (

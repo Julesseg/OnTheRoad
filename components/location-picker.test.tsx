@@ -106,6 +106,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   tint: vi.fn(() => ({})),
   onTapGesture: vi.fn(() => ({})),
   accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
+  scrollContentBackground: vi.fn(() => ({})),
 }));
 
 vi.mock('expo-router', async () => {

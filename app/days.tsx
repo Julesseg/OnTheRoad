@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -14,6 +14,7 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { ItineraryPanel } from '@/components/itinerary-panel';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
 import { tripHeaderModel } from '@/lib/trip-header';
@@ -26,7 +27,6 @@ import { todayString, formatDateRange } from '@/lib/date-utils';
 import { exportTripAsFile } from '@/lib/storage';
 import { todayFilterModel } from '@/lib/today-filter';
 
-const TINT = '#007AFF';
 const WHITE = '#ffffff';
 // Height of the progressive-blur layer behind the transparent nav bar — the
 // screen content already starts at the safe-area top, so this spans just the
@@ -47,10 +47,9 @@ export default function DaysSheet() {
     removeTrip,
     setTodayFilterOverride,
   } = useTripStore();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const text = isDark ? '#fff' : '#111';
-  const subtext = isDark ? '#9a9a9a' : '#888';
+  const c = useThemeColors();
+  const text = c.text;
+  const subtext = c.textSubtle;
 
   const today = todayString();
   const model = tripHeaderModel(displayedTripId, trips, activeTripId, today);
@@ -130,6 +129,7 @@ export default function DaysSheet() {
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             icon="list.bullet"
+            tintColor={c.accent}
             accessibilityLabel="Trips"
             onPress={() => router.push('/trips')}
           />
@@ -159,6 +159,7 @@ export default function DaysSheet() {
           <Stack.Toolbar.Button
             icon="chevron.backward"
             accessibilityLabel="Back to default trip"
+            tintColor={c.accent}
             onPress={() => {
               // Dismiss BEFORE mutating the store so the two motions run together.
               // react-navigation marks this sheet for dismissal first, so the
@@ -177,6 +178,7 @@ export default function DaysSheet() {
             <Stack.Toolbar.Button
             icon="line.3.horizontal.decrease"
             accessibilityLabel="Filter day"
+            tintColor={c.accent}
             selected={filterModel.active}
             onPress={() => setTodayFilterOverride(!filterModel.active)}
             />
@@ -186,9 +188,10 @@ export default function DaysSheet() {
         <Stack.Toolbar.Button
           icon="list.bullet"
           accessibilityLabel="Trips"
+          tintColor={c.accent}
           onPress={() => router.push('/trips')}
         />
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More">
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" tintColor={c.accent}>
           <Stack.Toolbar.MenuAction
             icon="pencil"
             onPress={() => router.push(`/trip/${summary.id}/edit`)}
@@ -240,7 +243,7 @@ export default function DaysSheet() {
             font({ size: 13, weight: 'semibold' }),
             foregroundStyle(WHITE),
             padding({ horizontal: 10, vertical: 3 }),
-            glassEffect({ glass: { variant: 'regular', tint: TINT }, shape: 'capsule' }),
+            glassEffect({ glass: { variant: 'regular', tint: c.accent }, shape: 'capsule' }),
             clipShape('capsule'),
           ]}
         >
