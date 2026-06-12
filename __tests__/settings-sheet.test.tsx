@@ -86,6 +86,8 @@ const storeWith = (overrides: object) =>
       preferredMapsApp: 'apple',
       installedMapsApps: ['apple', 'google', 'waze'],
       setPreferredMapsApp: vi.fn(),
+      appearance: 'system',
+      setAppearance: vi.fn(),
       importTrip: vi.fn(),
       setDisplayedTrip: vi.fn(),
       ...overrides,
@@ -116,6 +118,29 @@ describe('SettingsSheet', () => {
     fireEvent.click(screen.getByRole('radio', { name: /google/i }));
 
     expect(setPreferredMapsApp).toHaveBeenCalledWith('google');
+  });
+
+  it('shows the current appearance as selected', async () => {
+    storeWith({ appearance: 'dark' });
+    const { default: SettingsSheet } = await import('@/app/settings');
+    render(<SettingsSheet />);
+
+    const selected = screen.getByRole('radio', { name: /dark/i });
+    expect(selected).toHaveAttribute('aria-checked', 'true');
+
+    const system = screen.getByRole('radio', { name: /system/i });
+    expect(system).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('tapping a different appearance calls setAppearance', async () => {
+    const setAppearance = vi.fn();
+    storeWith({ appearance: 'system', setAppearance });
+    const { default: SettingsSheet } = await import('@/app/settings');
+    render(<SettingsSheet />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /light/i }));
+
+    expect(setAppearance).toHaveBeenCalledWith('light');
   });
 
   it('tapping "Archived trips" navigates to /archived', async () => {

@@ -108,8 +108,8 @@ field — there is no per-category time synonym.
 
 The global persisted state, stored in `state.json` separately from trip files:
 `activeTripId`, the array of [Trip Summaries](#trip-summary), the
-[preferred maps app](#preferred-maps-app), and `lastUpdated`. Defined by
-`AppStateSchema`.
+[preferred maps app](#preferred-maps-app), the [appearance](#appearance), and
+`lastUpdated`. Defined by `AppStateSchema`.
 
 ### Displayed Trip
 
@@ -143,6 +143,18 @@ The maps application used to open an address or coordinate: **Apple Maps**,
 ships with iOS; the others are probed for via URL schemes. A stored preference
 pointing at an uninstalled app is reconciled back to Apple Maps so it can never
 dead-end (`lib/maps.ts`).
+
+### Appearance
+
+The user's override for how the app resolves light vs dark: **System**
+(default — follow the OS), **Light**, or **Dark** (`AppearanceMode` in
+`lib/schema.ts`). Persisted in the [App State](#app-state) and applied
+app-wide on launch and on change via React Native's
+`Appearance.setColorScheme()` (`applyAppearance` in `lib/appearance.ts`), so
+themed components and native surfaces (alerts, grouped lists) all follow it
+(see [ADR-0005](docs/adr/0005-ember-palette-accent-layer.md)).
+
+Prefer **Appearance** over "theme toggle" or "dark mode setting".
 
 ### Import / Export
 
