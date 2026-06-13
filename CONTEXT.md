@@ -206,7 +206,13 @@ Apple Intelligence): the user pastes it — together with their
 [Planning Document](#planning-document) — into any LLM of their choice, and
 the LLM's JSON output comes back in through the ordinary
 [Import](#import--export). The app itself still makes no network call; the
-user carries the text across by hand.
+user carries the text across by hand. Built by `buildSchemaPrompt`
+(`lib/schema-prompt.ts`), which embeds a worked example that itself passes the
+strict `TripSchema` gate. Whether Smart Import can run on-device is decided by
+the availability probe (`lib/smart-import-availability.ts`), a thin wrapper over
+the native Foundation Models check that degrades to "unsupported" — offering the
+Schema Prompt — wherever Apple Intelligence is absent (Simulator, older OS or
+hardware).
 
 Prefer **Schema Prompt** over "export schema" or "LLM template".
 
