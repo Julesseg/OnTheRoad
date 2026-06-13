@@ -162,6 +162,24 @@ describe('classifyShare — one share, one Item (multiple URLs)', () => {
     });
     expect(draft.notes).toBe('https://a.example.com\nhttps://b.example.com');
   });
+
+  it('trims trailing sentence punctuation off a link embedded in prose', () => {
+    const draft = classifyShare({ text: 'Check this out: https://a.example.com.' });
+    expect(draft.notes).toBe('https://a.example.com');
+  });
+
+  it('still de-dups when the text repeats the primary link with trailing punctuation', () => {
+    const draft = classifyShare({
+      url: 'https://a.example.com',
+      text: 'See https://a.example.com. Also https://b.example.com)',
+    });
+    expect(draft.notes).toBe('https://a.example.com\nhttps://b.example.com');
+  });
+
+  it('does not leave a doubled space in the name when a mid-line link is stripped', () => {
+    const draft = classifyShare({ text: 'Visit https://x.com today' });
+    expect(draft.name).toBe('Visit today');
+  });
 });
 
 describe('classifyShare — link-less text branch', () => {

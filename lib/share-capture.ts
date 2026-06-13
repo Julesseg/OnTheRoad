@@ -66,8 +66,13 @@ function firstLine(text: string): string {
   return text.split('\n')[0].trim();
 }
 
-/** Matches an http(s) URL up to the next whitespace — what an iOS share carries. */
-const URL_PATTERN = /https?:\/\/[^\s]+/g;
+/**
+ * Matches an http(s) URL up to the next whitespace, but never ending on the
+ * sentence punctuation an iOS share leaves clinging to a link in prose
+ * (`See https://x.com.` → `https://x.com`) — a trailing `.`/`)` would dirty the
+ * `notes` link and break the de-dup in {@link collectUrls} against the `url` param.
+ */
+const URL_PATTERN = /https?:\/\/[^\s]*[^\s.,;:!?)\]}]/g;
 
 /**
  * Every URL the payload carries, in order and de-duplicated: the explicit `url`
@@ -85,9 +90,15 @@ function collectUrls(payload: SharePayload): string[] {
   return urls;
 }
 
-/** The shared text with its URLs removed, so a link never leaks into the name/address. */
+/**
+ * The shared text with its URLs removed, so a link never leaks into the
+ * name/address. Removing a mid-line link leaves the spaces that flanked it behind,
+ * so runs of intra-line whitespace are collapsed (newlines kept intact, since the
+ * maps branch splits name from address on them).
+ */
 function descriptiveText(text: string | undefined): string | undefined {
-  return text?.replace(URL_PATTERN, '');
+  if (text === undefined) return undefined;
+  return text.replace(URL_PATTERN, '').replace(/[^\S\n]+/g, ' ');
 }
 
 /**
@@ -122,11 +133,12 @@ function textLines(text: string | undefined): string[] {
 }
 
 /**
- * Classify a Maps share into a Place Item (CONTEXT.md → Share Capture). The link
- * is kept in `notes` so it stays tappable; the name is the text's first line (or
- * the host), the address the lines beneath it. Coordinates are parsed straight
- * from the URL when it carries them (ADR-0007 layer 1, offline); short links that
- * only redirect to their coordinates are resolved later by {@link resolveShareCoords}.
+ * Classify a Maps share into a Place Item (CONTEXT.md → Share Capture). The name
+ * is the text's first line (or the host) and the address the lines beneath it;
+ * coordinates are parsed straight from the URL when it carries them (ADR-0007
+ * layer 1, offline), while short links that only redirect to their coordinates
+ * are resolved later by {@link resolveShareCoords}. {@link classifyShare} fills in
+ * `notes` (the link, plus any others the share carried).
  */
 function classifyMapsLink(url: string, text: string | undefined): ShareDraft {
   const lines = textLines(text);
@@ -141,19 +153,19 @@ function classifyMapsLink(url: string, text: string | undefined): ShareDraft {
     location.lng = coords.lng;
   }
 
-  const draft: ShareDraft = { name: name || urlHost(url), category: 'location', notes: url };
+  const draft: ShareDraft = { name: name || urlHost(url), category: 'location' };
   if (address || coords) draft.location = location;
   return draft;
 }
 
 /**
- * Classify a non-maps link into an Activity (CONTEXT.md → Share Capture), keeping
- * the link in `notes` and naming the Item from the shared text's first line, or
- * the link's host when there is no text.
+ * Classify a non-maps link into an Activity (CONTEXT.md → Share Capture), naming
+ * the Item from the shared text's first line, or the link's host when there is no
+ * text. {@link classifyShare} fills in `notes` (the link, plus any others shared).
  */
 function classifyGenericLink(url: string, text: string | undefined): ShareDraft {
   const fromText = text ? firstLine(text) : '';
-  return { name: fromText || urlHost(url), category: 'activity', notes: url };
+  return { name: fromText || urlHost(url), category: 'activity' };
 }
 
 /**
