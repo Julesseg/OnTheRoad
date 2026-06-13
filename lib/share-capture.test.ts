@@ -77,14 +77,20 @@ describe('classifyShare — maps-link branch', () => {
   it.each([
     ['Apple Maps', 'https://maps.apple.com/?ll=48.8584,2.2945&q=Eiffel+Tower'],
     ['a Google short link', 'https://maps.app.goo.gl/abcDEF123'],
+    ['a legacy goo.gl/maps short link', 'https://goo.gl/maps/abcDEF123'],
     ['a maps.google host', 'https://maps.google.com/?q=48.8584,2.2945'],
     ['a google.*/maps path', 'https://www.google.de/maps/place/Eiffel+Tower'],
+    ['a google.co.uk/maps path', 'https://www.google.co.uk/maps/place/Big+Ben'],
   ])('recognizes %s as a Place', (_label, url) => {
     expect(classifyShare({ url }).category).toBe('location');
   });
 
-  it('leaves a maps-look-alike host as a generic Activity', () => {
-    expect(classifyShare({ url: 'https://maps.example.com/place/42' }).category).toBe('activity');
+  it.each([
+    ['a maps-look-alike host', 'https://maps.example.com/place/42'],
+    ['a spoofed google subdomain', 'https://google.com.attacker.net/maps/place/x'],
+    ['a bare goo.gl link with no /maps path', 'https://goo.gl/abcDEF123'],
+  ])('leaves %s as a generic Activity', (_label, url) => {
+    expect(classifyShare({ url }).category).toBe('activity');
   });
 
   it('names the Place from the shared text and keeps the link in notes', () => {

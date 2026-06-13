@@ -16,7 +16,13 @@ function isMapsLink(url: string): boolean {
   if (host === 'maps.apple.com') return true;
   if (host === 'maps.app.goo.gl') return true;
   if (/^maps\.google\./.test(host)) return true;
-  if (/(^|\.)google\.[a-z.]+$/.test(host) && pathname.startsWith('/maps')) return true;
+  // Legacy Google short link, still referenced by coords.ts (`resolveMapsUrl`).
+  if (host === 'goo.gl' && pathname.startsWith('/maps')) return true;
+  // `google.<tld>/maps`, capping the labels after `google.` to a 1–2 part TLD so a
+  // spoofed `google.com.attacker.net` can't slip through (ccTLDs like `co.uk` stay valid).
+  if (/(^|\.)google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(host) && pathname.startsWith('/maps')) {
+    return true;
+  }
   return false;
 }
 
