@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.description    = 'Exposes Foundation Models SystemLanguageModel.availability to JS as a status string.'
   s.author         = ''
   s.homepage       = 'https://docs.expo.dev/modules/'
-  s.platforms      = { :ios => '15.1' }
+  s.platforms      = { :ios => '26.0' }
   s.source         = { git: '' }
   s.static_framework = true
 
