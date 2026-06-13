@@ -227,7 +227,9 @@ iOS system share sheet** (Google Maps, Apple Maps, Safari, …) becomes one
 [Import](#import--export) family, which always produces a [Trip](#trip): Import
 and Smart Import structure a *trip*, Share Capture captures a single *item*. A
 native iOS **Share Extension** grabs the shared URL and/or text and hands it to
-the main app (it does no parsing itself); the app classifies the payload into a
+the main app (it does no parsing itself; see
+[ADR-0008](docs/adr/0008-share-capture-thin-share-extension.md)); the app
+classifies the payload into a
 [Capture](#capture) and opens the [Share editor](#share-editor) prefilled.
 
 Classification maps each source to one Item: a Google Maps or Apple Maps link
