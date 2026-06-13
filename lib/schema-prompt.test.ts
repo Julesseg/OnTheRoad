@@ -37,4 +37,14 @@ describe('Schema Prompt', () => {
     // is a network service this feature rules out).
     expect(prompt).toMatch(/never lat|address text only/i);
   });
+
+  it('never instructs free-text questions while demanding JSON-only output', () => {
+    const prompt = buildSchemaPrompt();
+    // The output always re-enters through the strict TripSchema gate, so the
+    // missing-dates path must still produce valid JSON, not prose. A model told
+    // to "ask the user" would emit text that fails Import.
+    expect(prompt).toMatch(/JSON only/i);
+    expect(prompt).not.toMatch(/ask the user/i);
+    expect(prompt).toMatch(/never a question/i);
+  });
 });

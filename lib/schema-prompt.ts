@@ -88,7 +88,7 @@ SCHEMA (every field name and type must match exactly):
 - id: string — a random UUID (e.g. "${EXAMPLE_TRIP.id}").
 - schemaVersion: the number ${CURRENT_SCHEMA_VERSION} exactly (not a string).
 - title: string — a short trip title.
-- startDate, endDate: "YYYY-MM-DD" — the inclusive first and last calendar dates of the trip. If the description gives no dates, ask the user for a start date instead of inventing one.
+- startDate, endDate: "YYYY-MM-DD" — the inclusive first and last calendar dates of the trip. If the description gives no dates, infer the most plausible ones from the text (trip length, day count, season). If there is nothing to go on, default to a one-day trip starting next Saturday. Always emit concrete dates — never a placeholder and never a question; the dates can be adjusted in the app afterwards.
 - days: an array with ONE entry per calendar date from startDate through endDate inclusive (no gaps). Each day is:
     - id: string — a random UUID.
     - date: "YYYY-MM-DD" — that day's date.

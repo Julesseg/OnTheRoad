@@ -25,11 +25,26 @@ export default function SmartImportSheet() {
   const [availability] = useState(getSmartImportAvailability);
 
   const copySchemaPrompt = useCallback(async () => {
-    await Clipboard.setStringAsync(buildSchemaPrompt());
-    Alert.alert(
-      'Schema Prompt copied',
-      'Paste it into any AI along with your trip plan, then import the JSON it produces with Import Trip.',
-    );
+    // setStringAsync resolves false on a failed write and can reject outright;
+    // either way the escape hatch must tell the user rather than fail silently
+    // or leak an unhandled rejection.
+    let copied = false;
+    try {
+      copied = await Clipboard.setStringAsync(buildSchemaPrompt());
+    } catch {
+      copied = false;
+    }
+    if (copied) {
+      Alert.alert(
+        'Schema Prompt copied',
+        'Paste it into any AI along with your trip plan, then import the JSON it produces with Import Trip.',
+      );
+    } else {
+      Alert.alert(
+        'Couldn’t copy',
+        'Something went wrong copying the Schema Prompt. Please try again.',
+      );
+    }
   }, []);
 
   useEffect(() => {

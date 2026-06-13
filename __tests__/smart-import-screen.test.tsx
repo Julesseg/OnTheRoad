@@ -75,6 +75,32 @@ describe('SmartImportSheet — availability gate', () => {
     );
   });
 
+  it('warns instead of confirming when the clipboard write fails', async () => {
+    clipboardMock.setStringAsync.mockResolvedValueOnce(false);
+    const { default: SmartImportSheet } = await import('@/app/smart-import');
+    render(<SmartImportSheet />);
+
+    fireEvent.click(screen.getByText('Copy Schema Prompt'));
+
+    await waitFor(() =>
+      expect(alertMock.mock.calls.some(([title]) => /couldn.?t copy/i.test(String(title)))).toBe(true),
+    );
+    // No false "copied" confirmation on a failed write.
+    expect(alertMock.mock.calls.some(([title]) => /copied/i.test(String(title)))).toBe(false);
+  });
+
+  it('warns when the clipboard write rejects rather than leaving it unhandled', async () => {
+    clipboardMock.setStringAsync.mockRejectedValueOnce(new Error('clipboard unavailable'));
+    const { default: SmartImportSheet } = await import('@/app/smart-import');
+    render(<SmartImportSheet />);
+
+    fireEvent.click(screen.getByText('Copy Schema Prompt'));
+
+    await waitFor(() =>
+      expect(alertMock.mock.calls.some(([title]) => /couldn.?t copy/i.test(String(title)))).toBe(true),
+    );
+  });
+
   it('confirms when the copy is triggered from the gate alert button', async () => {
     const { default: SmartImportSheet } = await import('@/app/smart-import');
     render(<SmartImportSheet />);
