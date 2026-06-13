@@ -22,12 +22,12 @@ function parseLocalDate(date: string): Date {
 // classified into a draft Item; the destination trip defaults to the resolved
 // active trip and the day to today (or the trip's first day), both still editable.
 export default function ShareEditorScreen() {
-  const params = useLocalSearchParams<{ url?: string; text?: string }>();
+  const { url, text } = useLocalSearchParams<{ url?: string; text?: string }>();
   const { trips, loadedTrips, activeTripId, loadTripById, upsertItem, setDisplayedTrip } =
     useTripStore();
   const today = todayString();
 
-  const draft = useMemo(() => classifyShare(parseShareParams(params)), [params.url, params.text]);
+  const draft = useMemo(() => classifyShare(parseShareParams({ url, text })), [url, text]);
   const [itemId] = useState(newId);
   const initialItem: Item = useMemo(() => ({ id: itemId, ...draft }), [itemId, draft]);
 
@@ -42,7 +42,7 @@ export default function ShareEditorScreen() {
 
   useEffect(() => {
     if (tripId) loadTripById(tripId);
-  }, [tripId]);
+  }, [tripId, loadTripById]);
 
   const summary = tripId ? (trips.find((t) => t.id === tripId) ?? null) : null;
 
