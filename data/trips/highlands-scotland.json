@@ -1,6 +1,6 @@
 {
   "id": "a1f4c2d8-7e93-4b16-9c50-2d8e1f6a3b07",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "title": "Scotland Highlands Trip",
   "startDate": "2026-09-05",
   "endDate": "2026-09-16",
@@ -10,16 +10,17 @@
       "date": "2026-09-05",
       "items": [
         {
-          "type": "activity",
           "id": "3e7b9d21-4c08-4a5f-bd13-92f6e0a7c845",
           "name": "Flight Paris → Edinburgh",
+          "category": "activity",
           "time": "11:20",
           "notes": "€142 for two. Arrive 12:05 local time."
         },
         {
-          "type": "note",
           "id": "8a2c6f10-9d34-4e7b-a1c8-5b03e7d29f46",
-          "text": "Estimated budget ~€2700 for two: campervan rental (Sep 6–15) €980, flights €284, fuel €260, food+pubs ~€520, parking/campsites ~€360 (€40/day x 9), Edinburgh lodging €296 (2 nights)."
+          "name": "Estimated budget ~€2700 for two: campervan rental (Sep 6–15) €980, flights €284,",
+          "category": "note",
+          "notes": "Estimated budget ~€2700 for two: campervan rental (Sep 6–15) €980, flights €284, fuel €260, food+pubs ~€520, parking/campsites ~€360 (€40/day x 9), Edinburgh lodging €296 (2 nights)."
         }
       ]
     },
@@ -28,28 +29,32 @@
       "date": "2026-09-05",
       "items": [
         {
-          "type": "activity",
           "id": "5c1e9a73-2f68-4d04-b9a7-3e8c0f1d6452",
           "name": "Explore Edinburgh Old Town",
+          "category": "activity",
           "time": "15:00",
           "notes": "Drop bags first, then wander the Royal Mile."
         },
         {
-          "type": "location",
           "id": "9b3f7e15-6a24-4c81-8d50-1f9e2b7c4a63",
           "name": "Edinburgh Castle",
-          "address": "Castlehill, Edinburgh EH1 2NG, United Kingdom",
-          "lat": 55.94859,
-          "lng": -3.19957,
+          "category": "location",
           "time": "16:30",
+          "location": {
+            "address": "Castlehill, Edinburgh EH1 2NG, United Kingdom",
+            "lat": 55.94859,
+            "lng": -3.19957
+          },
           "notes": "Last entry 17:00. Great views over the city."
         },
         {
-          "type": "accommodation",
           "id": "2d6a8c40-7e13-49b5-bf28-0c5d3a9f1e74",
           "name": "Grassmarket guesthouse",
-          "address": "Grassmarket, Edinburgh EH1 2JU, United Kingdom",
-          "checkIn": "14:00",
+          "category": "stay",
+          "time": "14:00",
+          "location": {
+            "address": "Grassmarket, Edinburgh EH1 2JU, United Kingdom"
+          },
           "notes": "Double room, €148. Walkable to everything."
         }
       ]
@@ -59,27 +64,31 @@
       "date": "2026-09-06",
       "items": [
         {
-          "type": "activity",
           "id": "4a9d2e68-1c57-4b03-8f96-7d0a3e5c1b29",
           "name": "Climb Arthur's Seat",
+          "category": "activity",
           "time": "09:00",
           "notes": "About 2h round trip. Wear proper shoes, it gets windy."
         },
         {
-          "type": "location",
           "id": "1f8b6c30-5a92-4e74-bd01-8c3f7a2e9d56",
           "name": "Dean Village & Water of Leith",
-          "address": "Dean Village, Edinburgh EH4 3BJ, United Kingdom",
-          "lat": 55.95173,
-          "lng": -3.21752,
+          "category": "location",
           "time": "13:00",
+          "location": {
+            "address": "Dean Village, Edinburgh EH4 3BJ, United Kingdom",
+            "lat": 55.95173,
+            "lng": -3.21752
+          },
           "notes": "Pretty riverside walk away from the crowds."
         },
         {
-          "type": "accommodation",
           "id": "6c3e8a14-9d75-4b20-8f63-1a5c0e7d2b48",
           "name": "Grassmarket guesthouse",
-          "address": "Grassmarket, Edinburgh EH1 2JU, United Kingdom"
+          "category": "stay",
+          "location": {
+            "address": "Grassmarket, Edinburgh EH1 2JU, United Kingdom"
+          }
         }
       ]
     },
@@ -88,34 +97,36 @@
       "date": "2026-09-07",
       "items": [
         {
-          "type": "activity",
           "id": "8d2a6c40-3e17-4b95-8a01-7f3c9e5d2a86",
           "name": "Train Edinburgh → Inverness",
+          "category": "activity",
           "time": "08:40",
           "notes": "£38 per person. Arrive 12:10. Book ahead for cheaper fares."
         },
         {
-          "type": "activity",
           "id": "5e9c3a71-2d68-4f04-b8a5-1c7e0d3f9b52",
           "name": "Pick up the campervan in Inverness",
+          "category": "activity",
           "time": "14:00",
           "notes": "Van available from 2pm. Walkthrough takes ~30 min."
         },
         {
-          "type": "activity",
           "id": "1b6e8c20-7a93-4d05-bf71-3e9c2a4f0d68",
           "name": "Grocery run in Inverness",
+          "category": "activity",
           "time": "15:30",
           "notes": "Stock up before heading north — shops get sparse."
         },
         {
-          "type": "location",
           "id": "9a4c2e60-8d15-4b73-8f02-6c1a7e3d9b54",
           "name": "Drive to Black Isle",
-          "address": "Fortrose, Ross-shire IV10, United Kingdom",
-          "lat": 57.58282,
-          "lng": -4.13167,
+          "category": "location",
           "time": "16:30",
+          "location": {
+            "address": "Fortrose, Ross-shire IV10, United Kingdom",
+            "lat": 57.58282,
+            "lng": -4.13167
+          },
           "notes": "Chanonry Point for sunset — dolphins often pass at the tide change."
         }
       ]
@@ -125,28 +136,32 @@
       "date": "2026-09-08",
       "items": [
         {
-          "type": "location",
           "id": "2e8c6a40-1d93-4b75-8f02-5a3c7e1d9b68",
           "name": "Rogie Falls",
-          "address": "Contin, Strathpeffer IV14 9ES, United Kingdom",
-          "lat": 57.59639,
-          "lng": -4.69806,
+          "category": "location",
           "time": "10:00",
+          "location": {
+            "address": "Contin, Strathpeffer IV14 9ES, United Kingdom",
+            "lat": 57.59639,
+            "lng": -4.69806
+          },
           "notes": "45 min drive. Short loop walk, salmon leaping in season."
         },
         {
-          "type": "activity",
           "id": "7c3e9a15-6d24-4b80-bf91-2a5c0e7d3b46",
           "name": "Drive to Ullapool",
+          "category": "activity",
           "time": "12:30",
           "notes": "Scenic run along Loch Glascarnoch. Lunch in the village by the harbour."
         },
         {
-          "type": "accommodation",
           "id": "4a9c2e68-3d17-4b05-8f73-1c6e0a3d9b52",
           "name": "Broomfield Holiday Park",
-          "address": "West Shore Street, Ullapool IV26 2UT, United Kingdom",
-          "checkIn": "16:00",
+          "category": "stay",
+          "time": "16:00",
+          "location": {
+            "address": "West Shore Street, Ullapool IV26 2UT, United Kingdom"
+          },
           "notes": "Seafront pitch, £32/night. Book ahead in summer."
         }
       ]
@@ -156,29 +171,33 @@
       "date": "2026-09-09",
       "items": [
         {
-          "type": "location",
           "id": "3e7c9a15-2d68-4b04-8f91-6a5c0e3d7b42",
           "name": "Achmelvich Beach",
-          "address": "Achmelvich, Lochinver IV27 4JB, United Kingdom",
-          "lat": 58.16694,
-          "lng": -5.30556,
+          "category": "location",
           "time": "10:30",
+          "location": {
+            "address": "Achmelvich, Lochinver IV27 4JB, United Kingdom",
+            "lat": 58.16694,
+            "lng": -5.30556
+          },
           "notes": "1h drive. White sand and turquoise water. Brave a swim if you dare."
         },
         {
-          "type": "location",
           "id": "9d4c2a60-7e13-4b85-8f02-1c5a7e0d3b96",
           "name": "Stoer Head Lighthouse",
-          "address": "Stoer, Lochinver IV27 4JH, United Kingdom",
-          "lat": 58.20639,
-          "lng": -5.39944,
+          "category": "location",
           "time": "14:00",
+          "location": {
+            "address": "Stoer, Lochinver IV27 4JH, United Kingdom",
+            "lat": 58.20639,
+            "lng": -5.39944
+          },
           "notes": "Walk out to the Old Man of Stoer sea stack, ~2h round trip."
         },
         {
-          "type": "accommodation",
           "id": "5a1c8e40-9d73-4b20-bf95-3e6c2a7d1b48",
           "name": "Wild camp near Clachtoll",
+          "category": "stay",
           "notes": "Beach car park, honesty box. Arrive before dusk for a good spot."
         }
       ]
@@ -188,38 +207,44 @@
       "date": "2026-09-10",
       "items": [
         {
-          "type": "location",
           "id": "8e3c6a40-1d95-4b73-bf02-7a5c9e1d3b48",
           "name": "Kylesku Bridge",
-          "address": "Kylesku, Sutherland IV27 4HW, United Kingdom",
-          "lat": 58.25778,
-          "lng": -5.02528,
+          "category": "location",
           "time": "10:00",
+          "location": {
+            "address": "Kylesku, Sutherland IV27 4HW, United Kingdom",
+            "lat": 58.25778,
+            "lng": -5.02528
+          },
           "notes": "Iconic curved bridge. Stop for photos and the waterfall viewpoint."
         },
         {
-          "type": "activity",
           "id": "4c9a2e68-7d13-4b05-8f91-2a6c0e7d3b54",
           "name": "Drive the north coast to Durness",
+          "category": "activity",
           "time": "12:00",
           "notes": "Single-track roads — use passing places. Allow extra time."
         },
         {
-          "type": "location",
           "id": "1a6e8c40-3d97-4b75-bf02-5c3a7e9d1b68",
           "name": "Smoo Cave",
-          "address": "Durness, Sutherland IV27 4QB, United Kingdom",
-          "lat": 58.56417,
-          "lng": -4.71889,
+          "category": "location",
           "time": "15:30",
+          "location": {
+            "address": "Durness, Sutherland IV27 4QB, United Kingdom",
+            "lat": 58.56417,
+            "lng": -4.71889
+          },
           "notes": "Huge sea cave. Free to walk in; boat tour extra if water's calm."
         },
         {
-          "type": "accommodation",
           "id": "7c3a9e15-2d68-4b80-8f01-6a5c0e3d7b42",
           "name": "Sango Sands campsite",
-          "address": "Durness, Sutherland IV27 4PP, United Kingdom",
-          "checkIn": "16:00",
+          "category": "stay",
+          "time": "16:00",
+          "location": {
+            "address": "Durness, Sutherland IV27 4PP, United Kingdom"
+          },
           "notes": "Clifftop pitches over the beach, £28/night."
         }
       ]
@@ -229,26 +254,28 @@
       "date": "2026-09-11",
       "items": [
         {
-          "type": "activity",
           "id": "3c7e9a15-6d24-4b80-bf91-2a5c0e7d3b40",
           "name": "Beach morning in Durness",
+          "category": "activity",
           "time": "09:30",
           "notes": "Balnakeil Beach and the craft village. Coffee at Cocoa Mountain."
         },
         {
-          "type": "location",
           "id": "5a9c2e68-3d17-4b05-8f73-1c6e0a3d9b58",
           "name": "Drive to Tongue",
-          "address": "Tongue, Sutherland IV27 4XF, United Kingdom",
-          "lat": 58.47361,
-          "lng": -4.41583,
+          "category": "location",
           "time": "13:00",
+          "location": {
+            "address": "Tongue, Sutherland IV27 4XF, United Kingdom",
+            "lat": 58.47361,
+            "lng": -4.41583
+          },
           "notes": "Kyle of Tongue causeway with Ben Loyal in the background."
         },
         {
-          "type": "accommodation",
           "id": "2e8c6a40-1d93-4b75-8f02-5a3c7e1d9b62",
           "name": "Wild camp by Loch Eriboll",
+          "category": "stay",
           "notes": "Quiet lay-by with loch views. Leave no trace."
         }
       ]
@@ -258,31 +285,37 @@
       "date": "2026-09-12",
       "items": [
         {
-          "type": "location",
           "id": "8d2a6c40-3e17-4b95-8a01-7f3c9e5d2b80",
           "name": "Drive south to Loch Ness",
-          "address": "Drumnadrochit, Inverness IV63 6TX, United Kingdom",
-          "lat": 57.33389,
-          "lng": -4.47694,
+          "category": "location",
           "time": "11:00",
+          "location": {
+            "address": "Drumnadrochit, Inverness IV63 6TX, United Kingdom",
+            "lat": 57.33389,
+            "lng": -4.47694
+          },
           "notes": "Long but beautiful drive back inland. Lunch en route."
         },
         {
-          "type": "location",
           "id": "1f8b6c30-5a92-4e74-bd01-8c3f7a2e9d50",
           "name": "Urquhart Castle",
-          "address": "Drumnadrochit, Inverness IV63 6XJ, United Kingdom",
-          "lat": 57.32417,
-          "lng": -4.44222,
+          "category": "location",
           "time": "15:00",
+          "location": {
+            "address": "Drumnadrochit, Inverness IV63 6XJ, United Kingdom",
+            "lat": 57.32417,
+            "lng": -4.44222
+          },
           "notes": "£13.50 per person. Ruins right on the loch — keep an eye out for Nessie."
         },
         {
-          "type": "accommodation",
           "id": "4a9d2e68-1c57-4b03-8f96-7d0a3e5c1b20",
           "name": "Loch Ness Shores campsite",
-          "address": "Foyers, Inverness IV2 6YH, United Kingdom",
-          "checkIn": "16:30",
+          "category": "stay",
+          "time": "16:30",
+          "location": {
+            "address": "Foyers, Inverness IV2 6YH, United Kingdom"
+          },
           "notes": "Lochside pitch, £30/night. Walk to Falls of Foyers nearby."
         }
       ]
@@ -292,28 +325,32 @@
       "date": "2026-09-13",
       "items": [
         {
-          "type": "activity",
           "id": "8e3c6a40-1d95-4b73-bf02-7a5c9e1d3b40",
           "name": "Drive over to Glencoe",
+          "category": "activity",
           "time": "10:00",
           "notes": "2h via the A82. One of the most dramatic drives in Scotland."
         },
         {
-          "type": "location",
           "id": "5c1e9a73-2f68-4d04-b9a7-3e8c0f1d6450",
           "name": "Three Sisters viewpoint",
-          "address": "Glencoe, Ballachulish PH49 4HX, United Kingdom",
-          "lat": 56.66833,
-          "lng": -4.99333,
+          "category": "location",
           "time": "13:00",
+          "location": {
+            "address": "Glencoe, Ballachulish PH49 4HX, United Kingdom",
+            "lat": 56.66833,
+            "lng": -4.99333
+          },
           "notes": "Pull-in by the road. Short walk in for the classic valley view."
         },
         {
-          "type": "accommodation",
           "id": "9b3f7e15-6a24-4c81-8d50-1f9e2b7c4a60",
           "name": "Invercoe campsite",
-          "address": "Glencoe, Ballachulish PH49 4HP, United Kingdom",
-          "checkIn": "16:00",
+          "category": "stay",
+          "time": "16:00",
+          "location": {
+            "address": "Glencoe, Ballachulish PH49 4HP, United Kingdom"
+          },
           "notes": "Mountain and loch views, £29/night."
         }
       ]
@@ -323,26 +360,28 @@
       "date": "2026-09-14",
       "items": [
         {
-          "type": "activity",
           "id": "2d6a8c40-7e13-49b5-bf28-0c5d3a9f1e70",
           "name": "Hike the Lost Valley",
+          "category": "activity",
           "time": "09:30",
           "notes": "Coire Gabhail. ~3h round trip, river crossing — check conditions."
         },
         {
-          "type": "location",
           "id": "6c3e8a14-9d75-4b20-8f63-1a5c0e7d2b40",
           "name": "Glenfinnan Viaduct",
-          "address": "Glenfinnan, Inverness-shire PH37 4LT, United Kingdom",
-          "lat": 56.87194,
-          "lng": -5.43306,
+          "category": "location",
           "time": "14:30",
+          "location": {
+            "address": "Glenfinnan, Inverness-shire PH37 4LT, United Kingdom",
+            "lat": 56.87194,
+            "lng": -5.43306
+          },
           "notes": "1h drive. Time it for the steam train (the Jacobite) crossing if you can."
         },
         {
-          "type": "accommodation",
           "id": "4a9c2e68-3d17-4b05-8f73-1c6e0a3d9b50",
           "name": "Wild camp near Loch Eil",
+          "category": "stay",
           "notes": "Lochside spot off the A830. Sunset over the water."
         }
       ]
@@ -352,32 +391,34 @@
       "date": "2026-09-15",
       "items": [
         {
-          "type": "activity",
           "id": "3e7c9a15-2d68-4b04-8f91-6a5c0e3d7b40",
           "name": "Drive back to Inverness",
+          "category": "activity",
           "time": "09:00",
           "notes": "2h15 via Fort Augustus. Fuel up before returning the van."
         },
         {
-          "type": "activity",
           "id": "9d4c2a60-7e13-4b85-8f02-1c5a7e0d3b90",
           "name": "Return the campervan in Inverness",
+          "category": "activity",
           "time": "11:30",
           "notes": "Before noon. Return with a full tank to avoid the refuel charge."
         },
         {
-          "type": "activity",
           "id": "5a1c8e40-9d73-4b20-bf95-3e6c2a7d1b40",
           "name": "Afternoon in Inverness",
+          "category": "activity",
           "time": "13:00",
           "notes": "Wander the riverside and Ness Islands. Last supper in a pub."
         },
         {
-          "type": "accommodation",
           "id": "2c7a9e35-6d81-4b04-8f73-5a1e0c3d9b60",
           "name": "Inverness city hostel",
-          "address": "Inverness IV1, United Kingdom",
-          "checkIn": "16:00",
+          "category": "stay",
+          "time": "16:00",
+          "location": {
+            "address": "Inverness IV1, United Kingdom"
+          },
           "notes": "Private twin, £62. Five minutes from the train station."
         }
       ]
@@ -387,9 +428,9 @@
       "date": "2026-09-16",
       "items": [
         {
-          "type": "activity",
           "id": "8d2a6c40-3e17-4b95-8a01-7f3c9e5d2b40",
           "name": "Flight Inverness → Paris",
+          "category": "activity",
           "time": "13:45",
           "notes": "Via Amsterdam. Arrive 19:30. €168 for two."
         }
