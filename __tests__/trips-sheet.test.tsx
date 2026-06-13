@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 // The native navigation chrome is expo-router's Stack.Header / Stack.Title /
 // Stack.Toolbar. Stand the toolbar up as DOM so its buttons (Settings, New trip)
@@ -22,10 +22,27 @@ vi.mock('expo-router', async () => {
     accessibilityLabel?: string;
     onPress?: () => void;
   }) => React.createElement('button', { onClick: onPress, 'aria-label': accessibilityLabel });
+  // The native toolbar menu renders its actions only once opened; under jsdom
+  // the actions are always present, queryable as menuitems inside the menu.
+  Toolbar.Menu = ({
+    accessibilityLabel,
+    children,
+  }: {
+    accessibilityLabel?: string;
+    children?: React.ReactNode;
+  }) => React.createElement('div', { role: 'menu', 'aria-label': accessibilityLabel }, children);
+  Toolbar.MenuAction = ({
+    children,
+    onPress,
+  }: {
+    children?: React.ReactNode;
+    onPress?: () => void;
+  }) => React.createElement('button', { role: 'menuitem', onClick: onPress }, children);
   Stack.Toolbar = Toolbar;
   return { router: { push: vi.fn(), dismissAll: vi.fn() }, Stack };
 });
 vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn(), shareAsync: vi.fn() }));
+vi.mock('expo-document-picker', () => ({ getDocumentAsync: vi.fn() }));
 vi.mock('@/lib/storage', () => ({
   wallpaperDisplayUri: vi.fn((uri: string) => `display:${uri}`),
   exportTripAsFile: vi.fn(),
@@ -115,6 +132,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
 import { useTripStore } from '@/lib/store';
 import { router } from 'expo-router';
 import { exportTripAsFile } from '@/lib/storage';
+import * as DocumentPicker from 'expo-document-picker';
 import type { TripSummary } from '@/lib/schema';
 
 const trip = (
@@ -162,9 +180,78 @@ const renderSheet = async () => {
 const rowOf = (title: string) =>
   screen.getByText(title).closest('[data-row]') as HTMLElement;
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  // restoreAllMocks only restores vi.spyOn spies; module-factory vi.fn()s
+  // (router.push/dismissAll, the document picker) keep their call history
+  // unless cleared, leaking calls across tests.
+  vi.clearAllMocks();
+  vi.restoreAllMocks();
+});
 
 describe('TripsSheet', () => {
+  it('the + menu offers New Trip, which opens the new-trip screen', async () => {
+    storeWith({});
+    await renderSheet();
+
+    const menu = screen.getByRole('menu', { name: 'Add trip' });
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'New Trip' }));
+
+    expect(router.push).toHaveBeenCalledWith('/trip/new');
+  });
+
+  it('the + menu offers Import Trip, which picks a JSON file, imports it, and opens the trip', async () => {
+    vi.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///picked/trip.json' }],
+    } as any);
+    const importTrip = vi.fn().mockResolvedValue({ id: 'fresh-id' });
+    const state = storeWith({ importTrip });
+    await renderSheet();
+
+    const menu = screen.getByRole('menu', { name: 'Add trip' });
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Import Trip' }));
+
+    await waitFor(() => expect(state.setDisplayedTrip).toHaveBeenCalledWith('fresh-id'));
+    expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'application/json' }),
+    );
+    expect(importTrip).toHaveBeenCalledWith('file:///picked/trip.json');
+    expect(router.dismissAll).toHaveBeenCalled();
+  });
+
+  it('a failed import surfaces the validation error in an alert', async () => {
+    const { Alert } = await import('react-native');
+    const alertSpy = vi.spyOn(Alert, 'alert');
+    vi.mocked(DocumentPicker.getDocumentAsync).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///picked/bad.json' }],
+    } as any);
+    // The store's importTrip rethrows trip-io's field-level message verbatim;
+    // the sheet must show it, not a generic one.
+    const importTrip = vi.fn().mockRejectedValue(new Error('Missing required field: startDate'));
+    const state = storeWith({ importTrip });
+    await renderSheet();
+
+    const menu = screen.getByRole('menu', { name: 'Add trip' });
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Import Trip' }));
+
+    await waitFor(() =>
+      expect(alertSpy).toHaveBeenCalledWith('Import failed', 'Missing required field: startDate'),
+    );
+    expect(state.setDisplayedTrip).not.toHaveBeenCalled();
+    expect(router.dismissAll).not.toHaveBeenCalled();
+  });
+
+  it('the + menu offers Import Planning Document, which opens the smart-import screen', async () => {
+    storeWith({});
+    await renderSheet();
+
+    const menu = screen.getByRole('menu', { name: 'Add trip' });
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Import Planning Document' }));
+
+    expect(router.push).toHaveBeenCalledWith('/smart-import');
+  });
+
   it('tapping the gear button navigates to /settings', async () => {
     storeWith({});
     await renderSheet();

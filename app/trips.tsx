@@ -1,6 +1,7 @@
 import { View, Text as RNText, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import {
   Host,
   List,
@@ -48,7 +49,7 @@ const WHITE = '#ffffff';
 const NAV_BAR_HEIGHT = 64;
 
 export default function TripsSheet() {
-  const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
+  const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip, importTrip } =
     useTripStore();
   const today = todayString();
   const colorScheme = useColorScheme();
@@ -75,6 +76,26 @@ export default function TripsSheet() {
       }
     } catch {
       Alert.alert('Export failed', 'Could not export this trip.');
+    }
+  }
+
+  // The JSON Import (exact restore, fresh id — see CONTEXT.md): pick a .json
+  // file, validate through the store's importTrip, then open the new trip the
+  // same way as tapping a row. Field-level validation errors surface verbatim.
+  async function onImport() {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+      if (res.canceled) return;
+      const uri = res.assets?.[0]?.uri;
+      if (!uri) return;
+      const trip = await importTrip(uri);
+      setDisplayedTrip(trip.id);
+      router.dismissAll();
+    } catch (e) {
+      Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
     }
   }
 
@@ -223,12 +244,17 @@ export default function TripsSheet() {
         />
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="plus"
-          accessibilityLabel="New trip"
-          tintColor={c.accent}
-          onPress={() => router.push('/trip/new')}
-        />
+        <Stack.Toolbar.Menu icon="plus" accessibilityLabel="Add trip" tintColor={c.accent}>
+          <Stack.Toolbar.MenuAction icon="plus" onPress={() => router.push('/trip/new')}>
+            New Trip
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction icon="square.and.arrow.down" onPress={onImport}>
+            Import Trip
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction icon="wand.and.stars" onPress={() => router.push('/smart-import')}>
+            Import Planning Document
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
       </Stack.Toolbar>
 
       {visibleTrips.length === 0 ? (
