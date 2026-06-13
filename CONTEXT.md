@@ -216,6 +216,48 @@ hardware).
 
 Prefer **Schema Prompt** over "export schema" or "LLM template".
 
+### Share Capture
+
+A fourth way content enters the app: a single link or place shared **from the
+iOS system share sheet** (Google Maps, Apple Maps, Safari, …) becomes one
+[Item](#item) — not a whole trip. This is the line that separates it from the
+[Import](#import--export) family, which always produces a [Trip](#trip): Import
+and Smart Import structure a *trip*, Share Capture captures a single *item*. A
+native iOS **Share Extension** grabs the shared URL and/or text and hands it to
+the main app (it does no parsing itself); the app classifies the payload into a
+[Capture](#capture) and opens the [Share editor](#share-editor) prefilled.
+
+Classification maps each source to one Item: a Google Maps or Apple Maps link
+becomes a **Place** with address and — where resolvable — coordinates; a bare
+address becomes a Place geocoded via Photon; any other URL becomes an
+**Activity** with the link kept in `notes`; plain non-address text becomes a
+**Note**. Coordinates for map links are resolved best-effort over the network
+(see [ADR-0007](docs/adr/0007-share-capture-network-coordinate-resolution.md)).
+A capture is **never lost**: when nothing can be pinned the Item is still
+created address-only, and the user always confirms in the editor before it is
+saved.
+
+User-facing share-sheet action: **Add to On the Road**. Prefer **Share Capture**
+over "share import" or "quick add"; reserve [Import](#import--export) for
+whole-trip ingestion.
+
+### Capture
+
+The best-effort draft that classifying a shared payload produces — a draft
+[Item](#item) plus a resolved destination [trip](#trip) and [day](#day) — held
+in the [Share editor](#share-editor) before the user confirms it. A Capture is
+not yet persisted; only saving the editor turns it into a real Item.
+
+### Share editor
+
+The [Item](#item) editor variant used by [Share Capture](#share-capture): the
+ordinary editor with a **trip selector added on top**, since a shared Item
+arrives with no trip of its own. The trip defaults to the resolved active trip
+(the [Favorite](#app-state) when still viable, otherwise the current-or-next
+trip; `resolveActiveTrip` in `lib/active-trip.ts`); the day defaults to today
+when that trip is in progress, otherwise its first day. Both stay editable
+before saving. Lives at `app/share.tsx`.
+
 ### Local-first storage
 
 All data lives on the device as JSON files in the app's document directory — no
