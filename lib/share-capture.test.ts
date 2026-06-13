@@ -121,6 +121,77 @@ describe('classifyShare — maps-link branch', () => {
   });
 });
 
+describe('classifyShare — one share, one Item (multiple URLs)', () => {
+  it('classifies the first URL and keeps the rest in notes', () => {
+    const draft = classifyShare({
+      text: 'https://a.example.com/place https://b.example.com/info',
+    });
+    expect(draft.category).toBe('activity');
+    expect(draft.notes).toBe('https://a.example.com/place\nhttps://b.example.com/info');
+  });
+
+  it('classifies a maps first URL as a Place and appends the remaining links to notes', () => {
+    const draft = classifyShare({
+      url: 'https://www.google.com/maps/place/Eiffel+Tower/@48.8584,2.2945,17z',
+      text: 'Eiffel Tower\nMore: https://en.wikipedia.org/wiki/Eiffel_Tower',
+    });
+    expect(draft.category).toBe('location');
+    expect(draft.name).toBe('Eiffel Tower');
+    expect(draft.notes).toBe(
+      'https://www.google.com/maps/place/Eiffel+Tower/@48.8584,2.2945,17z\nhttps://en.wikipedia.org/wiki/Eiffel_Tower',
+    );
+  });
+
+  it('does not let a link in the shared text leak into the place name', () => {
+    const draft = classifyShare({
+      url: 'https://example.com/page',
+      text: 'Cool spot\nalso https://b.example.com',
+    });
+    expect(draft.name).toBe('Cool spot');
+  });
+
+  it('keeps a single-URL payload to just that link in notes', () => {
+    const draft = classifyShare({ url: 'https://example.com/page', text: 'Cool spot' });
+    expect(draft.notes).toBe('https://example.com/page');
+  });
+
+  it('does not duplicate a primary URL that also appears in the shared text', () => {
+    const draft = classifyShare({
+      url: 'https://a.example.com',
+      text: 'See https://a.example.com and https://b.example.com',
+    });
+    expect(draft.notes).toBe('https://a.example.com\nhttps://b.example.com');
+  });
+});
+
+describe('classifyShare — link-less text branch', () => {
+  it('turns link-less text into a Note named from its first line', () => {
+    const draft = classifyShare({ text: 'Picnic by the river' });
+    expect(draft.category).toBe('note');
+    expect(draft.name).toBe('Picnic by the river');
+  });
+
+  it('keeps the lines after the first as the notes', () => {
+    const draft = classifyShare({ text: 'Picnic by the river\nbring a blanket\nbuy bread' });
+    expect(draft.name).toBe('Picnic by the river');
+    expect(draft.notes).toBe('bring a blanket\nbuy bread');
+  });
+
+  it('leaves notes unset when there is only a single line', () => {
+    const draft = classifyShare({ text: 'Picnic by the river' });
+    expect(draft.notes).toBeUndefined();
+  });
+
+  it('is never given a location to auto-geocode', () => {
+    const draft = classifyShare({ text: 'Picnic by the river\nbring a blanket' });
+    expect(draft.location).toBeUndefined();
+  });
+
+  it('falls back to a generic name when the payload is empty', () => {
+    expect(classifyShare({}).name).toBe('Shared note');
+  });
+});
+
 describe('resolveShareCoords — network layers (ADR-0007)', () => {
   const SHORT = 'https://maps.app.goo.gl/abcDEF123';
   const RESOLVED = 'https://www.google.com/maps/place/Eiffel+Tower/@48.8584,2.2945,17z';
@@ -170,6 +241,20 @@ describe('resolveShareCoords — network layers (ADR-0007)', () => {
     );
 
     expect(coords).toBeNull();
+  });
+
+  it('never geocodes link-less shared text', async () => {
+    const fetchImpl = vi.fn();
+    const geocode = vi.fn();
+
+    const coords = await resolveShareCoords(
+      { text: 'Picnic by the river\nbring a blanket' },
+      { fetchImpl, geocode },
+    );
+
+    expect(coords).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(geocode).not.toHaveBeenCalled();
   });
 
   it('returns null for a payload that is not a maps link, without any network call', async () => {
