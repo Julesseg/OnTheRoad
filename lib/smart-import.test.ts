@@ -138,6 +138,35 @@ describe('draftToTrip', () => {
     expect(packing.checklist!.map((c) => c.checked)).toEqual([false, true]);
   });
 
+  it('degrades a stray category or time on one item instead of rejecting the trip', () => {
+    // Guided generation constrains the *type* of category/time, not the enum or
+    // HH:mm format, so the model can still emit "lodging" or "9am". One bad field
+    // must not nuke the whole multi-day import — it degrades (category -> default,
+    // bad time dropped) while every other field survives.
+    const draft = {
+      title: 'Coast run',
+      startDate: '2026-08-14',
+      endDate: '2026-08-14',
+      days: [
+        {
+          date: '2026-08-14',
+          items: [
+            { name: 'Big Sur Lodge', category: 'lodging', time: '9am' },
+            { name: 'McWay Falls', category: 'activity', time: '09:00' },
+          ],
+        },
+      ],
+    };
+    const result = draftToTrip(draft, { makeId: counterIds(), now: '2026-06-13T00:00:00.000Z' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [lodge, falls] = result.trip.days[0].items;
+    expect(lodge.category).toBe('activity'); // off-enum value defaulted
+    expect(lodge.time).toBeUndefined(); // mis-formatted time dropped
+    expect(falls.category).toBe('activity'); // valid values untouched
+    expect(falls.time).toBe('09:00');
+  });
+
   it('fails (saving nothing) on a malformed draft', () => {
     const result = draftToTrip({ title: '', startDate: 'nope', endDate: 'nope', days: [] });
     expect(result.ok).toBe(false);

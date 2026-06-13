@@ -34,8 +34,12 @@ const DraftChecklistItemSchema = z.object({
 
 const DraftItemSchema = z.object({
   name: z.string().min(1),
-  category: ItemCategorySchema.optional(),
-  time: TimeString.optional(),
+  // Guided generation constrains the *type* of these two, not the enum or HH:mm
+  // format — the model can still emit "lodging" or "9am". `.catch` degrades a
+  // stray value (category falls back to the 'activity' default below; a bad time
+  // is dropped) so one mis-formatted item never rejects the whole multi-day trip.
+  category: ItemCategorySchema.optional().catch(undefined),
+  time: TimeString.optional().catch(undefined),
   location: DraftLocationSchema.optional(),
   notes: z.string().optional(),
   checklist: z.array(DraftChecklistItemSchema).optional(),
