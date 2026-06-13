@@ -228,10 +228,11 @@ the main app (it does no parsing itself); the app classifies the payload into a
 [Capture](#capture) and opens the [Share editor](#share-editor) prefilled.
 
 Classification maps each source to one Item: a Google Maps or Apple Maps link
-becomes a **Place** with address and — where resolvable — coordinates; a bare
-address becomes a Place geocoded via Photon; any other URL becomes an
-**Activity** with the link kept in `notes`; plain non-address text becomes a
-**Note**. Coordinates for map links are resolved best-effort over the network
+becomes a **Place** with address and — where resolvable — coordinates; any other
+URL becomes an **Activity** with the link kept in `notes`; shared text carrying
+no link becomes a **Note** (its first line the name). Link-less text is never
+auto-geocoded — the user can switch it to a Place and pick a location in the
+editor. Coordinates for map links are resolved best-effort over the network
 (see [ADR-0007](docs/adr/0007-share-capture-network-coordinate-resolution.md)).
 A capture is **never lost**: when nothing can be pinned the Item is still
 created address-only, and the user always confirms in the editor before it is
