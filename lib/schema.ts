@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const DateString = z
+export const DateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD')
   .refine((s) => {
@@ -11,7 +11,7 @@ const DateString = z
     );
   }, 'Invalid calendar date');
 
-const TimeString = z.string().regex(/^\d{2}:\d{2}$/, 'Expected HH:mm');
+export const TimeString = z.string().regex(/^\d{2}:\d{2}$/, 'Expected HH:mm');
 
 export const ItemCategorySchema = z.enum(['activity', 'location', 'stay', 'meal', 'note']);
 export type ItemCategory = z.infer<typeof ItemCategorySchema>;
