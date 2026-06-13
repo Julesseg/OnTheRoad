@@ -66,6 +66,57 @@ function firstLine(text: string): string {
   return text.split('\n')[0].trim();
 }
 
+/**
+ * Matches an http(s) URL up to the next whitespace, but never ending on the
+ * sentence punctuation an iOS share leaves clinging to a link in prose
+ * (`See https://x.com.` → `https://x.com`) — a trailing `.`/`)` would dirty the
+ * `notes` link and break the de-dup in {@link collectUrls} against the `url` param.
+ */
+const URL_PATTERN = /https?:\/\/[^\s]*[^\s.,;:!?)\]}]/g;
+
+/**
+ * Every URL the payload carries, in order and de-duplicated: the explicit `url`
+ * param first, then any links embedded in the shared text. The first is the
+ * primary the Item is classified from; the rest ride along in `notes` so one
+ * share never fans out into more than one Item (CONTEXT.md → Share Capture).
+ */
+function collectUrls(payload: SharePayload): string[] {
+  const urls: string[] = [];
+  const add = (url: string) => {
+    if (!urls.includes(url)) urls.push(url);
+  };
+  if (payload.url) add(payload.url);
+  for (const url of payload.text?.match(URL_PATTERN) ?? []) add(url);
+  return urls;
+}
+
+/**
+ * The shared text with its URLs removed, so a link never leaks into the
+ * name/address. Removing a mid-line link leaves the spaces that flanked it behind,
+ * so runs of intra-line whitespace are collapsed (newlines kept intact, since the
+ * maps branch splits name from address on them).
+ */
+function descriptiveText(text: string | undefined): string | undefined {
+  if (text === undefined) return undefined;
+  return text.replace(URL_PATTERN, '').replace(/[^\S\n]+/g, ' ');
+}
+
+/**
+ * Classify link-less shared text into a Note (CONTEXT.md → Share Capture, decision
+ * T1): its first line is the name and the remaining lines are kept in `notes`. A
+ * Note is never auto-geocoded — it carries no location, so the user switches it to
+ * a Place and picks a location in the editor if they want one. Empty text still
+ * yields a Note so a capture is never lost.
+ */
+function classifyNote(text: string | undefined): ShareDraft {
+  if (!text) return { name: 'Shared note', category: 'note' };
+  const [name, ...rest] = text.split('\n');
+  const notes = rest.join('\n').trim();
+  const draft: ShareDraft = { name: name.trim() || 'Shared note', category: 'note' };
+  if (notes) draft.notes = notes;
+  return draft;
+}
+
 /** A shared URL's host without a leading `www.`, or the raw URL if it won't parse. */
 function urlHost(url: string): string {
   try {
@@ -82,11 +133,12 @@ function textLines(text: string | undefined): string[] {
 }
 
 /**
- * Classify a Maps share into a Place Item (CONTEXT.md → Share Capture). The link
- * is kept in `notes` so it stays tappable; the name is the text's first line (or
- * the host), the address the lines beneath it. Coordinates are parsed straight
- * from the URL when it carries them (ADR-0007 layer 1, offline); short links that
- * only redirect to their coordinates are resolved later by {@link resolveShareCoords}.
+ * Classify a Maps share into a Place Item (CONTEXT.md → Share Capture). The name
+ * is the text's first line (or the host) and the address the lines beneath it;
+ * coordinates are parsed straight from the URL when it carries them (ADR-0007
+ * layer 1, offline), while short links that only redirect to their coordinates
+ * are resolved later by {@link resolveShareCoords}. {@link classifyShare} fills in
+ * `notes` (the link, plus any others the share carried).
  */
 function classifyMapsLink(url: string, text: string | undefined): ShareDraft {
   const lines = textLines(text);
@@ -101,33 +153,39 @@ function classifyMapsLink(url: string, text: string | undefined): ShareDraft {
     location.lng = coords.lng;
   }
 
-  const draft: ShareDraft = { name: name || urlHost(url), category: 'location', notes: url };
+  const draft: ShareDraft = { name: name || urlHost(url), category: 'location' };
   if (address || coords) draft.location = location;
   return draft;
 }
 
 /**
- * Classify a shared payload into a draft Item (CONTEXT.md → Share Capture).
- * An Apple/Google Maps link becomes a Place ({@link classifyMapsLink}); any other
- * URL becomes an Activity with the link kept in `notes`, named from the shared
- * text's first line or the link's host. The link-less-text branch is a later
- * slice — for now bare text falls back to a Note so a capture is never lost.
+ * Classify a non-maps link into an Activity (CONTEXT.md → Share Capture), naming
+ * the Item from the shared text's first line, or the link's host when there is no
+ * text. {@link classifyShare} fills in `notes` (the link, plus any others shared).
+ */
+function classifyGenericLink(url: string, text: string | undefined): ShareDraft {
+  const fromText = text ? firstLine(text) : '';
+  return { name: fromText || urlHost(url), category: 'activity' };
+}
+
+/**
+ * Classify a shared payload into exactly one draft Item (CONTEXT.md → Share
+ * Capture). The payload's first URL is the primary — an Apple/Google Maps link
+ * becomes a Place ({@link classifyMapsLink}), any other URL an Activity — and any
+ * remaining URLs ride along in `notes`, so one share is never more than one Item.
+ * Link-less text becomes a Note ({@link classifyNote}), never auto-geocoded.
  */
 export function classifyShare(payload: SharePayload): ShareDraft {
-  if (payload.url && isMapsLink(payload.url)) {
-    return classifyMapsLink(payload.url, payload.text);
-  }
-  if (payload.url) {
-    const fromText = payload.text ? firstLine(payload.text) : '';
-    return {
-      name: fromText || urlHost(payload.url),
-      category: 'activity',
-      notes: payload.url,
-    };
-  }
-  // No link: fall back to a Note from the shared text so a capture is never lost.
-  // Full link-less-text handling is a later slice.
-  return { name: payload.text ? firstLine(payload.text) : 'Shared note', category: 'note' };
+  const urls = collectUrls(payload);
+  if (urls.length === 0) return classifyNote(payload.text);
+
+  const [primary] = urls;
+  const text = descriptiveText(payload.text);
+  const draft = isMapsLink(primary)
+    ? classifyMapsLink(primary, text)
+    : classifyGenericLink(primary, text);
+  draft.notes = urls.join('\n');
+  return draft;
 }
 
 /** Geocode shared text to a single best-guess pin through the Photon service (ADR-0007 layer 3). */
