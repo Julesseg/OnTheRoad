@@ -144,7 +144,8 @@ vi.mock('@expo/ui/swift-ui', async () => {
       children?: React.ReactNode;
     }) => {
       if (props.label) pickers[props.label] = { onSelectionChange: props.onSelectionChange, selection: props.selection };
-      return null;
+      // Render children so option labels (e.g. the trip selector's) stay queryable.
+      return React.createElement('div', null, props.children);
     },
     Button: ({
       label,
@@ -565,6 +566,90 @@ describe('ItemEditor', () => {
     const item = onSubmit.mock.calls[0][0] as Item;
     expect(item.checklist).toHaveLength(1);
     expect(item.checklist![0]).toMatchObject({ label: 'Passport', checked: false });
+  });
+
+  // --- Trip selector (Share editor, issue #108) ---
+
+  const TRIP_OPTIONS = [
+    { id: 't1', label: 'Big Sur', past: false },
+    { id: 't2', label: 'Last Year', past: true },
+  ];
+
+  it('renders a Trip picker selecting the given trip when tripOptions are provided', () => {
+    render(
+      <ItemEditor
+        itemId="x"
+        trip={TRIP}
+        initialDate={INIT_DATE}
+        tripOptions={TRIP_OPTIONS}
+        selectedTripId="t1"
+        onSelectTrip={() => {}}
+        onSubmit={() => {}}
+      />,
+    );
+    expect(pickers['Trip']).toBeDefined();
+    expect(pickers['Trip'].selection).toBe('t1');
+  });
+
+  it('omits the Trip picker when no tripOptions are provided', () => {
+    render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    expect(pickers['Trip']).toBeUndefined();
+  });
+
+  it('marks past trips in the option list and leaves active ones unmarked', () => {
+    render(
+      <ItemEditor
+        itemId="x"
+        trip={TRIP}
+        initialDate={INIT_DATE}
+        tripOptions={TRIP_OPTIONS}
+        selectedTripId="t1"
+        onSelectTrip={() => {}}
+        onSubmit={() => {}}
+      />,
+    );
+    expect(screen.getByText('Big Sur')).toBeInTheDocument();
+    expect(screen.getByText('Last Year · Past')).toBeInTheDocument();
+  });
+
+  it('changing the Trip picker calls onSelectTrip with the chosen trip id', () => {
+    const onSelectTrip = vi.fn();
+    render(
+      <ItemEditor
+        itemId="x"
+        trip={TRIP}
+        initialDate={INIT_DATE}
+        tripOptions={TRIP_OPTIONS}
+        selectedTripId="t1"
+        onSelectTrip={onSelectTrip}
+        onSubmit={() => {}}
+      />,
+    );
+    act(() => pickers['Trip'].onSelectionChange!('t2'));
+    expect(onSelectTrip).toHaveBeenCalledWith('t2');
+  });
+
+  it('re-seeds the editable day when initialDate changes (e.g. after a trip switch)', async () => {
+    const onSubmit = vi.fn();
+    const { rerender } = render(
+      <ItemEditor itemId="x" trip={TRIP} initialDate="2025-06-03" onSubmit={onSubmit} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
+    rerender(
+      <ItemEditor
+        itemId="x"
+        trip={{ startDate: '2025-07-01', endDate: '2025-07-10' }}
+        initialDate="2025-07-01"
+        onSubmit={onSubmit}
+      />,
+    );
+    save();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        { id: 'x', name: 'Hike', category: 'activity' },
+        '2025-07-01',
+      ),
+    );
   });
 
   it('location set via picker is included in the submitted item', async () => {

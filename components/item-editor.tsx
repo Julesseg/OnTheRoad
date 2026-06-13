@@ -58,12 +58,26 @@ import { beginLocationPick } from '@/lib/location-picker-session';
 import { moveEntries, sanitizeChecklist } from '@/lib/checklist';
 import { newId } from '@/lib/id';
 
+/** One choice in the Share editor's trip selector; `past` drives the visual marking. */
+export interface TripOption {
+  id: string;
+  label: string;
+  past: boolean;
+}
+
 export interface ItemEditorProps {
   itemId: string;
   initialItem?: Item;
   defaultCategory?: ItemCategory;
   trip?: { startDate: string; endDate: string };
   initialDate?: string;
+  // When provided, the editor becomes the Share editor: a trip selector sits on
+  // top of the form. The destination trip (and thus its date range / default
+  // day) is owned by the parent, which re-supplies `trip` and `initialDate` when
+  // the selection changes.
+  tripOptions?: TripOption[];
+  selectedTripId?: string;
+  onSelectTrip?: (id: string) => void;
   onSubmit: (item: Item, date: string) => void;
   onDelete?: () => void;
   onCancel?: () => void;
@@ -249,7 +263,7 @@ function LocationRow({
   );
 }
 
-export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, onSubmit, onDelete, onCancel }: ItemEditorProps) {
+export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, tripOptions, selectedTripId, onSelectTrip, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
   const c = useThemeColors();
   const defaults = useMemo(
@@ -259,6 +273,15 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
 
   const [category, setCategory] = useState<ItemCategory>(defaults.category);
   const [date, setDate] = useState(initialDate ?? '');
+  // Re-seed the day when the parent supplies a new default date — switching the
+  // destination trip in the Share editor re-defaults the day to that trip.
+  // Adjusting state during render (not in an effect) avoids an extra commit and
+  // leaves the user's other in-progress edits untouched.
+  const [seededDate, setSeededDate] = useState(initialDate);
+  if (initialDate !== seededDate) {
+    setSeededDate(initialDate);
+    setDate(initialDate ?? '');
+  }
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
   const identity = itemIdentity(category);
@@ -340,6 +363,24 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
             footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
             modifiers={[listRowBackground(c.surface)]}
           >
+            {tripOptions ? (
+              <Picker
+                label="Trip"
+                selection={selectedTripId ?? ''}
+                onSelectionChange={(v) => onSelectTrip?.(v as string)}
+                modifiers={[pickerStyle('menu')]}
+              >
+                {tripOptions.map((option) => (
+                  <Text
+                    key={option.id}
+                    modifiers={option.past ? [tag(option.id), foregroundStyle(c.textSubtle)] : [tag(option.id)]}
+                  >
+                    {option.past ? `${option.label} · Past` : option.label}
+                  </Text>
+                ))}
+              </Picker>
+            ) : null}
+
             <LabeledContent label={fieldLabel('Name', errors.name?.message, c.destructive)}>
               <TextField
                 text={nameState}

@@ -57,6 +57,10 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen name="trip" />
+          {/* Share Capture deep-link target: ontheroad://share?url=…&text=…
+              routes here on cold-start or warm launch (ADR-0008). Presented as a
+              modal like the item editor it wraps. */}
+          <Stack.Screen name="share" options={{ presentation: 'modal' }} />
           <Stack.Screen
             name="trips"
             options={{
