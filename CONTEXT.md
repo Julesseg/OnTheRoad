@@ -124,7 +124,10 @@ the Displayed Trip; the app reverts to the resolved default on a cold start. See
 A trip's position relative to today, derived from its dates (`tripStatus` in
 `lib/date-utils.ts`): **In progress** (today is within the span), **Upcoming**
 (starts in the future), or **Past** (already ended). Shown as a badge on the
-Trips list.
+Trips list. Past trips are the same date-derived set the UI surfaces as
+**Archived** (`endDate < today`; `partitionTrips` in `lib/trip-partition.ts`) on
+the Archived screen — there is no separate archive flag. Prefer **Past** for the
+status and **Archived** for that user-facing bucket; they name one set.
 
 ### Today selection / Next item
 
