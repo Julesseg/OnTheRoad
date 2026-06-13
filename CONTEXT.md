@@ -256,7 +256,7 @@ arrives with no trip of its own. The trip defaults to the resolved active trip
 (the [Favorite](#app-state) when still viable, otherwise the current-or-next
 trip; `resolveActiveTrip` in `lib/active-trip.ts`); the day defaults to today
 when that trip is in progress, otherwise its first day. Both stay editable
-before saving. Lives at `app/share.tsx`.
+before saving. Planned location: `app/share.tsx` (not yet built).
 
 ### Local-first storage
 
