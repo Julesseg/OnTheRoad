@@ -4,6 +4,13 @@ import { render, act } from '@testing-library/react';
 import type { Item, Trip, TripSummary } from '@/lib/schema';
 import type { ItemEditorProps } from '@/components/item-editor';
 
+// Stub only the network-resolving layer; classifyShare and the rest stay real.
+const resolveShareCoordsMock = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/share-capture', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/share-capture')>()),
+  resolveShareCoords: resolveShareCoordsMock,
+}));
+
 // Capture the props ShareEditorScreen passes to the (mocked) ItemEditor.
 const editorProps = vi.hoisted(() => ({ current: null as ItemEditorProps | null }));
 vi.mock('@/components/item-editor', () => ({
@@ -58,6 +65,7 @@ const TRIP2: Trip = {
 describe('ShareEditorScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveShareCoordsMock.mockResolvedValue(null);
     editorProps.current = null;
     storeMocks.trips = [T1, T2];
     storeMocks.loadedTrips = { t1: TRIP1, t2: TRIP2 };
@@ -112,6 +120,38 @@ describe('ShareEditorScreen', () => {
     expect(storeMocks.upsertItem).not.toHaveBeenCalled();
     expect(storeMocks.setDisplayedTrip).not.toHaveBeenCalled();
     expect(routerMock.replace).toHaveBeenCalledWith('/');
+  });
+
+  it('seeds the editor with a Place carrying coordinates resolved for a maps share', async () => {
+    paramsMock.value = { url: 'https://maps.app.goo.gl/abc123', text: 'Eiffel Tower' };
+    resolveShareCoordsMock.mockResolvedValue({ lat: 48.8584, lng: 2.2945 });
+
+    await act(async () => {
+      render(<ShareEditorScreen />);
+    });
+
+    expect(editorProps.current!.initialItem).toMatchObject({
+      name: 'Eiffel Tower',
+      category: 'location',
+      notes: 'https://maps.app.goo.gl/abc123',
+      location: { lat: 48.8584, lng: 2.2945 },
+    });
+  });
+
+  it('still seeds an address-only Place when coordinate resolution finds no pin', async () => {
+    paramsMock.value = {
+      url: 'https://maps.app.goo.gl/abc123',
+      text: 'Eiffel Tower\n5 Av. Anatole France',
+    };
+    resolveShareCoordsMock.mockResolvedValue(null);
+
+    await act(async () => {
+      render(<ShareEditorScreen />);
+    });
+
+    const item = editorProps.current!.initialItem!;
+    expect(item.category).toBe('location');
+    expect(item.location).toEqual({ address: '5 Av. Anatole France' });
   });
 
   it('switching the trip selection re-targets Save onto the chosen trip', () => {

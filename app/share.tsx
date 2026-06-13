@@ -8,7 +8,13 @@ import type { Item } from '@/lib/schema';
 import { resolveActiveTrip } from '@/lib/active-trip';
 import { todayString } from '@/lib/date-utils';
 import { dayIdForDate } from '@/lib/trip-days';
-import { parseShareParams, classifyShare, defaultCaptureDate } from '@/lib/share-capture';
+import {
+  parseShareParams,
+  classifyShare,
+  resolveShareCoords,
+  defaultCaptureDate,
+} from '@/lib/share-capture';
+import type { Coords } from '@/lib/coords';
 
 // Noon-anchored so the picker's time component can never shift the calendar day.
 function parseLocalDate(date: string): Date {
@@ -27,9 +33,32 @@ export default function ShareEditorScreen() {
     useTripStore();
   const today = todayString();
 
-  const draft = useMemo(() => classifyShare(parseShareParams({ url, text })), [url, text]);
+  const payload = useMemo(() => parseShareParams({ url, text }), [url, text]);
+  const draft = useMemo(() => classifyShare(payload), [payload]);
+
+  // A maps Place with no pin yet (ADR-0007 layer 1 found none) gets its coordinates
+  // resolved over the network before the editor opens, so it mounts with the pin in
+  // place; `null` means resolved-to-nothing → the editor opens address-only.
+  const hasPin = draft.location?.lat != null && draft.location?.lng != null;
+  const needsResolve = draft.category === 'location' && !!payload.url && !hasPin;
+  const [resolvedCoords, setResolvedCoords] = useState<Coords | null | undefined>(undefined);
+  useEffect(() => {
+    if (!needsResolve) return;
+    let active = true;
+    resolveShareCoords(payload).then((coords) => {
+      if (active) setResolvedCoords(coords);
+    });
+    return () => {
+      active = false;
+    };
+  }, [needsResolve, payload]);
+
   const [itemId] = useState(newId);
-  const initialItem: Item = useMemo(() => ({ id: itemId, ...draft }), [itemId, draft]);
+  const resolvedDraft = useMemo(() => {
+    if (!resolvedCoords) return draft;
+    return { ...draft, location: { ...draft.location, ...resolvedCoords } };
+  }, [draft, resolvedCoords]);
+  const initialItem: Item = useMemo(() => ({ id: itemId, ...resolvedDraft }), [itemId, resolvedDraft]);
 
   const defaultTripId = useMemo(
     () => resolveActiveTrip(trips, activeTripId, today).tripId,
@@ -66,7 +95,9 @@ export default function ShareEditorScreen() {
     router.replace('/');
   }
 
-  if (!summary) return null;
+  // Hold the editor closed until a maps capture's coordinates resolve, so it opens
+  // exactly once with its final pin (or address-only) rather than re-seeding mid-edit.
+  if (!summary || (needsResolve && resolvedCoords === undefined)) return null;
 
   return (
     <ItemEditor
