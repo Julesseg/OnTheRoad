@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
@@ -95,6 +96,27 @@ export default function ShareEditorScreen() {
     router.replace('/');
   }
 
+  // Zero trips: a shared Item has nowhere to land, so the editor would open empty
+  // and broken. Instead, explain that a trip is needed and route to New Trip. The
+  // capture is not replayed (decision D1) — the user re-shares once a trip exists.
+  if (trips.length === 0) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.emptyTitle}>Create a trip first</Text>
+        <Text style={styles.emptyHint}>
+          A shared place or link needs a trip to live on. Create one, then share again.
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.newTripButton}
+          onPress={() => router.replace('/trip/new')}
+        >
+          <Text style={styles.newTripLabel}>New Trip</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   // Hold the editor closed until a maps capture's coordinates resolve, so it opens
   // exactly once with its final pin (or address-only) rather than re-seeding mid-edit.
   if (!summary || (needsResolve && resolvedCoords === undefined)) return null;
@@ -113,3 +135,11 @@ export default function ShareEditorScreen() {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  emptyHint: { marginTop: 8, fontSize: 15, textAlign: 'center', opacity: 0.6 },
+  newTripButton: { marginTop: 24, paddingVertical: 12, paddingHorizontal: 24 },
+  newTripLabel: { fontSize: 17, fontWeight: '600' },
+});
