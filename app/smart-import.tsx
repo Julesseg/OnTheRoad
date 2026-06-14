@@ -7,9 +7,12 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
@@ -31,13 +34,39 @@ import {
  * instructions) the user pastes into any AI, bringing the result back through
  * Import Trip. No network call is made here either way.
  */
+// Clears the transparent native nav bar so body content doesn't render under the
+// title (matches the trips/settings/days sheets).
+const NAV_BAR_HEIGHT = 64;
+
 export default function SmartImportSheet() {
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
+  // Liquid Glass is iOS 26+; the available branch only renders there anyway, but
+  // fall back to a solid accent fill if the material isn't present (older OS or
+  // Reduce Transparency).
+  const liquidGlass = isLiquidGlassAvailable();
   const { addTrip, setDisplayedTrip } = useTripStore();
   // Probe once on mount; the result drives both the gate alert and the body copy.
   const [availability] = useState(getSmartImportAvailability);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  // Track keyboard height directly rather than KeyboardAvoidingView: inside a
+  // formSheet the avoider's frame origin isn't the screen origin, so it
+  // under-pads and the Import button stays hidden behind the keyboard. The
+  // willShow/willHide frame height is measured to the screen bottom, so padding
+  // the body by it lifts the button exactly above the keyboard.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   // Structure the pasted Planning Document on-device, then save and open the
   // trip immediately — no review screen (PR #94 decision 2). A failure (too-long
@@ -97,7 +126,18 @@ export default function SmartImportSheet() {
       <Stack.Title>Import Planning Document</Stack.Title>
 
       {availability.available ? (
-        <View style={styles.composeBody}>
+        // Bottom padding follows the keyboard so the Import button rises above
+        // it; paddingTop clears the transparent nav title and, with no keyboard,
+        // the bottom inset keeps the button off the home indicator.
+        <View
+          style={[
+            styles.composeBody,
+            {
+              paddingTop: NAV_BAR_HEIGHT,
+              paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 16,
+            },
+          ]}
+        >
           <Text style={[styles.detail, { color: c.textSubtle }]}>
             Paste a trip plan with dates and Smart Import will structure it into a trip, on-device.
           </Text>
@@ -114,11 +154,20 @@ export default function SmartImportSheet() {
             accessibilityRole="button"
             disabled={busy || text.trim().length === 0}
             onPress={onImport}
-            style={[
-              styles.button,
-              { backgroundColor: c.accent, opacity: busy || text.trim().length === 0 ? 0.5 : 1 },
+            style={({ pressed }) => [
+              styles.importButton,
+              { opacity: busy || text.trim().length === 0 ? 0.5 : pressed ? 0.85 : 1 },
+              !liquidGlass && { backgroundColor: c.accent },
             ]}
           >
+            {liquidGlass ? (
+              <GlassView
+                glassEffectStyle="regular"
+                isInteractive
+                tintColor={c.accent}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : null}
             {busy ? (
               <ActivityIndicator color={c.onAccent} />
             ) : (
@@ -150,7 +199,7 @@ export default function SmartImportSheet() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 16 },
-  composeBody: { flex: 1, paddingHorizontal: 20, paddingTop: 12, gap: 16 },
+  composeBody: { flex: 1, paddingHorizontal: 20, gap: 16 },
   input: {
     flex: 1,
     borderWidth: StyleSheet.hairlineWidth,
@@ -163,5 +212,18 @@ const styles = StyleSheet.create({
   lead: { fontSize: 18, fontWeight: '600', textAlign: 'center' },
   detail: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
   button: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
+  // Liquid-glass Import button: sized to its content and centered (the glass
+  // material fills behind via an absolute GlassView, so the capsule must clip).
+  importButton: {
+    alignSelf: 'center',
+    minWidth: 140,
+    paddingHorizontal: 32,
+    paddingVertical: 13,
+    borderRadius: 24,
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
 });

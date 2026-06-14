@@ -103,6 +103,7 @@ SCHEMA (every field name and type must match exactly):
 - createdAt, updatedAt: ISO-8601 timestamps (e.g. "${EXAMPLE_TRIP.createdAt}"). Use the current date-time; the same value for both is fine.
 
 RULES:
+- Use ONLY what the description actually says. Do not invent or guess places, times, names, or activities that are not in the text. Omit "time" unless a time is stated; omit "location" unless a place is named. The only thing you may infer is the trip's start/end dates, as described above — everything else must come from the text.
 - Generate a fresh random UUID for every id (trip, each day, each item, each checklist entry). Never reuse an id.
 - Never drop content. Anything with no clear day — a packing list, a budget, "book the ferry" — goes on the most plausible day (a booking reminder on the day it concerns; trip-wide content on day 1) as a "note" item, with packing/to-do lists becoming a checklist.
 - Capture places as address text only. Do not include coordinates.

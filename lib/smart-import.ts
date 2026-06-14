@@ -59,6 +59,17 @@ export const DraftTripSchema = z.object({
 
 export type DraftTrip = z.infer<typeof DraftTripSchema>;
 
+// The first pass emits only the trip header; the per-day passes fill in items.
+// Splitting generation this way (see generateTripDraft) keeps every on-device
+// model call far under the ~4k-token context window the whole trip would blow.
+const DraftOutlineSchema = DraftTripSchema.pick({ title: true, startDate: true, endDate: true });
+const DraftDayItemsSchema = z.object({ items: z.array(DraftItemSchema) });
+
+// A guard against a model that hallucinates a wildly wrong end date turning into
+// hundreds of sequential on-device inferences. A real road trip never approaches
+// this; beyond it we fail loud rather than grind.
+const MAX_TRIP_DAYS = 60;
+
 export interface PostProcessDeps {
   /** Id factory for the trip, days, items, and checklist entries. Defaults to newId. */
   makeId?: () => string;
@@ -111,30 +122,105 @@ export function draftToTrip(raw: unknown, deps: PostProcessDeps = {}): SmartImpo
   return { ok: true, trip: gate.data };
 }
 
+/**
+ * Every calendar date from `start` to `end` inclusive as "YYYY-MM-DD". Parsed in
+ * UTC so adding 24h never trips over a DST boundary. A non-positive or malformed
+ * span degrades to a single day (`[start]`) rather than throwing — the assembled
+ * draft is still validated downstream; a span over MAX_TRIP_DAYS fails loud.
+ */
+export function eachDateInclusive(start: string, end: string): string[] {
+  const s = Date.parse(`${start}T00:00:00Z`);
+  const e = Date.parse(`${end}T00:00:00Z`);
+  if (Number.isNaN(s) || Number.isNaN(e) || e < s) return [start];
+  const dates: string[] = [];
+  for (let t = s; t <= e; t += 86_400_000) {
+    if (dates.length >= MAX_TRIP_DAYS) {
+      throw new Error(`This plan spans more than ${MAX_TRIP_DAYS} days — too long to import.`);
+    }
+    dates.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
 interface NativeGenerateModule {
+  /** Guided generation for the trip header only: returns `{title,startDate,endDate}` JSON. */
+  generateOutline(text: string): Promise<string>;
   /**
-   * Run the on-device model with guided generation constrained to the draft
-   * schema and return the draft as a JSON string. Async: inference is slow.
+   * Guided generation for ONE day's items: returns `{items:[…]}` JSON.
+   * `dayNumber`/`totalDays` (both 1-based, e.g. day 3 of 3) let the model match
+   * how the plan labels the day — "Day 3", a weekday, or "March 12" — rather than
+   * relying on the ISO `date` alone. When `includeUnscheduled` is true (day one)
+   * the model also folds in trip-wide content that has no specific day. Splitting
+   * per day keeps each call small enough to fit the on-device context window.
    */
-  generate(text: string): Promise<string>;
+  generateDay(
+    text: string,
+    date: string,
+    dayNumber: number,
+    totalDays: number,
+    includeUnscheduled: boolean,
+  ): Promise<string>;
 }
 
 /**
- * Invoke the native Foundation Models generation (issue #97) for one Planning
- * Document and parse its draft JSON. The native module is loaded by name and is
- * absent off a real device, so this throws there — call sites gate on the
- * availability probe first. The thrown/JSON-parse failure is the fail-loud seam.
+ * The two-phase on-device draft generator (issue #97). The native module is
+ * loaded by name and absent off a real device, so this throws there — call sites
+ * gate on the availability probe first. Injectable as a whole so the orchestration
+ * is unit-testable from JS without a device.
  */
-export async function generateTripDraft(text: string): Promise<unknown> {
+export interface DraftGenerator {
+  /** Trip header: title + inclusive start/end dates. */
+  outline(text: string): Promise<unknown>;
+  /** One day's items; `dayNumber`/`totalDays` are 1-based; `includeUnscheduled` true only for day one. */
+  day(
+    text: string,
+    date: string,
+    dayNumber: number,
+    totalDays: number,
+    includeUnscheduled: boolean,
+  ): Promise<unknown>;
+}
+
+function nativeGenerator(): DraftGenerator {
   const native = requireOptionalNativeModule<NativeGenerateModule>('SmartImport');
   if (!native) throw new Error('Smart Import is not available on this device.');
-  return JSON.parse(await native.generate(text));
+  return {
+    outline: async (text) => JSON.parse(await native.generateOutline(text)),
+    day: async (text, date, dayNumber, totalDays, includeUnscheduled) =>
+      JSON.parse(await native.generateDay(text, date, dayNumber, totalDays, includeUnscheduled)),
+  };
+}
+
+/**
+ * Assemble a full draft trip by running the model day-by-day. First the header,
+ * then — for each calendar date in the span — that day's items in a fresh, small
+ * model call (the whole trip in one call overruns the ~4k-token window). The
+ * unscheduled-content rule (packing lists, budgets → day one) is preserved by
+ * flagging only the first day. The fail-loud seam: a malformed header here, or a
+ * malformed assembly at the `draftToTrip` gate downstream.
+ */
+export async function generateTripDraft(text: string, gen: DraftGenerator): Promise<unknown> {
+  const parsedOutline = DraftOutlineSchema.safeParse(await gen.outline(text));
+  if (!parsedOutline.success) throw new Error(parsedOutline.error.issues[0].message);
+  const outline = parsedOutline.data;
+  const dates = eachDateInclusive(outline.startDate, outline.endDate);
+
+  const days = [];
+  for (let i = 0; i < dates.length; i++) {
+    const raw = await gen.day(text, dates[i], i + 1, dates.length, i === 0);
+    // A day that comes back malformed/empty degrades to no items rather than
+    // sinking the whole trip; draftToTrip still validates the final assembly.
+    const parsed = DraftDayItemsSchema.safeParse(raw);
+    days.push({ date: dates[i], items: parsed.success ? parsed.data.items : [] });
+  }
+
+  return { title: outline.title, startDate: outline.startDate, endDate: outline.endDate, days };
 }
 
 export interface SmartImportDeps extends PostProcessDeps {
-  /** The draft generator. Defaults to the native call; injectable so the whole
-   *  flow is unit-testable from JS without a device. */
-  generate?: (text: string) => Promise<unknown>;
+  /** The draft generator. Defaults to the native two-phase call; injectable so
+   *  the whole flow is unit-testable from JS without a device. */
+  generate?: DraftGenerator;
 }
 
 /**
@@ -143,8 +229,8 @@ export interface SmartImportDeps extends PostProcessDeps {
  * `TripSchema` gate). Throws on a malformed draft so the caller saves nothing.
  */
 export async function smartImportTrip(text: string, deps: SmartImportDeps = {}): Promise<Trip> {
-  const generate = deps.generate ?? generateTripDraft;
-  const draft = await generate(text);
+  const generate = deps.generate ?? nativeGenerator();
+  const draft = await generateTripDraft(text, generate);
   const result = draftToTrip(draft, deps);
   if (!result.ok) throw new Error(result.error);
   return result.trip;

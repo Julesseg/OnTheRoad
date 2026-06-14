@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 // is never exercised — this only keeps the import side-effect-free.
 vi.mock('expo', () => ({ requireOptionalNativeModule: vi.fn() }));
 
-import { draftToTrip, smartImportTrip } from './smart-import';
+import { draftToTrip, eachDateInclusive, smartImportTrip, type DraftGenerator } from './smart-import';
 import { TripSchema } from './schema';
 
 // A counter id factory keeps generated ids deterministic and distinct so tests can
@@ -175,24 +175,97 @@ describe('draftToTrip', () => {
   });
 });
 
+describe('eachDateInclusive', () => {
+  it('expands a span to every calendar date inclusive, in order', () => {
+    expect(eachDateInclusive('2026-08-14', '2026-08-16')).toEqual([
+      '2026-08-14',
+      '2026-08-15',
+      '2026-08-16',
+    ]);
+  });
+
+  it('returns a single day when start equals end', () => {
+    expect(eachDateInclusive('2026-03-12', '2026-03-12')).toEqual(['2026-03-12']);
+  });
+
+  it('crosses a month boundary without a DST off-by-one', () => {
+    expect(eachDateInclusive('2026-03-30', '2026-04-01')).toEqual([
+      '2026-03-30',
+      '2026-03-31',
+      '2026-04-01',
+    ]);
+  });
+
+  it('degrades a backwards or unparseable span to a single day', () => {
+    expect(eachDateInclusive('2026-08-16', '2026-08-14')).toEqual(['2026-08-16']);
+  });
+
+  it('fails loud on an absurdly long span instead of grinding', () => {
+    expect(() => eachDateInclusive('2026-01-01', '2027-01-01')).toThrow(/too long/i);
+  });
+});
+
 describe('smartImportTrip', () => {
-  it('runs the planning text through the injected generator, then post-processes', async () => {
-    // The native Foundation Models call is injected so the orchestration is
-    // testable from JS without a device (issue #97, final acceptance criterion).
-    const generate = vi.fn().mockResolvedValue(DATED_DRAFT);
+  // A two-phase generator the model would back: an outline call, then one items
+  // call per calendar date. Injected so the orchestration is testable from JS
+  // without a device (issue #97, final acceptance criterion).
+  function fakeGenerator(
+    outline: { title: string; startDate: string; endDate: string },
+    itemsByDate: Record<string, unknown>,
+  ): DraftGenerator {
+    return {
+      outline: vi.fn().mockResolvedValue(outline),
+      day: vi.fn(
+        async (_text: string, date: string, _dayNumber: number, _totalDays: number) =>
+          itemsByDate[date] ?? { items: [] },
+      ),
+    };
+  }
+
+  it('expands the outline to one day per date and fills each from a per-day call', async () => {
+    const generate = fakeGenerator(
+      { title: 'Big Sur Weekend', startDate: '2026-08-14', endDate: '2026-08-15' },
+      {
+        '2026-08-14': { items: [{ name: 'Bixby Creek Bridge' }] },
+        '2026-08-15': { items: [{ name: 'McWay Falls overlook' }] },
+      },
+    );
     const trip = await smartImportTrip('Big Sur on Aug 14-15', {
       generate,
       makeId: counterIds(),
       now: '2026-06-13T00:00:00.000Z',
     });
 
-    expect(generate).toHaveBeenCalledWith('Big Sur on Aug 14-15');
+    expect(generate.outline).toHaveBeenCalledWith('Big Sur on Aug 14-15');
     expect(trip.title).toBe('Big Sur Weekend');
+    expect(trip.days.map((d) => d.date)).toEqual(['2026-08-14', '2026-08-15']);
+    expect(trip.days[0].items.map((i) => i.name)).toEqual(['Bixby Creek Bridge']);
+    expect(trip.days[1].items.map((i) => i.name)).toEqual(['McWay Falls overlook']);
     expect(TripSchema.safeParse(trip).success).toBe(true);
   });
 
-  it('throws (saving nothing) when the generated draft is malformed', async () => {
-    const generate = vi.fn().mockResolvedValue({ title: '', startDate: 'x', endDate: 'x', days: [] });
+  it('flags only day one for unscheduled trip-wide content', async () => {
+    const generate = fakeGenerator(
+      { title: 'Trip', startDate: '2026-08-14', endDate: '2026-08-15' },
+      {},
+    );
+    await smartImportTrip('plan', { generate, makeId: counterIds() });
+
+    expect(generate.day).toHaveBeenNthCalledWith(1, 'plan', '2026-08-14', 1, 2, true);
+    expect(generate.day).toHaveBeenNthCalledWith(2, 'plan', '2026-08-15', 2, 2, false);
+  });
+
+  it('degrades a malformed per-day result to no items instead of failing', async () => {
+    const generate = fakeGenerator(
+      { title: 'Trip', startDate: '2026-08-14', endDate: '2026-08-14' },
+      { '2026-08-14': { items: 'not an array' } },
+    );
+    const trip = await smartImportTrip('plan', { generate, makeId: counterIds() });
+    expect(trip.days[0].items).toEqual([]);
+  });
+
+  it('throws (saving nothing) when the outline is malformed', async () => {
+    const generate = fakeGenerator({ title: '', startDate: 'x', endDate: 'x' }, {});
     await expect(smartImportTrip('garbage', { generate })).rejects.toThrow();
   });
 });

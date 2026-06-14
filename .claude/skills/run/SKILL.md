@@ -57,10 +57,24 @@ This compiles the Xcode workspace, installs onto the simulator, starts Metro, an
 Do not use this path unless the user asks to run on their physical iPhone.
 
 1. Device must be plugged in (or on the same network with Wi-Fi debugging enabled) and unlocked.
-2. List devices and build to it:
+2. Find the device UDID:
    ```bash
-   xcrun xctrace list devices   # find the device name
-   npx expo run:ios --device    # interactive picker, or pass the device name
+   xcrun xctrace list devices   # note the device name and UDID (the long hex string)
    ```
-3. Code signing: open `ios/ontheroad.xcworkspace` in Xcode the first time to set the development team if signing fails.
-4. On-device relaunches must be done by the user (unlock + tap), per the same Fast-Refresh caveat for native `@expo/ui` changes.
+3. **Do not rely on `npx expo run:ios --device`.** On iOS 26 devices its JS-based installer fails at the
+   `LockdowndClient` handshake (`TypeError: Cannot convert object to primitive value`). The Xcode build it
+   runs still succeeds, so use it only to compile, then install/launch with Apple's `devicectl`:
+   ```bash
+   # Build (this compiles + signs; the install step at the end will error — that's expected)
+   npx expo run:ios --device "<device name>"
+
+   # Install the freshly built .app directly (find the path in the run:ios output, under DerivedData)
+   APP="$HOME/Library/Developer/Xcode/DerivedData/ontheroad-*/Build/Products/Debug-iphoneos/ontheroad.app"
+   xcrun devicectl device install app --device <UDID> $APP
+
+   # Make sure Metro is running, then launch on device
+   npx expo start &
+   xcrun devicectl device process launch --device <UDID> com.anonymous.on-the-road
+   ```
+4. Code signing: open `ios/ontheroad.xcworkspace` in Xcode the first time to set the development team if signing fails.
+5. On-device relaunches must be done by the user (unlock + tap), per the same Fast-Refresh caveat for native `@expo/ui` changes.
