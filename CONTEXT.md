@@ -104,6 +104,37 @@ the [next item](#today-selection--next-item): the `time` field on any item
 items in their original relative order. All categories share the same `time`
 field — there is no per-category time synonym.
 
+### Trip route
+
+The path drawn on the map connecting a trip's located [Items](#item) in
+itinerary order — one [pin](#pin) per item that carries coordinates, joined by
+**legs** (one leg between each consecutive pair of pins). A leg follows real
+roads (driving) when a route can be found, and falls back to a straight line
+when it can't — offline, or where no drivable path exists (an over-water hop, a
+flight). See [ADR-0009](docs/adr/0009-road-following-trip-route.md). When a
+[Day](#day) filter is active, the off-day pins and legs are **dimmed** rather
+than hidden, so the whole journey stays visible with the chosen day emphasised.
+
+Prefer **route** for the line on the map and **leg** for one segment of it.
+Reserve **itinerary** for the day-by-day [Item](#item) list shown in the day
+sheet — the route and the itinerary are two surfaces onto the same trip, not
+synonyms.
+
+### Pin
+
+A map marker for a single located [Item](#item) (one whose `location` carries
+coordinates). Tapping a pin reveals a lightweight **info card** for that item
+(its name, category, time, and a notes snippet, with a way through to the full
+item); tapping empty map or a non-trip point of interest reveals nothing. The
+map is a view onto the trip, not a place browser.
+
+### User location
+
+The device's own position, shown as the standard blue dot when the traveller
+grants when-in-use location permission (requested as the map first appears). A
+themed control re-centres the map on it — distinct from re-centring on the
+[Trip route](#trip-route), which frames all of a trip's pins.
+
 ### App State
 
 The global persisted state, stored in `state.json` separately from trip files:
