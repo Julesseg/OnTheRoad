@@ -97,8 +97,14 @@ export default function HomeScreen() {
           onPress={() => tripMapRef.current?.recenter()}
           accessibilityLabel="Recenter"
         >
-          {/* Liquid glass to match the native MapKit controls (iOS 26+). */}
-          <GlassView glassEffectStyle="regular" isInteractive style={StyleSheet.absoluteFill} />
+          {/* Liquid glass to match the native MapKit controls (iOS 26+). The glass
+              rounds its own corners; clipping it with overflow:'hidden' on the
+              parent would cut off the edge highlights. */}
+          <GlassView
+            glassEffectStyle="regular"
+            isInteractive
+            style={[StyleSheet.absoluteFill, styles.recenterGlass]}
+          />
           <IconSymbol name="scope" size={22} color={c.accent} />
         </Pressable>
       )}
@@ -113,9 +119,8 @@ const styles = StyleSheet.create({
     left: 16,
     width: 44,
     height: 44,
-    borderRadius: 22,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  recenterGlass: { borderRadius: 22 },
 });

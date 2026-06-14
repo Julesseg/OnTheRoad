@@ -30,6 +30,18 @@ vi.mock('react-native', async (importOriginal) => {
 const clipboardMock = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true) }));
 vi.mock('expo-clipboard', () => clipboardMock);
 
+// The available branch reads the safe-area insets and the Liquid Glass material.
+// safe-area-context ships Flow (`import typeof`) that the test transform can't
+// parse, so stub it; expo-glass-effect resolves under jsdom but reports no glass,
+// exercising the solid-accent fallback (so the GlassView branch stays inert).
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 44, right: 0, bottom: 34, left: 0 }),
+}));
+vi.mock('expo-glass-effect', () => ({
+  isLiquidGlassAvailable: () => false,
+  GlassView: () => null,
+}));
+
 const availabilityMock = vi.hoisted(() => ({
   value: { available: false, reason: 'unsupported' } as
     | { available: true }
@@ -40,7 +52,19 @@ vi.mock('@/lib/smart-import-availability', () => ({
   smartImportUnavailableMessage: (reason: string) => `Unavailable because: ${reason}`,
 }));
 
+// The on-device generation + post-processing is unit-tested in lib/smart-import;
+// here we mock it to drive the screen's save-and-open / error behavior.
+const smartImportMock = vi.hoisted(() => ({ smartImportTrip: vi.fn() }));
+vi.mock('@/lib/smart-import', () => smartImportMock);
+
+const storeMock = vi.hoisted(() => ({ addTrip: vi.fn(), setDisplayedTrip: vi.fn() }));
+vi.mock('@/lib/store', () => ({
+  useTripStore: () => ({ addTrip: storeMock.addTrip, setDisplayedTrip: storeMock.setDisplayedTrip }),
+}));
+
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
+
+import { router } from 'expo-router';
 
 describe('SmartImportSheet — availability gate', () => {
   beforeEach(() => {
@@ -115,12 +139,55 @@ describe('SmartImportSheet — availability gate', () => {
     expect(clipboardMock.setStringAsync).toHaveBeenCalledWith(buildSchemaPrompt());
   });
 
-  it('renders the ready placeholder when Smart Import is available, with no gate alert', async () => {
+  it('offers a paste-text input instead of a gate alert when available', async () => {
     availabilityMock.value = { available: true };
     const { default: SmartImportSheet } = await import('@/app/smart-import');
     render(<SmartImportSheet />);
 
-    expect(screen.getByText(/ready/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/paste/i)).toBeInTheDocument();
     expect(alertMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('SmartImportSheet — generating a trip from pasted text', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    availabilityMock.value = { available: true };
+    smartImportMock.smartImportTrip.mockReset();
+  });
+
+  it('structures the pasted document, saves it, and opens it with no review screen', async () => {
+    const trip = { id: 'trip-1', title: 'Big Sur Weekend' };
+    smartImportMock.smartImportTrip.mockResolvedValue(trip);
+    const { default: SmartImportSheet } = await import('@/app/smart-import');
+    render(<SmartImportSheet />);
+
+    fireEvent.change(screen.getByPlaceholderText(/paste/i), {
+      target: { value: 'Big Sur Aug 14-15. Bixby Bridge.' },
+    });
+    fireEvent.click(screen.getByText('Import'));
+
+    await waitFor(() =>
+      expect(smartImportMock.smartImportTrip).toHaveBeenCalledWith('Big Sur Aug 14-15. Bixby Bridge.'),
+    );
+    // Saved immediately, opened immediately — no intermediate review surface.
+    await waitFor(() => expect(storeMock.addTrip).toHaveBeenCalledWith(trip));
+    expect(storeMock.setDisplayedTrip).toHaveBeenCalledWith('trip-1');
+    expect(router.dismissAll).toHaveBeenCalled();
+  });
+
+  it('alerts and saves nothing when generation fails', async () => {
+    smartImportMock.smartImportTrip.mockRejectedValue(new Error('This document is too long.'));
+    const { default: SmartImportSheet } = await import('@/app/smart-import');
+    render(<SmartImportSheet />);
+
+    fireEvent.change(screen.getByPlaceholderText(/paste/i), { target: { value: 'way too long...' } });
+    fireEvent.click(screen.getByText('Import'));
+
+    await waitFor(() =>
+      expect(alertMock.mock.calls.some(([, msg]) => /too long/i.test(String(msg)))).toBe(true),
+    );
+    expect(storeMock.addTrip).not.toHaveBeenCalled();
+    expect(router.dismissAll).not.toHaveBeenCalled();
   });
 });
