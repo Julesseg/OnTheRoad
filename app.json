@@ -64,7 +64,8 @@
       "expo-maps",
       "expo-status-bar",
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,
