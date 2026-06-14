@@ -5,18 +5,8 @@ import type { SharePayload } from './share-capture';
  * Listing only these — and never an image type — is what excludes image-only
  * shares (e.g. Photos) from the "Add to On the Road" action.
  */
-export const SHARE_ACTIVATION_TYPES = ['public.url', 'public.text'] as const;
+export const SHARE_ACTIVATION_TYPES = ['public.url', 'public.plain-text'] as const;
 
-/**
- * The `NSExtensionActivationRule` predicate that surfaces the share action when a
- * share carries **≥1 URL or ≥1 text** item, and only then (issue #112). It is a
- * SUBQUERY predicate string rather than the simpler dictionary form because the
- * rule is an OR: a Safari share (URL only) and a plain-text share must each
- * qualify on their own, whereas a dictionary rule can only AND its `Supports…`
- * keys. Because no image UTType is named, an image-only share matches nothing and
- * the action stays off the sheet — while an image that rides alongside a URL
- * still activates, since the predicate only ever asks for a URL or text.
- */
 /**
  * The share-sheet action title (CONTEXT.md → Share Capture). Used both as the
  * extension's `CFBundleDisplayName` and as its `expo-target.config` displayName.
@@ -36,9 +26,9 @@ export interface ShareExtensionInfoPlist {
  * The `Info.plist` contents for the thin Share Extension target (ADR-0008): a
  * `com.apple.share-services` extension whose principal class is the Swift
  * {@link ShareViewController} shim, gated by {@link buildShareActivationRule} and
- * titled {@link SHARE_ACTION_TITLE} in the share sheet. `targets/share/Info.plist`
- * is generated from this so the committed plist can't drift from the tested spec
- * (`scripts/gen-share-extension-plist.mjs`).
+ * titled {@link SHARE_ACTION_TITLE} in the share sheet. The committed
+ * `targets/share/Info.plist` is pinned to this builder by a test
+ * (`share-extension.config.test.ts`), so the two can't drift.
  */
 export function buildShareExtensionInfoPlist(): ShareExtensionInfoPlist {
   return {
@@ -51,6 +41,18 @@ export function buildShareExtensionInfoPlist(): ShareExtensionInfoPlist {
   };
 }
 
+/**
+ * The `NSExtensionActivationRule` predicate that surfaces the share action when a
+ * share carries **≥1 URL or ≥1 text** item, and only then (issue #112). It is a
+ * SUBQUERY predicate string rather than the simpler dictionary form because the
+ * rule is an OR: a Safari share (URL only) and a plain-text share must each
+ * qualify on their own, whereas a dictionary rule can only AND its `Supports…`
+ * keys. Because no image UTType is named, an image-only share matches nothing and
+ * the action stays off the sheet — while an image that rides alongside a URL
+ * still activates, since the predicate only ever asks for a URL or text. The text
+ * type is `public.plain-text`, matching what {@link ShareViewController} extracts,
+ * so the extension never activates on text it then can't read (e.g. RTF-only).
+ */
 export function buildShareActivationRule(): string {
   const matchesType = SHARE_ACTIVATION_TYPES.map(
     (uti) => `ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "${uti}"`,

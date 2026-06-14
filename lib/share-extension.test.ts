@@ -41,10 +41,12 @@ describe('buildShareDeepLink', () => {
 
 describe('buildShareActivationRule', () => {
   it('activates on a URL or a text attachment', () => {
-    expect(SHARE_ACTIVATION_TYPES).toEqual(['public.url', 'public.text']);
+    expect(SHARE_ACTIVATION_TYPES).toEqual(['public.url', 'public.plain-text']);
     const rule = buildShareActivationRule();
     expect(rule).toContain('public.url');
-    expect(rule).toContain('public.text');
+    // public.plain-text — not the broader public.text — so the rule matches only
+    // text the Swift shim can actually read back (mirrors UTType.plainText there).
+    expect(rule).toContain('public.plain-text');
     // OR, not AND — a Safari share (URL only) and a plain-text share must each
     // qualify on their own. A dictionary rule can only AND its keys, so this is
     // why the activation rule is a SUBQUERY predicate string.
