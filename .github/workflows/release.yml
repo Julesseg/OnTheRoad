@@ -1,0 +1,149 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build & Publish
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Expo prebuild
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Install provisioning profile
+        env:
+          APPLE_PROVISIONING_PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+        run: |
+          PP_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/ontheroad_adhoc.mobileprovision"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$APPLE_PROVISIONING_PROFILE" | base64 --decode -o "$PP_PATH"
+
+      - name: Archive
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          xcodebuild archive \
+            -workspace ios/ontheroad.xcworkspace \
+            -scheme ontheroad \
+            -configuration Release \
+            -archivePath /tmp/ontheroad.xcarchive \
+            CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="OnTheRoad Ad Hoc" \
+            | xcpretty
+
+      - name: Export .ipa
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          sed "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" ios/ExportOptions.plist > /tmp/ExportOptions.plist
+          xcodebuild -exportArchive \
+            -archivePath /tmp/ontheroad.xcarchive \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -exportPath /tmp/ipa \
+            | xcpretty
+
+      - name: Prepare GitHub Pages output
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          IPA_URL="https://julesseg.github.io/OnTheRoad/builds/${SHA}/ontheroad.ipa"
+          MANIFEST_URL="https://julesseg.github.io/OnTheRoad/builds/${SHA}/manifest.plist"
+          INSTALL_LINK="itms-services://?action=download-manifest&url=${MANIFEST_URL}"
+
+          mkdir -p /tmp/pages/builds/"$SHA"
+          cp /tmp/ipa/ontheroad.ipa /tmp/pages/builds/"$SHA"/ontheroad.ipa
+
+          cat > /tmp/pages/builds/"$SHA"/manifest.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>items</key>
+              <array>
+                  <dict>
+                      <key>assets</key>
+                      <array>
+                          <dict>
+                              <key>kind</key>
+                              <string>software-package</string>
+                              <key>url</key>
+                              <string>${IPA_URL}</string>
+                          </dict>
+                      </array>
+                      <key>metadata</key>
+                      <dict>
+                          <key>bundle-identifier</key>
+                          <string>com.julesseguin.ontheroad</string>
+                          <key>bundle-version</key>
+                          <string>${SHA}</string>
+                          <key>kind</key>
+                          <string>software</string>
+                          <key>title</key>
+                          <string>On the Road</string>
+                      </dict>
+                  </dict>
+              </array>
+          </dict>
+          </plist>
+          EOF
+
+          cat > /tmp/pages/index.html << EOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>On the Road — Install</title>
+            <style>
+              body { font-family: -apple-system, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 24px; text-align: center; }
+              h1 { font-size: 1.6rem; margin-bottom: 8px; }
+              p { color: #666; margin-bottom: 32px; }
+              a.btn { display: inline-block; background: #007AFF; color: #fff; text-decoration: none;
+                      padding: 14px 32px; border-radius: 12px; font-size: 1.1rem; font-weight: 600; }
+              .version { margin-top: 24px; font-size: 0.85rem; color: #999; }
+            </style>
+          </head>
+          <body>
+            <h1>On the Road</h1>
+            <p>Open this page in Safari on your iPhone to install.</p>
+            <a class="btn" href="${INSTALL_LINK}">Install</a>
+            <div class="version">${SHA}</div>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/pages
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

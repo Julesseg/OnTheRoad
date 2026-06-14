@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.on-the-road",
+      "bundleIdentifier": "com.julesseguin.ontheroad",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
