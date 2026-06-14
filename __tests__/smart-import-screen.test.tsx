@@ -1,6 +1,38 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+
+// The inline start-date prompt uses the native SwiftUI DatePicker. Capture its
+// props so a spec can drive a date change the way a tap on the calendar would, and
+// render the buttons as queryable elements.
+const pickers = vi.hoisted(
+  () => ({}) as Record<string, { onDateChange?: (d: Date) => void; selection?: Date }>,
+);
+/* eslint-disable react/display-name -- inline passthrough stand-ins for native views */
+vi.mock('@expo/ui/swift-ui', async () => {
+  const React = await import('react');
+  const pass =
+    (t: string) =>
+    ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(t, null, children);
+  return {
+    Host: pass('div'),
+    Form: pass('div'),
+    Section: pass('div'),
+    DatePicker: (props: { title?: string; onDateChange?: (d: Date) => void; selection?: Date }) => {
+      if (props.title) pickers[props.title] = { onDateChange: props.onDateChange, selection: props.selection };
+      return null;
+    },
+    Button: ({ label, onPress }: { label?: string; onPress?: () => void }) =>
+      label ? React.createElement('button', { onClick: onPress }, label) : null,
+  };
+});
+vi.mock('@expo/ui/swift-ui/modifiers', () => ({
+  datePickerStyle: vi.fn(() => ({})),
+  background: vi.fn(() => ({})),
+  listRowBackground: vi.fn(() => ({})),
+  scrollContentBackground: vi.fn(() => ({})),
+}));
 
 // The native chrome is expo-router's Stack.Header / Stack.Title; Header renders
 // nothing and Title renders its text so it stays queryable under jsdom.
@@ -168,12 +200,68 @@ describe('SmartImportSheet — generating a trip from pasted text', () => {
     fireEvent.click(screen.getByText('Import'));
 
     await waitFor(() =>
-      expect(smartImportMock.smartImportTrip).toHaveBeenCalledWith('Big Sur Aug 14-15. Bixby Bridge.'),
+      expect(smartImportMock.smartImportTrip).toHaveBeenCalledWith(
+        'Big Sur Aug 14-15. Bixby Bridge.',
+        expect.objectContaining({ promptStartDate: expect.any(Function) }),
+      ),
     );
     // Saved immediately, opened immediately — no intermediate review surface.
     await waitFor(() => expect(storeMock.addTrip).toHaveBeenCalledWith(trip));
     expect(storeMock.setDisplayedTrip).toHaveBeenCalledWith('trip-1');
     expect(router.dismissAll).toHaveBeenCalled();
+  });
+
+  it('asks for a start date inline, then saves the trip anchored to the picked date', async () => {
+    // A dateless plan: the core asks the screen for a start date via promptStartDate.
+    smartImportMock.smartImportTrip.mockImplementation(
+      async (_text: string, deps: { promptStartDate: () => Promise<string | null> }) => {
+        const date = await deps.promptStartDate();
+        if (!date) return null;
+        return { id: 'trip-1', title: 'Camping', startDate: date };
+      },
+    );
+    const { default: SmartImportSheet } = await import('@/app/smart-import');
+    render(<SmartImportSheet />);
+
+    fireEvent.change(screen.getByPlaceholderText(/paste/i), { target: { value: 'day 1 hike, day 2 home' } });
+    fireEvent.click(screen.getByText('Import'));
+
+    // The inline date prompt appears — a date picker, not a separate screen.
+    await waitFor(() => expect(screen.getByText('Start trip')).toBeInTheDocument());
+    act(() => pickers['Start'].onDateChange?.(new Date(2026, 8, 4))); // 2026-09-04
+    fireEvent.click(screen.getByText('Start trip'));
+
+    await waitFor(() =>
+      expect(storeMock.addTrip).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'trip-1', startDate: '2026-09-04' }),
+      ),
+    );
+    expect(storeMock.setDisplayedTrip).toHaveBeenCalledWith('trip-1');
+    expect(router.dismissAll).toHaveBeenCalled();
+  });
+
+  it('aborts with nothing saved when the inline date prompt is cancelled', async () => {
+    smartImportMock.smartImportTrip.mockImplementation(
+      async (_text: string, deps: { promptStartDate: () => Promise<string | null> }) => {
+        const date = await deps.promptStartDate();
+        if (!date) return null;
+        return { id: 'trip-1', title: 'Camping', startDate: date };
+      },
+    );
+    const { default: SmartImportSheet } = await import('@/app/smart-import');
+    render(<SmartImportSheet />);
+
+    fireEvent.change(screen.getByPlaceholderText(/paste/i), { target: { value: 'day 1 hike, day 2 home' } });
+    fireEvent.click(screen.getByText('Import'));
+
+    await waitFor(() => expect(screen.getByText('Cancel')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Cancel'));
+
+    // Nothing persisted, nothing opened — and the prompt closes back to the compose view.
+    await waitFor(() => expect(screen.getByPlaceholderText(/paste/i)).toBeInTheDocument());
+    expect(storeMock.addTrip).not.toHaveBeenCalled();
+    expect(router.dismissAll).not.toHaveBeenCalled();
+    expect(alertMock).not.toHaveBeenCalled();
   });
 
   it('alerts and saves nothing when generation fails', async () => {

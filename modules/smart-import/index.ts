@@ -5,9 +5,16 @@
 // loads this native module by name with requireOptionalNativeModule and validates
 // the draft through the same TripSchema gate as JSON Import.
 export {
+  anchorDraft,
   draftToTrip,
   generateTripDraft,
   smartImportTrip,
   DraftTripSchema,
 } from '@/lib/smart-import';
-export type { DraftTrip, SmartImportResult, SmartImportDeps } from '@/lib/smart-import';
+export type {
+  DraftTrip,
+  UndatedDraft,
+  GeneratedDraft,
+  SmartImportResult,
+  SmartImportDeps,
+} from '@/lib/smart-import';

@@ -13,10 +13,13 @@ import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { GlassView } from 'expo-glass-effect';
+import { Host, Form, Section, DatePicker } from '@expo/ui/swift-ui';
+import { background, datePickerStyle, listRowBackground, scrollContentBackground } from '@expo/ui/swift-ui/modifiers';
 
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
 import { smartImportTrip } from '@/lib/smart-import';
+import { formatLocalDate, parseLocalDate } from '@/lib/trip-form';
 import { useTripStore } from '@/lib/store';
 import {
   getSmartImportAvailability,
@@ -52,6 +55,36 @@ export default function SmartImportSheet() {
   // willShow/willHide frame height is measured to the screen bottom, so padding
   // the body by it lifts the button exactly above the keyboard.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // The inline start-date prompt (issue #98). When the pasted plan carries no
+  // calendar dates, smartImportTrip asks for a start date through promptStartDate;
+  // we surface a date picker in place of the compose body — not a separate screen —
+  // and resolve that promise when the user confirms (the picked date) or cancels
+  // (null, which aborts the import with nothing saved). `value` is the YYYY-MM-DD
+  // currently shown in the picker.
+  const [pendingDate, setPendingDate] = useState<{
+    value: string;
+    resolve: (date: string | null) => void;
+  } | null>(null);
+
+  const promptStartDate = useCallback(
+    () =>
+      new Promise<string | null>((resolve) => {
+        setPendingDate({ value: formatLocalDate(new Date()), resolve });
+      }),
+    [],
+  );
+
+  const confirmStartDate = useCallback(() => {
+    if (!pendingDate) return;
+    pendingDate.resolve(pendingDate.value);
+    setPendingDate(null);
+  }, [pendingDate]);
+
+  const cancelStartDate = useCallback(() => {
+    if (!pendingDate) return;
+    pendingDate.resolve(null);
+    setPendingDate(null);
+  }, [pendingDate]);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardWillShow', (e) =>
@@ -72,7 +105,13 @@ export default function SmartImportSheet() {
     if (!document || busy) return;
     setBusy(true);
     try {
-      const trip = await smartImportTrip(document);
+      // A document with no calendar dates pauses here for the inline start-date
+      // prompt; a null result means the user cancelled it — nothing to save.
+      const trip = await smartImportTrip(document, { promptStartDate });
+      if (!trip) {
+        setBusy(false);
+        return;
+      }
       await addTrip(trip);
       setDisplayedTrip(trip.id);
       router.dismissAll();
@@ -83,7 +122,7 @@ export default function SmartImportSheet() {
       );
       setBusy(false);
     }
-  }, [text, busy, addTrip, setDisplayedTrip]);
+  }, [text, busy, addTrip, setDisplayedTrip, promptStartDate]);
 
   const copySchemaPrompt = useCallback(async () => {
     // setStringAsync resolves false on a failed write and can reject outright;
@@ -121,7 +160,51 @@ export default function SmartImportSheet() {
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>Import Planning Document</Stack.Title>
 
-      {availability.available ? (
+      {availability.available && pendingDate ? (
+        // Inline start-date prompt: the plan had no dates, so we ask for one here
+        // rather than on a separate screen, then anchor the days to it (issue #98).
+        <View style={[styles.body, { paddingTop: NAV_BAR_HEIGHT }]}>
+          <Text style={[styles.lead, { color: c.text }]}>This plan didn’t include dates</Text>
+          <Text style={[styles.detail, { color: c.textSubtle }]}>
+            Pick a start date and we’ll lay the days out from there.
+          </Text>
+          <Host matchContents style={styles.datePickerHost}>
+            <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
+              <Section modifiers={[listRowBackground(c.surface)]}>
+                <DatePicker
+                  title="Start"
+                  selection={parseLocalDate(pendingDate.value)}
+                  displayedComponents={['date']}
+                  onDateChange={(d) =>
+                    setPendingDate((p) => (p ? { ...p, value: formatLocalDate(d) } : p))
+                  }
+                  modifiers={[datePickerStyle('compact')]}
+                />
+              </Section>
+            </Form>
+          </Host>
+          <Pressable
+            accessibilityRole="button"
+            onPress={confirmStartDate}
+            style={({ pressed }) => [styles.importButton, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={c.accent}
+              style={[StyleSheet.absoluteFill, styles.glass]}
+            />
+            <Text style={[styles.buttonLabel, { color: c.onAccent }]}>Start trip</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={cancelStartDate}
+            style={({ pressed }) => [styles.cancelButton, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.cancelLabel, { color: c.textSubtle }]}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : availability.available ? (
         // Bottom padding follows the keyboard so the Import button rises above
         // it; paddingTop clears the transparent nav title and, with no keyboard,
         // the bottom inset keeps the button off the home indicator.
@@ -227,4 +310,9 @@ const styles = StyleSheet.create({
   // so the edge highlights wrap the corners instead of being clipped flat.
   glass: { borderRadius: 999 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
+  // `matchContents` lets the SwiftUI host shrink to the compact picker rather than
+  // filling the centered column; a little vertical breathing room around it.
+  datePickerHost: { marginVertical: 4 },
+  cancelButton: { paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center' },
+  cancelLabel: { fontSize: 16, fontWeight: '500' },
 });

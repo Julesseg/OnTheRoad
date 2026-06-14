@@ -67,19 +67,29 @@ enum SmartImportError: Error {
 @available(iOS 26.0, *)
 private func generateOutlineJSON(from document: String) async throws -> String {
   let instructions = """
-  You read a free-text trip plan for a travel app and return only its header: a \
-  short trip title and the inclusive start and end calendar dates as "YYYY-MM-DD". \
-  If the plan covers a single day, start and end are that same date.
+  You read a free-text trip plan for a travel app and return its header: a short \
+  trip title, and either the trip's real calendar dates or — when it has none — \
+  how many days it spans.
+
+  Dates: use ONLY calendar dates the plan actually states (a month and day, or a \
+  full date). If the plan gives real dates, set hasDates to true and fill in the \
+  inclusive start and end as "YYYY-MM-DD" (a single-day plan uses that one date \
+  for both). If the plan uses only relative days ("Day 1", "Day 2") or gives no \
+  dates at all, set hasDates to false, leave startDate and endDate empty, and set \
+  dayCount to how many days the plan spans. NEVER invent, guess, or estimate a \
+  calendar date — a wrong date is worse than none, so when in doubt set hasDates \
+  to false.
   """
 
   let session = LanguageModelSession(instructions: instructions)
   let outline = try await session.respond(to: document, generating: TripOutline.self).content
 
-  let payload: [String: Any] = [
-    "title": outline.title,
-    "startDate": outline.startDate,
-    "endDate": outline.endDate,
-  ]
+  // Two header shapes (see lib/smart-import.ts): a dated outline carries the real
+  // span; an undated one reports only a day count, the signal that the plan had no
+  // dates so the app must ask the user for a start date before saving.
+  let payload: [String: Any] = outline.hasDates
+    ? ["title": outline.title, "startDate": outline.startDate, "endDate": outline.endDate]
+    : ["title": outline.title, "dayCount": max(1, outline.dayCount)]
   let data = try JSONSerialization.data(withJSONObject: payload)
   return String(decoding: data, as: UTF8.self)
 }
@@ -95,6 +105,20 @@ private func generateDayJSON(
   totalDays: Int,
   includeUnscheduled: Bool
 ) async throws -> String {
+  // The date is empty for a dateless plan (the user picks a start later); the
+  // model then leans on the day number alone to find this day in the text.
+  let whichDay = date.isEmpty
+    ? """
+    Which day: this is day \(dayNumber) of \(totalDays). The plan may label this day \
+    as "Day \(dayNumber)" or a weekday — treat any label that points to this day as \
+    the same day.
+    """
+    : """
+    Which day: this is day \(dayNumber) of \(totalDays), the calendar date \(date). The \
+    plan may label this day as "Day \(dayNumber)", a weekday, or a date (for example a \
+    month and day) — treat any of those that point to this day as the same day.
+    """
+
   var instructions = """
   You extract the items happening on ONE day of a trip from a free-text plan.
 
@@ -104,11 +128,8 @@ private func generateDayJSON(
   invent or guess a time, place, name, or activity that is not written. Capturing a \
   stated item with a missing field is right; adding a plausible-sounding field is wrong.
 
-  Which day: this is day \(dayNumber) of \(totalDays), the calendar date \(date). The \
-  plan may label this day as "Day \(dayNumber)", a weekday, or a date (for example a \
-  month and day) — treat any of those that point to this day as the same day. Return \
-  the items under that heading. Only return an empty list if the plan truly lists \
-  nothing for this day.
+  \(whichDay) Return the items under that heading. Only return an empty list if the \
+  plan truly lists nothing for this day.
 
   Rules:
   - time: whenever the plan gives a time for an item, include it — and convert it to \
@@ -132,7 +153,8 @@ private func generateDayJSON(
   }
 
   let session = LanguageModelSession(instructions: instructions)
-  let prompt = "Extract the items for day \(dayNumber) of \(totalDays) (\(date)).\n\nTrip plan:\n\(document)"
+  let dayRef = date.isEmpty ? "day \(dayNumber) of \(totalDays)" : "day \(dayNumber) of \(totalDays) (\(date))"
+  let prompt = "Extract the items for \(dayRef).\n\nTrip plan:\n\(document)"
   let options = GenerationOptions(maximumResponseTokens: 2000)
   let day = try await session.respond(to: prompt, generating: DayItems.self, options: options).content
 
@@ -167,10 +189,14 @@ private func generateDayJSON(
 struct TripOutline {
   @Guide(description: "A short title for the trip")
   let title: String
-  @Guide(description: "The first calendar date of the trip, formatted YYYY-MM-DD")
+  @Guide(description: "true ONLY if the plan states real calendar dates (a month and day, or a full date); false if it uses only relative days like 'Day 1'/'Day 2' or gives no dates at all")
+  let hasDates: Bool
+  @Guide(description: "When hasDates is true, the trip's first calendar date formatted YYYY-MM-DD; otherwise the empty string. Never invent a date.")
   let startDate: String
-  @Guide(description: "The last calendar date of the trip, inclusive, formatted YYYY-MM-DD")
+  @Guide(description: "When hasDates is true, the trip's last calendar date inclusive, formatted YYYY-MM-DD; otherwise the empty string. Never invent a date.")
   let endDate: String
+  @Guide(description: "How many days the plan spans, at least 1 (a 'Day 1 / Day 2 / Day 3' plan spans 3). Used when hasDates is false.")
+  let dayCount: Int
 }
 
 @available(iOS 26.0, *)
