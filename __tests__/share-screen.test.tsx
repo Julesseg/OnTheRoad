@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { render, act, screen, fireEvent } from '@testing-library/react';
 import type { Item, Trip, TripSummary } from '@/lib/schema';
 import type { ItemEditorProps } from '@/components/item-editor';
 
@@ -163,5 +163,24 @@ describe('ShareEditorScreen', () => {
     act(() => editorProps.current!.onSubmit(item, '2025-06-01'));
     expect(storeMocks.upsertItem).toHaveBeenCalledWith('t2', 'd2-1', item);
     expect(storeMocks.setDisplayedTrip).toHaveBeenCalledWith('t2');
+  });
+
+  describe('when no trips exist', () => {
+    beforeEach(() => {
+      storeMocks.trips = [];
+      storeMocks.loadedTrips = {};
+    });
+
+    it('shows a create-a-trip-first state instead of a trip-less editor', () => {
+      render(<ShareEditorScreen />);
+      expect(editorProps.current).toBeNull();
+      expect(screen.getByText(/create a trip first/i)).toBeInTheDocument();
+    });
+
+    it('routes to New Trip when the offered action is tapped', () => {
+      render(<ShareEditorScreen />);
+      act(() => fireEvent.click(screen.getByRole('button', { name: /new trip/i })));
+      expect(routerMock.replace).toHaveBeenCalledWith('/trip/new');
+    });
   });
 });

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
@@ -15,6 +16,7 @@ import {
   defaultCaptureDate,
 } from '@/lib/share-capture';
 import type { Coords } from '@/lib/coords';
+import { useThemeColors } from '@/constants/theme';
 
 // Noon-anchored so the picker's time component can never shift the calendar day.
 function parseLocalDate(date: string): Date {
@@ -31,6 +33,7 @@ export default function ShareEditorScreen() {
   const { url, text } = useLocalSearchParams<{ url?: string; text?: string }>();
   const { trips, loadedTrips, activeTripId, loadTripById, upsertItem, setDisplayedTrip } =
     useTripStore();
+  const c = useThemeColors();
   const today = todayString();
 
   const payload = useMemo(() => parseShareParams({ url, text }), [url, text]);
@@ -40,7 +43,10 @@ export default function ShareEditorScreen() {
   // resolved over the network before the editor opens, so it mounts with the pin in
   // place; `null` means resolved-to-nothing → the editor opens address-only.
   const hasPin = draft.location?.lat != null && draft.location?.lng != null;
-  const needsResolve = draft.category === 'location' && !!payload.url && !hasPin;
+  // Skip the network lookup entirely when there are no trips — the zero-trips
+  // return below replaces the editor, so any resolved coordinates are discarded.
+  const needsResolve =
+    trips.length > 0 && draft.category === 'location' && !!payload.url && !hasPin;
   const [resolvedCoords, setResolvedCoords] = useState<Coords | null | undefined>(undefined);
   useEffect(() => {
     if (!needsResolve) return;
@@ -95,6 +101,27 @@ export default function ShareEditorScreen() {
     router.replace('/');
   }
 
+  // Zero trips: a shared Item has nowhere to land, so the editor would open empty
+  // and broken. Instead, explain that a trip is needed and route to New Trip. The
+  // capture is not replayed (decision D1) — the user re-shares once a trip exists.
+  if (trips.length === 0) {
+    return (
+      <View style={[styles.empty, { backgroundColor: c.background }]}>
+        <Text style={[styles.emptyTitle, { color: c.text }]}>Create a trip first</Text>
+        <Text style={[styles.emptyHint, { color: c.textSubtle }]}>
+          A shared place or link needs a trip to live on. Create one, then share again.
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.newTripButton}
+          onPress={() => router.replace('/trip/new')}
+        >
+          <Text style={[styles.newTripLabel, { color: c.accent }]}>New Trip</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   // Hold the editor closed until a maps capture's coordinates resolve, so it opens
   // exactly once with its final pin (or address-only) rather than re-seeding mid-edit.
   if (!summary || (needsResolve && resolvedCoords === undefined)) return null;
@@ -113,3 +140,11 @@ export default function ShareEditorScreen() {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  emptyHint: { marginTop: 8, fontSize: 15, textAlign: 'center' },
+  newTripButton: { marginTop: 24, paddingVertical: 12, paddingHorizontal: 24 },
+  newTripLabel: { fontSize: 17, fontWeight: '600' },
+});
