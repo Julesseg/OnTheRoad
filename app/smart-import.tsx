@@ -12,7 +12,7 @@ import {
 import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { GlassView } from 'expo-glass-effect';
 
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
@@ -41,10 +41,6 @@ const NAV_BAR_HEIGHT = 64;
 export default function SmartImportSheet() {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
-  // Liquid Glass is iOS 26+; the available branch only renders there anyway, but
-  // fall back to a solid accent fill if the material isn't present (older OS or
-  // Reduce Transparency).
-  const liquidGlass = isLiquidGlassAvailable();
   const { addTrip, setDisplayedTrip } = useTripStore();
   // Probe once on mount; the result drives both the gate alert and the body copy.
   const [availability] = useState(getSmartImportAvailability);
@@ -157,17 +153,14 @@ export default function SmartImportSheet() {
             style={({ pressed }) => [
               styles.importButton,
               { opacity: busy || text.trim().length === 0 ? 0.5 : pressed ? 0.85 : 1 },
-              !liquidGlass && { backgroundColor: c.accent },
             ]}
           >
-            {liquidGlass ? (
-              <GlassView
-                glassEffectStyle="regular"
-                isInteractive
-                tintColor={c.accent}
-                style={StyleSheet.absoluteFill}
-              />
-            ) : null}
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={c.accent}
+              style={[StyleSheet.absoluteFill, styles.glass]}
+            />
             {busy ? (
               <ActivityIndicator color={c.onAccent} />
             ) : (
@@ -186,8 +179,14 @@ export default function SmartImportSheet() {
           <Pressable
             accessibilityRole="button"
             onPress={copySchemaPrompt}
-            style={[styles.button, { backgroundColor: c.accent }]}
+            style={({ pressed }) => [styles.importButton, { opacity: pressed ? 0.85 : 1 }]}
           >
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={c.accent}
+              style={[StyleSheet.absoluteFill, styles.glass]}
+            />
             <Text style={[styles.buttonLabel, { color: c.onAccent }]}>Copy Schema Prompt</Text>
           </Pressable>
         </View>
@@ -211,19 +210,21 @@ const styles = StyleSheet.create({
   },
   lead: { fontSize: 18, fontWeight: '600', textAlign: 'center' },
   detail: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
-  button: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 8 },
-  // Liquid-glass Import button: sized to its content and centered (the glass
-  // material fills behind via an absolute GlassView, so the capsule must clip).
+  // Liquid-glass Import button: sized to its content and centered. The glass
+  // material fills behind via an absolute GlassView that rounds its own corners
+  // (styles.glass) — clipping it with overflow:'hidden' here would cut off the
+  // glass edge highlights that give Liquid Glass its look.
   importButton: {
     alignSelf: 'center',
     minWidth: 140,
     paddingHorizontal: 32,
     paddingVertical: 13,
-    borderRadius: 24,
     marginTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
+  // Full capsule: a radius >= half the button height rounds the glass completely
+  // so the edge highlights wrap the corners instead of being clipped flat.
+  glass: { borderRadius: 999 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
 });
