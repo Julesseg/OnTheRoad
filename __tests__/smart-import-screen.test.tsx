@@ -30,6 +30,18 @@ vi.mock('react-native', async (importOriginal) => {
 const clipboardMock = vi.hoisted(() => ({ setStringAsync: vi.fn().mockResolvedValue(true) }));
 vi.mock('expo-clipboard', () => clipboardMock);
 
+// The available branch reads the safe-area insets and the Liquid Glass material.
+// safe-area-context ships Flow (`import typeof`) that the test transform can't
+// parse, so stub it; expo-glass-effect resolves under jsdom but reports no glass,
+// exercising the solid-accent fallback (so the GlassView branch stays inert).
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 44, right: 0, bottom: 34, left: 0 }),
+}));
+vi.mock('expo-glass-effect', () => ({
+  isLiquidGlassAvailable: () => false,
+  GlassView: () => null,
+}));
+
 const availabilityMock = vi.hoisted(() => ({
   value: { available: false, reason: 'unsupported' } as
     | { available: true }
