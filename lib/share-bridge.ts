@@ -11,7 +11,7 @@ import { resolveActiveTrip } from './active-trip';
 // shapes — this module is the canonical spec the round-trip tests pin both sides to.
 
 /** App Group container shared between the app and the Share Extension. */
-export const APP_GROUP = 'group.com.anonymous.on-the-road';
+export const APP_GROUP = 'group.com.julesseguin.ontheroad';
 
 /** UserDefaults key the app writes and the extension reads. */
 export const TRIPS_INDEX_KEY = 'tripsIndex';

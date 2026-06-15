@@ -38,7 +38,7 @@ const archived: TripSummary = {
 
 describe('constants', () => {
   it('names the App Group and the shared UserDefaults keys the Swift side reads/writes', () => {
-    expect(APP_GROUP).toBe('group.com.anonymous.on-the-road');
+    expect(APP_GROUP).toBe('group.com.julesseguin.ontheroad');
     expect(TRIPS_INDEX_KEY).toBe('tripsIndex');
     expect(PENDING_CAPTURES_KEY).toBe('pendingCaptures');
   });

@@ -20,6 +20,6 @@ module.exports = {
   // entitlements didn't reach this target); must match app.json's group and the
   // APP_GROUP constant in lib/share-bridge.ts.
   entitlements: {
-    'com.apple.security.application-groups': ['group.com.anonymous.on-the-road'],
+    'com.apple.security.application-groups': ['group.com.julesseguin.ontheroad'],
   },
 };

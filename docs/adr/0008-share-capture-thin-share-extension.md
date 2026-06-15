@@ -34,7 +34,7 @@ The extension **presents its own compose sheet** — a custom SwiftUI UI (a
 principal `UIViewController` hosting it, not `SLComposeServiceViewController`) themed
 to match the app's Ember palette, with a **Trip** menu, a **graphical Day** picker
 bounded to the trip's span, an optional **time** picker, and a note field. It hands
-the capture off through an **App Group** (`group.com.anonymous.on-the-road`) and
+the capture off through an **App Group** (`group.com.julesseguin.ontheroad`) and
 still does **no parsing**:
 
 - The app mirrors a lightweight `tripsIndex` (`{id, title, dates[]}` per trip) into

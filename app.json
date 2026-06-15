@@ -12,7 +12,7 @@
       "bundleIdentifier": "com.julesseguin.ontheroad",
       "entitlements": {
         "com.apple.security.application-groups": [
-          "group.com.anonymous.on-the-road"
+          "group.com.julesseguin.ontheroad"
         ]
       },
       "infoPlist": {

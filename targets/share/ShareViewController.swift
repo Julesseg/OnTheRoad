@@ -20,7 +20,7 @@ import UniformTypeIdentifiers
 // whose canonical spec is lib/share-bridge.ts — `tripsIndex` is written by the app
 // and read here; `pendingCaptures` is appended here and read by the app.
 class ShareViewController: UIViewController {
-  private let appGroup = "group.com.anonymous.on-the-road"
+  private let appGroup = "group.com.julesseguin.ontheroad"
   private let tripsIndexKey = "tripsIndex"
   private let pendingCapturesKey = "pendingCaptures"
 
