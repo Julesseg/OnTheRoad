@@ -11,7 +11,7 @@ export function dayIdForDate(trip: Trip, date: Date): string | null {
 
 /** Enumerate the inclusive YYYY-MM-DD dates from `start` through `end`, parsed
  * as local calendar dates so the sequence never drifts across UTC. */
-function datesInRange(start: string, end: string): string[] {
+export function datesInRange(start: string, end: string): string[] {
   const [sy, sm, sd] = start.split('-').map(Number);
   const [ey, em, ed] = end.split('-').map(Number);
   const current = new Date(sy, sm - 1, sd);

@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { Trip } from './schema';
+import type { PendingCapture } from './share-bridge';
 import {
   parseShareParams,
   classifyShare,
   defaultCaptureDate,
+  processPendingCapture,
   resolveShareCoords,
 } from './share-capture';
 
@@ -308,5 +311,141 @@ describe('defaultCaptureDate', () => {
 
   it("defaults to the trip's first day when the trip is already past", () => {
     expect(defaultCaptureDate(trip, '2026-07-01')).toBe('2026-06-10');
+  });
+});
+
+describe('processPendingCapture', () => {
+  const trip: Trip = {
+    id: 'trip-1',
+    schemaVersion: 3,
+    title: 'Paris',
+    startDate: '2026-09-05',
+    endDate: '2026-09-07',
+    days: [
+      { id: 'day-1', date: '2026-09-05', items: [] },
+      { id: 'day-2', date: '2026-09-06', items: [] },
+      { id: 'day-3', date: '2026-09-07', items: [] },
+    ],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  const base = { tripId: 'trip-1', date: '2026-09-06', capturedAt: '2026-09-01T10:00:00.000Z' };
+  const opts = { makeId: () => 'item-1' };
+
+  it('lands the item on the trip and day the user picked', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res).toEqual({
+      tripId: 'trip-1',
+      dayId: 'day-2',
+      item: expect.objectContaining({ id: 'item-1', name: 'Louvre', category: 'activity' }),
+    });
+  });
+
+  it('keeps the user note above the shared links in notes', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', note: 'buy tickets' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.notes).toBe('buy tickets\n\nhttps://example.com');
+  });
+
+  it('parses inline maps coordinates offline without geocoding', async () => {
+    const geocode = vi.fn();
+    const res = await processPendingCapture(
+      { ...base, url: 'https://maps.apple.com/?ll=48.8584,2.2945', text: 'Eiffel Tower' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      { ...opts, geocode },
+    );
+    expect(res?.item.category).toBe('location');
+    expect(res?.item.location).toMatchObject({ lat: 48.8584, lng: 2.2945 });
+    expect(geocode).not.toHaveBeenCalled();
+  });
+
+  it('geocodes a maps link that carries no inline coordinates', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://maps.apple.com/?q=Eiffel+Tower', text: 'Eiffel Tower' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      {
+        ...opts,
+        fetchImpl: (async () => ({
+          url: 'https://maps.apple.com/?q=Eiffel+Tower',
+          text: async () => '',
+        })) as unknown as typeof fetch,
+        geocode: async () => ({ lat: 1, lng: 2 }),
+      },
+    );
+    expect(res?.item.location).toMatchObject({ lat: 1, lng: 2 });
+  });
+
+  it('uses a confirmed title as the item name over the derived one', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', title: 'Louvre Museum' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.name).toBe('Louvre Museum');
+  });
+
+  it('falls back to the derived name when the title is blank', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', title: '   ' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.name).toBe('Louvre');
+  });
+
+  it('carries a picked HH:mm time onto the item', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', time: '09:15' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.time).toBe('09:15');
+  });
+
+  it('leaves the item untimed when no time was picked', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.time).toBeUndefined();
+  });
+
+  it('classifies link-less text as a note', async () => {
+    const res = await processPendingCapture(
+      { ...base, text: 'Remember sunscreen\nand a hat' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.category).toBe('note');
+    expect(res?.item.name).toBe('Remember sunscreen');
+    expect(res?.item.notes).toBe('and a hat');
+  });
+
+  it('falls back to the default capture day when the picked date is out of range', async () => {
+    const res = await processPendingCapture(
+      { ...base, date: '2030-01-01', url: 'https://x.com', text: 'X' } as PendingCapture,
+      trip,
+      '2026-09-06',
+      opts,
+    );
+    // Today is in range, so the default capture day is today → day-2.
+    expect(res?.dayId).toBe('day-2');
   });
 });

@@ -1,6 +1,8 @@
-import type { ItemCategory, Item } from './schema';
+import type { ItemCategory, Item, Trip } from './schema';
 import { type Coords, parseMapsUrl, resolveMapsUrl } from './coords';
 import { searchPlaces } from './photon';
+import { newId } from './id';
+import type { PendingCapture } from './share-bridge';
 
 /** Hosts whose links are Apple/Google Maps shares (CONTEXT.md → Share Capture). */
 function isMapsLink(url: string): boolean {
@@ -239,4 +241,67 @@ export function defaultCaptureDate(
 ): string {
   if (trip.startDate <= today && today <= trip.endDate) return today;
   return trip.startDate;
+}
+
+/** A capture resolved into a concrete Item ready to drop onto a trip's day. */
+export interface ProcessedCapture {
+  tripId: string;
+  dayId: string;
+  item: Item;
+}
+
+export interface ProcessPendingCaptureOptions extends ResolveShareCoordsOptions {
+  /** Injected so tests can assert a deterministic Item id; defaults to {@link newId}. */
+  makeId?: () => string;
+}
+
+/**
+ * Turn a {@link PendingCapture} the Share Extension queued into a concrete Item on
+ * the picked trip/day, in the background — no editor (ADR-0008). This is the same
+ * pipeline the editor runs, minus the human: {@link classifyShare} for the draft,
+ * then {@link resolveShareCoords} when a Maps Place lacks an inline pin (the editor's
+ * `needsResolve` gate), then the user's note kept above the captured links. The day
+ * is the one the user picked in the extension, falling back to
+ * {@link defaultCaptureDate} if that date no longer falls in the trip (its dates may
+ * have changed since the capture). Returns null only if the trip has no days.
+ */
+export async function processPendingCapture(
+  capture: PendingCapture,
+  trip: Trip,
+  today: string,
+  options: ProcessPendingCaptureOptions = {},
+): Promise<ProcessedCapture | null> {
+  const { makeId = newId, ...resolveOptions } = options;
+
+  const payload: SharePayload = {};
+  if (capture.url) payload.url = capture.url;
+  if (capture.text) payload.text = capture.text;
+
+  const draft = classifyShare(payload);
+
+  let location = draft.location;
+  const hasPin = location?.lat != null;
+  if (draft.category === 'location' && payload.url && !hasPin) {
+    const coords = await resolveShareCoords(payload, resolveOptions);
+    if (coords) location = { ...(location ?? {}), lat: coords.lat, lng: coords.lng };
+  }
+
+  const dayId =
+    trip.days.find((d) => d.date === capture.date)?.id ??
+    trip.days.find((d) => d.date === defaultCaptureDate(trip, today))?.id ??
+    trip.days[0]?.id;
+  if (!dayId) return null;
+
+  const notes = [capture.note?.trim(), draft.notes].filter(Boolean).join('\n\n');
+
+  // The user's confirmed title (prefilled from the shared content) wins over the
+  // name the classifier derived; an empty/absent title leaves the classifier's.
+  const title = capture.title?.trim();
+  const item: Item = { id: makeId(), name: title || draft.name, category: draft.category };
+  if (location && (location.address || location.lat != null)) item.location = location;
+  if (notes) item.notes = notes;
+  // The extension's time picker is optional; carry a well-formed HH:mm through.
+  if (capture.time && /^\d{2}:\d{2}$/.test(capture.time)) item.time = capture.time;
+
+  return { tripId: trip.id, dayId, item };
 }

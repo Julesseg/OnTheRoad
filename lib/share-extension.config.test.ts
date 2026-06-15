@@ -7,6 +7,7 @@ import plist from '@expo/plist';
 import { describe, expect, it } from 'vitest';
 
 import { SHARE_ACTION_TITLE, buildShareExtensionInfoPlist } from './share-extension';
+import { APP_GROUP } from './share-bridge';
 
 // The committed native artifacts under targets/share are what @bacons/apple-targets
 // links into the regenerated Xcode project on `expo prebuild`. These tests pin them
@@ -26,7 +27,18 @@ describe('targets/share/expo-target.config.js', () => {
     const config = createRequire(import.meta.url)('../targets/share/expo-target.config.js');
     expect(config.type).toBe('share');
     expect(config.displayName).toBe(SHARE_ACTION_TITLE);
-    // A native handoff shim, not a React Native extension (ADR-0008).
+    // A native extension, not a React Native one (ADR-0008).
     expect(config.exportJs).toBe(false);
+  });
+});
+
+describe('app.json App Group entitlement', () => {
+  it('declares the App Group the extension hands off through (ADR-0008)', () => {
+    // The extension inherits this group automatically (@bacons/apple-targets syncs
+    // it to the share target on prebuild), so it must live on the main app and match
+    // the constant both the app and the Swift extension use.
+    const appJson = createRequire(import.meta.url)('../app.json');
+    const groups = appJson.expo.ios.entitlements?.['com.apple.security.application-groups'];
+    expect(groups).toContain(APP_GROUP);
   });
 });

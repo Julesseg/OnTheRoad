@@ -15,4 +15,11 @@ module.exports = {
   // Match the app's iOS deployment target (app.json → expo-build-properties).
   deploymentTarget: '26.0',
   exportJs: false,
+  // The App Group the extension hands captures off through (ADR-0008). Declared
+  // explicitly so both targets share it (auto-inheritance from the app's
+  // entitlements didn't reach this target); must match app.json's group and the
+  // APP_GROUP constant in lib/share-bridge.ts.
+  entitlements: {
+    'com.apple.security.application-groups': ['group.com.anonymous.on-the-road'],
+  },
 };

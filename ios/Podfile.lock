@@ -116,6 +116,8 @@ PODS:
     - React-RCTFabric
   - ExpoWebBrowser (56.0.5):
     - ExpoModulesCore
+  - ExtensionStorage (1.0.0):
+    - ExpoModulesCore
   - FBLazyVector (0.85.3)
   - hermes-engine (250829098.0.10):
     - hermes-engine/Pre-built (= 250829098.0.10)
@@ -2295,6 +2297,7 @@ DEPENDENCIES:
   - ExpoSystemUI (from `../node_modules/expo-system-ui/ios`)
   - "ExpoUI (from `../node_modules/@expo/ui/ios`)"
   - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
+  - "ExtensionStorage (from `../node_modules/@bacons/apple-targets/ios`)"
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
@@ -2449,6 +2452,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@expo/ui/ios"
   ExpoWebBrowser:
     :path: "../node_modules/expo-web-browser/ios"
+  ExtensionStorage:
+    :path: "../node_modules/@bacons/apple-targets/ios"
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
   hermes-engine:
@@ -2647,6 +2652,7 @@ SPEC CHECKSUMS:
   ExpoSystemUI: 8f4fb641c6a6ebe2a01dda0fbd3fdd952ab5823a
   ExpoUI: 556eeaf2686e78f690c8a6779e85412171f3bb76
   ExpoWebBrowser: 6e3d90e3fe1952d21a8494872b1e1a485cd50e2f
+  ExtensionStorage: 5796de20bf181317c376d693fedb64c6781a33ba
   FBLazyVector: 24e62c765683b8d89006a88a2c8f5cf019f0074d
   hermes-engine: b41ddb69cc69acf6c84da313b1f72a7faca8b17d
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
@@ -2738,6 +2744,6 @@ SPEC CHECKSUMS:
   SmartImportAvailability: a2c66f35d6e2099f014363e8598bb34f0e1d13f5
   Yoga: 77dfa8673de2874e1855002ae59c68b8be9b007b
 
-PODFILE CHECKSUM: 3f65cd64f8ff3ff48896ddadb686974974aea3e8
+PODFILE CHECKSUM: ee8bce405d7eeefac4f45b4ad7e900a20127c919
 
 COCOAPODS: 1.16.2
