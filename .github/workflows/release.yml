@@ -4,6 +4,13 @@ on:
   pull_request:
     branches:
       - main
+    # Skip building an installable when the PR only touches docs. The run is
+    # skipped only if EVERY changed file matches one of these patterns.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'CONTEXT.md'
+      - 'LICENSE'
 
 # Pages serves a single site, so only one build may be in flight at a time.
 # A new PR run cancels any currently-running one — newest wins.
