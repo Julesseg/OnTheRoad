@@ -4,11 +4,26 @@ on:
   pull_request:
     branches:
       - main
+    # Skip building an installable when the PR only touches docs. The run is
+    # skipped only if EVERY changed file matches one of these patterns.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'CONTEXT.md'
+      - 'LICENSE'
+
+# Pages serves a single site, so only one build may be in flight at a time.
+# A new PR run cancels any currently-running one — newest wins.
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
 
 jobs:
   build:
     name: Build & Publish
     runs-on: self-hosted
+    env:
+      PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
     steps:
       - name: Checkout
@@ -23,8 +38,47 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Clean prebuild (regenerate ios/ from scratch) only when native inputs
+      # changed; otherwise prebuild incrementally so Pods/ and DerivedData
+      # survive. The hash is stored on the persistent runner, outside the
+      # workspace, and only updated after a successful prebuild.
+      - name: Determine prebuild mode
+        id: prebuild_mode
+        run: |
+          HASH_FILE="$HOME/.ontheroad-ci/native-inputs.sha"
+          CURRENT="$(cat app.json package-lock.json | shasum -a 256 | awk '{print $1}')"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$CURRENT" ]; then
+            echo "clean=" >> "$GITHUB_OUTPUT"
+            echo "Native inputs unchanged → incremental prebuild"
+          else
+            echo "clean=--clean" >> "$GITHUB_OUTPUT"
+            echo "Native inputs changed (or first run) → clean prebuild"
+          fi
+
       - name: Expo prebuild
-        run: npx expo prebuild --platform ios --clean
+        run: |
+          npx expo prebuild --platform ios ${{ steps.prebuild_mode.outputs.clean }} --no-install
+          HASH_FILE="$HOME/.ontheroad-ci/native-inputs.sha"
+          mkdir -p "$(dirname "$HASH_FILE")"
+          echo "${{ steps.prebuild_mode.outputs.current }}" > "$HASH_FILE"
+
+      - name: Setup Ruby via Homebrew
+        run: |
+          brew list ruby >/dev/null 2>&1 || brew install ruby
+          echo "$(brew --prefix ruby)/bin" >> $GITHUB_PATH
+
+      - name: Install CocoaPods
+        run: |
+          export GEM_HOME="$HOME/.gem"
+          export PATH="$GEM_HOME/bin:$PATH"
+          echo "GEM_HOME=$HOME/.gem" >> $GITHUB_ENV
+          echo "$HOME/.gem/bin" >> $GITHUB_PATH
+          gem list -i cocoapods >/dev/null 2>&1 || gem install cocoapods --no-document
+
+      - name: Pod install
+        run: pod install
+        working-directory: ios
 
       - name: Install provisioning profile
         env:
@@ -33,6 +87,15 @@ jobs:
           PP_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/ontheroad_adhoc.mobileprovision"
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           echo "$APPLE_PROVISIONING_PROFILE" | base64 --decode -o "$PP_PATH"
+
+      - name: Unlock keychain
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
+          security set-keychain-settings -t 3600 "$HOME/Library/Keychains/login.keychain-db"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -k "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
 
       - name: Archive
         env:
@@ -43,21 +106,20 @@ jobs:
             -scheme ontheroad \
             -configuration Release \
             -archivePath /tmp/ontheroad.xcarchive \
+            -derivedDataPath "$HOME/Library/Developer/Xcode/DerivedData/ontheroad-runner" \
             CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
             CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE_SPECIFIER="OnTheRoad Ad Hoc" \
-            | xcpretty
+            PROVISIONING_PROFILE_SPECIFIER="OnTheRoad Ad Hoc"
 
       - name: Export .ipa
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          sed "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" ios/ExportOptions.plist > /tmp/ExportOptions.plist
+          sed "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" ci/ExportOptions.plist > /tmp/ExportOptions.plist
           xcodebuild -exportArchive \
             -archivePath /tmp/ontheroad.xcarchive \
             -exportOptionsPlist /tmp/ExportOptions.plist \
-            -exportPath /tmp/ipa \
-            | xcpretty
+            -exportPath /tmp/ipa
 
       - name: Prepare GitHub Pages output
         run: |
