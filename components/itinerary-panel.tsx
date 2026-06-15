@@ -37,6 +37,7 @@ import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
+import { itemIdentity } from '@/lib/item-identity';
 import { checklistProgress } from '@/lib/checklist';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
@@ -142,6 +143,7 @@ export function ItineraryPanel({
     { isNextUp, isToday }: { isNextUp: boolean; isToday: boolean },
   ) {
     const { typeLabel, title, lines } = formatItem(item);
+    const identity = itemIdentity(item.category);
     const edit = () => openItemEditor(dayId, item.id);
     const remove = () => confirmDelete(dayId, item);
     const mapsTarget = mapsTargetForItem(item);
@@ -197,9 +199,12 @@ export function ItineraryPanel({
         <HStack alignment="top" spacing={8} modifiers={[onTapGesture(edit)]}>
           <VStack alignment="leading" spacing={2}>
             <HStack spacing={8}>
-              <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
-                {typeLabel.toUpperCase()}
-              </Text>
+              <HStack spacing={4}>
+                <Image systemName={identity.symbol} color={WHITE} size={12} />
+                <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(WHITE)]}>
+                  {typeLabel.toUpperCase()}
+                </Text>
+              </HStack>
               {progress(WHITE)}
             </HStack>
             <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(WHITE)]}>
@@ -233,9 +238,12 @@ export function ItineraryPanel({
       >
         <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
           <HStack spacing={8}>
-            <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
-              {typeLabel.toUpperCase()}
-            </Text>
+            <HStack spacing={4}>
+              <Image systemName={identity.symbol} color={identity.accent} size={12} />
+              <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+                {typeLabel.toUpperCase()}
+              </Text>
+            </HStack>
             {progress(subtext)}
           </HStack>
           <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
