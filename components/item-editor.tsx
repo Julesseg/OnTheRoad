@@ -40,6 +40,8 @@ import {
   contentTransition,
   animation,
   Animation,
+  submitLabel,
+  onSubmit as onSubmitModifier,
 } from '@expo/ui/swift-ui/modifiers';
 
 import {
@@ -186,16 +188,24 @@ function TimeRow({
 // checkmark); everything commits on Save like the rest of the form. Removal is
 // the system swipe-to-delete and reorder the system long-press drag — both
 // wired on the surrounding List.ForEach, not here.
+//
+// `autoFocus` is set only on a freshly added entry so the keyboard opens on it;
+// pressing Return (labeled "next") calls `onSubmit` to add the following entry,
+// keeping focus moving down the list so you can type entries back to back.
 function ChecklistEntryRow({
   entry,
   position,
+  autoFocus,
   onRename,
   onToggle,
+  onSubmit,
 }: {
   entry: ChecklistItem;
   position: number;
+  autoFocus: boolean;
   onRename: (label: string) => void;
   onToggle: () => void;
+  onSubmit: () => void;
 }) {
   const { accent, textSubtle } = useThemeColors();
   const labelState = useNativeState(entry.label);
@@ -212,7 +222,13 @@ function ChecklistEntryRow({
           onTapGesture(onToggle),
         ]}
       />
-      <TextField text={labelState} placeholder="Checklist entry" onTextChange={onRename} />
+      <TextField
+        text={labelState}
+        placeholder="Checklist entry"
+        autoFocus={autoFocus}
+        onTextChange={onRename}
+        modifiers={[submitLabel('next'), onSubmitModifier(onSubmit)]}
+      />
     </HStack>
   );
 }
@@ -284,7 +300,17 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   }
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
+  // Id of the entry to focus next. Set when an entry is added (via the button
+  // or Return) so that row mounts focused and the keyboard opens; existing
+  // entries start unfocused (null) so opening an item never grabs the keyboard.
+  const [focusId, setFocusId] = useState<string | null>(null);
   const identity = itemIdentity(category);
+
+  function addEntry() {
+    const id = newId();
+    setChecklist((cl) => [...cl, { id, label: '', checked: false }]);
+    setFocusId(id);
+  }
 
   const nameState = useNativeState(defaults.name);
   const notesState = useNativeState(defaults.notes);
@@ -464,6 +490,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                   key={entry.id}
                   entry={entry}
                   position={i + 1}
+                  autoFocus={entry.id === focusId}
                   onRename={(label) =>
                     setChecklist((cl) => cl.map((e) => (e.id === entry.id ? { ...e, label } : e)))
                   }
@@ -472,16 +499,11 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                       cl.map((e) => (e.id === entry.id ? { ...e, checked: !e.checked } : e)),
                     )
                   }
+                  onSubmit={addEntry}
                 />
               ))}
             </List.ForEach>
-            <Button
-              label="Add entry"
-              systemImage="plus"
-              onPress={() =>
-                setChecklist((cl) => [...cl, { id: newId(), label: '', checked: false }])
-              }
-            />
+            <Button label="Add entry" systemImage="plus" onPress={addEntry} />
           </Section>
 
           {initialItem && onDelete ? (
