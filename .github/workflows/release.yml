@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+# Pages serves a single site, so only one build may be in flight at a time.
+# A new PR run cancels any currently-running one — newest wins.
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build & Publish
