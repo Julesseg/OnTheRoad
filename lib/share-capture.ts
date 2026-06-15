@@ -1,6 +1,8 @@
-import type { ItemCategory, Item } from './schema';
-import { type Coords, parseMapsUrl, resolveMapsUrl } from './coords';
+import type { ItemCategory, Item, Trip } from './schema';
+import { type Coords, fetchMapsTarget, parseMapsQuery, parseMapsUrl, unwrapConsentUrl } from './coords';
 import { searchPlaces } from './photon';
+import { newId } from './id';
+import type { PendingCapture } from './share-bridge';
 
 /** Hosts whose links are Apple/Google Maps shares (CONTEXT.md → Share Capture). */
 function isMapsLink(url: string): boolean {
@@ -201,31 +203,111 @@ export interface ResolveShareCoordsOptions {
   geocode?: (query: string) => Promise<Coords | null>;
 }
 
+/** Resolved coordinates, plus the human-readable place name they were resolved from. */
+export interface ResolvedShareLocation extends Coords {
+  /** The maps URL's place name/address, carried back to show in place of bare coords. */
+  address?: string;
+}
+
+/** Attach a parsed place name to coordinates as their display address, if there is one. */
+function withAddress(coords: Coords, name: string | null): ResolvedShareLocation {
+  return name ? { ...coords, address: name } : coords;
+}
+
 /**
  * Resolve a Maps capture's coordinates over the network, in ADR-0007's layers:
  * parse the URL (layer 1, offline), else follow a short link's redirect and parse
- * the resolved URL (layer 2), else geocode the shared name/address through Photon
- * (layer 3). Returns null when every layer fails (offline, unparseable) so the
- * caller keeps the address-only Place — a capture is never lost. Returns null for
- * any payload that isn't a Maps link.
+ * coordinates from the resolved URL/body (layer 2), else geocode a place query
+ * through Photon (layer 3). Returns null when every layer fails (offline,
+ * unparseable) so the caller keeps the address-only Place — a capture is never lost.
+ * Returns null for any payload that isn't a Maps link.
+ *
+ * The Maps link is the payload's primary URL — the same one {@link classifyShare}
+ * classifies from — which may be embedded in `text` rather than the `url` param
+ * (Google Maps on iOS shares as plain text only), so we resolve from there too.
+ *
+ * Layer 3's query prefers the address Google's short link resolved to (its target is
+ * a `?q=<address>` URL with no coordinates) over the shared text, which is often
+ * absent on a Google Maps share; either is far better than geocoding nothing. That
+ * resolved place name also rides back as the pin's display `address` (item-editor
+ * shows it in place of bare coordinates), since the bare share carried no other label.
  */
 export async function resolveShareCoords(
   payload: SharePayload,
   options: ResolveShareCoordsOptions = {},
-): Promise<Coords | null> {
+): Promise<ResolvedShareLocation | null> {
   const { fetchImpl = globalThis.fetch, geocode = photonGeocode } = options;
-  if (!payload.url || !isMapsLink(payload.url)) return null;
+  const [primary] = collectUrls(payload);
+  if (!primary || !isMapsLink(primary)) return null;
 
-  const fromUrl = await resolveMapsUrl(payload.url, fetchImpl);
-  if (fromUrl) return fromUrl;
+  // Layer 1: offline parse.
+  const direct = parseMapsUrl(primary);
+  if (direct) return withAddress(direct, parseMapsQuery(primary));
 
-  const query = payload.text?.trim();
+  // Layer 2: follow the short-link redirect, parse coordinates from the resolved target.
+  // Step past the EU consent interstitial (consent.google.com?continue=…) first.
+  const resolved = await fetchMapsTarget(primary, fetchImpl);
+  const resolvedUrl = resolved ? unwrapConsentUrl(resolved.url) : null;
+  // The best human-readable place text in view: the resolved URL's query, else the primary's.
+  const placeName = (resolvedUrl && parseMapsQuery(resolvedUrl)) || parseMapsQuery(primary);
+
+  const fromRedirect = resolved && (parseMapsUrl(resolvedUrl!) ?? parseMapsUrl(resolved.body));
+  if (fromRedirect) return withAddress(fromRedirect, placeName);
+
+  // Layer 3: geocode the resolved place/address, else the shared text. Never the link
+  // itself (descriptiveText strips it), which would poison the query.
+  const query = placeName || descriptiveText(payload.text)?.trim();
   if (!query) return null;
   try {
-    return await geocode(query);
+    const coords = await geocode(query);
+    return coords ? withAddress(coords, placeName) : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * The leading segment of a resolved place query — the place name before its street
+ * and city detail (e.g. "Musée de Montmartre, 12 Rue Cortot, 75018 Paris" →
+ * "Musée de Montmartre"), so it reads as a title rather than a full address.
+ */
+function placeNameFromAddress(address: string): string {
+  return address.split(',')[0].trim() || address;
+}
+
+/**
+ * The Item name for a resolved share. Normally the classifier's name (or the user's
+ * confirmed title), but a bare Maps share carries no label, so that name fell back to
+ * the link's host ("maps.app.goo.gl"); once resolution recovered a real place name we
+ * use its leading segment instead. A name that came from shared text or a typed title
+ * is never a bare host, so it is left untouched.
+ */
+export function resolveShareName(
+  name: string,
+  payload: SharePayload,
+  resolvedAddress: string | undefined,
+): string {
+  if (!resolvedAddress) return name;
+  const [primary] = collectUrls(payload);
+  return primary && name === urlHost(primary) ? placeNameFromAddress(resolvedAddress) : name;
+}
+
+/**
+ * Merge resolved coordinates (and their fallback display address) into a draft
+ * location, keeping any address the draft already carried — a share that brought its
+ * own address line beats the place name we reconstructed from the link.
+ */
+export function applyResolvedLocation(
+  location: Item['location'] | undefined,
+  resolved: ResolvedShareLocation,
+): NonNullable<Item['location']> {
+  const merged: NonNullable<Item['location']> = {
+    ...(location ?? {}),
+    lat: resolved.lat,
+    lng: resolved.lng,
+  };
+  if (!merged.address && resolved.address) merged.address = resolved.address;
+  return merged;
 }
 
 /**
@@ -239,4 +321,76 @@ export function defaultCaptureDate(
 ): string {
   if (trip.startDate <= today && today <= trip.endDate) return today;
   return trip.startDate;
+}
+
+/** A capture resolved into a concrete Item ready to drop onto a trip's day. */
+export interface ProcessedCapture {
+  tripId: string;
+  dayId: string;
+  item: Item;
+}
+
+export interface ProcessPendingCaptureOptions extends ResolveShareCoordsOptions {
+  /** Injected so tests can assert a deterministic Item id; defaults to {@link newId}. */
+  makeId?: () => string;
+}
+
+/**
+ * Turn a {@link PendingCapture} the Share Extension queued into a concrete Item on
+ * the picked trip/day, in the background — no editor (ADR-0008). This is the same
+ * pipeline the editor runs, minus the human: {@link classifyShare} for the draft,
+ * then {@link resolveShareCoords} when a Maps Place lacks an inline pin (the editor's
+ * `needsResolve` gate), then the user's note kept above the captured links. The day
+ * is the one the user picked in the extension, falling back to
+ * {@link defaultCaptureDate} if that date no longer falls in the trip (its dates may
+ * have changed since the capture). Returns null only if the trip has no days.
+ */
+export async function processPendingCapture(
+  capture: PendingCapture,
+  trip: Trip,
+  today: string,
+  options: ProcessPendingCaptureOptions = {},
+): Promise<ProcessedCapture | null> {
+  const { makeId = newId, ...resolveOptions } = options;
+
+  const payload: SharePayload = {};
+  if (capture.url) payload.url = capture.url;
+  if (capture.text) payload.text = capture.text;
+
+  const draft = classifyShare(payload);
+
+  let location = draft.location;
+  let resolvedAddress: string | undefined;
+  const hasPin = location?.lat != null;
+  // A `location` draft always came from a Maps link (the only thing classifyShare
+  // turns into one), so a missing pin always warrants resolution — whether the link
+  // rode in via `url` or embedded in `text` (Google Maps shares as text only).
+  if (draft.category === 'location' && !hasPin) {
+    const resolved = await resolveShareCoords(payload, resolveOptions);
+    if (resolved) {
+      location = applyResolvedLocation(location, resolved);
+      resolvedAddress = resolved.address;
+    }
+  }
+
+  const dayId =
+    trip.days.find((d) => d.date === capture.date)?.id ??
+    trip.days.find((d) => d.date === defaultCaptureDate(trip, today))?.id ??
+    trip.days[0]?.id;
+  if (!dayId) return null;
+
+  const notes = [capture.note?.trim(), draft.notes].filter(Boolean).join('\n\n');
+
+  // The user's confirmed title (prefilled from the shared content) wins over the
+  // name the classifier derived; an empty/absent title leaves the classifier's. Either
+  // way, a name that's only the link host is upgraded to the resolved place name.
+  const title = capture.title?.trim();
+  const name = resolveShareName(title || draft.name, payload, resolvedAddress);
+  const item: Item = { id: makeId(), name, category: draft.category };
+  if (location && (location.address || location.lat != null)) item.location = location;
+  if (notes) item.notes = notes;
+  // The extension's time picker is optional; carry a well-formed HH:mm through.
+  if (capture.time && /^\d{2}:\d{2}$/.test(capture.time)) item.time = capture.time;
+
+  return { tripId: trip.id, dayId, item };
 }

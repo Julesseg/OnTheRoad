@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { Trip } from './schema';
+import type { PendingCapture } from './share-bridge';
 import {
   parseShareParams,
   classifyShare,
   defaultCaptureDate,
+  processPendingCapture,
   resolveShareCoords,
 } from './share-capture';
 
@@ -249,6 +252,44 @@ describe('resolveShareCoords — network layers (ADR-0007)', () => {
     expect(geocode).toHaveBeenCalledWith('Pike Place Market\nSeattle');
   });
 
+  // The real Google Maps share: a goo.gl link that resolves to `?q=<address>` with no
+  // coordinates anywhere, and (often) no shared text — so layer 3 geocodes the address
+  // lifted from the resolved URL, not the (absent) shared text.
+  it('geocodes the address from the resolved URL when it carries no coordinates or text', async () => {
+    const resolvedUrl =
+      'https://www.google.com/maps?q=Mus%C3%A9e+de+Montmartre,+12+Rue+Cortot,+75018+Paris&ftid=0x47e6';
+    const fetchImpl = vi.fn().mockResolvedValue({ url: resolvedUrl, text: async () => '' });
+    const geocode = vi.fn().mockResolvedValue({ lat: 48.8867, lng: 2.3408 });
+
+    const coords = await resolveShareCoords({ url: SHORT }, { fetchImpl, geocode });
+
+    // The resolved place name rides back as a display address alongside the pin.
+    expect(coords).toEqual({
+      lat: 48.8867,
+      lng: 2.3408,
+      address: 'Musée de Montmartre, 12 Rue Cortot, 75018 Paris',
+    });
+    expect(geocode).toHaveBeenCalledWith('Musée de Montmartre, 12 Rue Cortot, 75018 Paris');
+  });
+
+  // The EU path: the short link redirects to Google's consent interstitial, which wraps
+  // the real `?q=<address>` maps URL in its `continue=` param. Mirrors a real device log.
+  it('geocodes the address wrapped in a Google consent interstitial', async () => {
+    const consentUrl =
+      'https://consent.google.com/ml?continue=https://maps.google.com/maps?q%3DMus%25C3%25A9e%2Bde%2BMontmartre,%2B12%2BRue%2BCortot,%2B75018%2BParis%26ftid%3D0x47e6&gl=FR&hl=fr';
+    const fetchImpl = vi.fn().mockResolvedValue({ url: consentUrl, text: async () => '' });
+    const geocode = vi.fn().mockResolvedValue({ lat: 48.8867, lng: 2.3408 });
+
+    const coords = await resolveShareCoords({ url: SHORT }, { fetchImpl, geocode });
+
+    expect(coords).toEqual({
+      lat: 48.8867,
+      lng: 2.3408,
+      address: 'Musée de Montmartre, 12 Rue Cortot, 75018 Paris',
+    });
+    expect(geocode).toHaveBeenCalledWith('Musée de Montmartre, 12 Rue Cortot, 75018 Paris');
+  });
+
   it('returns null when every layer fails (offline), never throwing', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('offline'));
     const geocode = vi.fn().mockRejectedValue(new Error('offline'));
@@ -288,6 +329,37 @@ describe('resolveShareCoords — network layers (ADR-0007)', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(geocode).not.toHaveBeenCalled();
   });
+
+  // Google Maps on iOS shares as plain text only (`Place\nhttps://maps.app.goo.gl/…`)
+  // — no separate URL item — so the maps link arrives embedded in `text`, not `url`.
+  it('follows a short link embedded in the shared text (Google Maps share)', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ url: RESOLVED, text: async () => '' });
+    const geocode = vi.fn();
+
+    const coords = await resolveShareCoords(
+      { text: `Eiffel Tower\n${SHORT}` },
+      { fetchImpl, geocode },
+    );
+
+    expect(coords).toEqual({ lat: 48.8584, lng: 2.2945 });
+    expect(geocode).not.toHaveBeenCalled();
+  });
+
+  it('geocodes the place name (URL stripped) when a text-embedded link yields no coordinates', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue({ url: 'https://www.google.com/maps/place/Nowhere', text: async () => '' });
+    const geocode = vi.fn().mockResolvedValue({ lat: 47.6, lng: -122.3 });
+
+    const coords = await resolveShareCoords(
+      { text: `Pike Place Market\nSeattle\n${SHORT}` },
+      { fetchImpl, geocode },
+    );
+
+    expect(coords).toEqual({ lat: 47.6, lng: -122.3 });
+    // The query is the descriptive text only — the link must not leak into the geocode.
+    expect(geocode).toHaveBeenCalledWith('Pike Place Market\nSeattle');
+  });
 });
 
 describe('defaultCaptureDate', () => {
@@ -308,5 +380,238 @@ describe('defaultCaptureDate', () => {
 
   it("defaults to the trip's first day when the trip is already past", () => {
     expect(defaultCaptureDate(trip, '2026-07-01')).toBe('2026-06-10');
+  });
+});
+
+describe('processPendingCapture', () => {
+  const trip: Trip = {
+    id: 'trip-1',
+    schemaVersion: 3,
+    title: 'Paris',
+    startDate: '2026-09-05',
+    endDate: '2026-09-07',
+    days: [
+      { id: 'day-1', date: '2026-09-05', items: [] },
+      { id: 'day-2', date: '2026-09-06', items: [] },
+      { id: 'day-3', date: '2026-09-07', items: [] },
+    ],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  const base = { tripId: 'trip-1', date: '2026-09-06', capturedAt: '2026-09-01T10:00:00.000Z' };
+  const opts = { makeId: () => 'item-1' };
+
+  it('lands the item on the trip and day the user picked', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res).toEqual({
+      tripId: 'trip-1',
+      dayId: 'day-2',
+      item: expect.objectContaining({ id: 'item-1', name: 'Louvre', category: 'activity' }),
+    });
+  });
+
+  it('keeps the user note above the shared links in notes', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', note: 'buy tickets' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.notes).toBe('buy tickets\n\nhttps://example.com');
+  });
+
+  it('parses inline maps coordinates offline without geocoding', async () => {
+    const geocode = vi.fn();
+    const res = await processPendingCapture(
+      { ...base, url: 'https://maps.apple.com/?ll=48.8584,2.2945', text: 'Eiffel Tower' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      { ...opts, geocode },
+    );
+    expect(res?.item.category).toBe('location');
+    expect(res?.item.location).toMatchObject({ lat: 48.8584, lng: 2.2945 });
+    expect(geocode).not.toHaveBeenCalled();
+  });
+
+  it('geocodes a maps link that carries no inline coordinates', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://maps.apple.com/?q=Eiffel+Tower', text: 'Eiffel Tower' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      {
+        ...opts,
+        fetchImpl: (async () => ({
+          url: 'https://maps.apple.com/?q=Eiffel+Tower',
+          text: async () => '',
+        })) as unknown as typeof fetch,
+        geocode: async () => ({ lat: 1, lng: 2 }),
+      },
+    );
+    expect(res?.item.location).toMatchObject({ lat: 1, lng: 2 });
+  });
+
+  it('resolves coordinates for a Google Maps share whose link is embedded in text only', async () => {
+    const res = await processPendingCapture(
+      { ...base, text: 'Eiffel Tower\nhttps://maps.app.goo.gl/abcDEF123' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      {
+        ...opts,
+        fetchImpl: (async () => ({
+          url: 'https://www.google.com/maps/place/Eiffel+Tower/@48.8584,2.2945,17z',
+          text: async () => '',
+        })) as unknown as typeof fetch,
+        geocode: async () => null,
+      },
+    );
+    expect(res?.item.category).toBe('location');
+    expect(res?.item.location).toMatchObject({ lat: 48.8584, lng: 2.2945 });
+  });
+
+  it('fills a display address from the resolved place name (Google Maps share)', async () => {
+    const consentUrl =
+      'https://consent.google.com/ml?continue=https://maps.google.com/maps?q%3DMus%25C3%25A9e%2Bde%2BMontmartre,%2B12%2BRue%2BCortot,%2B75018%2BParis%26ftid%3D0x47e6&gl=FR&hl=fr';
+    const res = await processPendingCapture(
+      { ...base, url: 'https://maps.app.goo.gl/abcDEF123' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      {
+        ...opts,
+        fetchImpl: (async () => ({ url: consentUrl, text: async () => '' })) as unknown as typeof fetch,
+        geocode: async () => ({ lat: 48.8867, lng: 2.3408 }),
+      },
+    );
+    expect(res?.item.location).toEqual({
+      lat: 48.8867,
+      lng: 2.3408,
+      address: 'Musée de Montmartre, 12 Rue Cortot, 75018 Paris',
+    });
+  });
+
+  it('names a bare Google Maps share from the resolved place, not the link host', async () => {
+    const consentUrl =
+      'https://consent.google.com/ml?continue=https://maps.google.com/maps?q%3DMus%25C3%25A9e%2Bde%2BMontmartre,%2B12%2BRue%2BCortot,%2B75018%2BParis%26ftid%3D0x47e6&gl=FR&hl=fr';
+    const res = await processPendingCapture(
+      // The extension prefills the title with the link host when the share has no text.
+      { ...base, url: 'https://maps.app.goo.gl/abcDEF123', title: 'maps.app.goo.gl' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      {
+        ...opts,
+        fetchImpl: (async () => ({ url: consentUrl, text: async () => '' })) as unknown as typeof fetch,
+        geocode: async () => ({ lat: 48.8867, lng: 2.3408 }),
+      },
+    );
+    // The leading segment of the resolved address, not the full street/city detail.
+    expect(res?.item.name).toBe('Musée de Montmartre');
+  });
+
+  it('keeps a real confirmed title over the resolved place name', async () => {
+    const consentUrl =
+      'https://consent.google.com/ml?continue=https://maps.google.com/maps?q%3DMus%25C3%25A9e%2Bde%2BMontmartre%26ftid%3D0x47e6&gl=FR';
+    const res = await processPendingCapture(
+      { ...base, url: 'https://maps.app.goo.gl/abcDEF123', title: 'Lunch spot' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      {
+        ...opts,
+        fetchImpl: (async () => ({ url: consentUrl, text: async () => '' })) as unknown as typeof fetch,
+        geocode: async () => ({ lat: 48.8867, lng: 2.3408 }),
+      },
+    );
+    expect(res?.item.name).toBe('Lunch spot');
+  });
+
+  it('keeps an address the share already carried over the resolved place name', async () => {
+    const res = await processPendingCapture(
+      {
+        ...base,
+        url: 'https://maps.apple.com/?q=Eiffel+Tower',
+        text: 'Eiffel Tower\n5 Avenue Anatole France',
+      } as PendingCapture,
+      trip,
+      '2026-09-05',
+      {
+        ...opts,
+        fetchImpl: (async () => ({
+          url: 'https://maps.apple.com/?q=Eiffel+Tower',
+          text: async () => '',
+        })) as unknown as typeof fetch,
+        geocode: async () => ({ lat: 48.8584, lng: 2.2945 }),
+      },
+    );
+    expect(res?.item.location).toEqual({
+      address: '5 Avenue Anatole France',
+      lat: 48.8584,
+      lng: 2.2945,
+    });
+  });
+
+  it('uses a confirmed title as the item name over the derived one', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', title: 'Louvre Museum' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.name).toBe('Louvre Museum');
+  });
+
+  it('falls back to the derived name when the title is blank', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', title: '   ' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.name).toBe('Louvre');
+  });
+
+  it('carries a picked HH:mm time onto the item', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre', time: '09:15' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.time).toBe('09:15');
+  });
+
+  it('leaves the item untimed when no time was picked', async () => {
+    const res = await processPendingCapture(
+      { ...base, url: 'https://example.com', text: 'Louvre' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.time).toBeUndefined();
+  });
+
+  it('classifies link-less text as a note', async () => {
+    const res = await processPendingCapture(
+      { ...base, text: 'Remember sunscreen\nand a hat' } as PendingCapture,
+      trip,
+      '2026-09-05',
+      opts,
+    );
+    expect(res?.item.category).toBe('note');
+    expect(res?.item.name).toBe('Remember sunscreen');
+    expect(res?.item.notes).toBe('and a hat');
+  });
+
+  it('falls back to the default capture day when the picked date is out of range', async () => {
+    const res = await processPendingCapture(
+      { ...base, date: '2030-01-01', url: 'https://x.com', text: 'X' } as PendingCapture,
+      trip,
+      '2026-09-06',
+      opts,
+    );
+    // Today is in range, so the default capture day is today → day-2.
+    expect(res?.dayId).toBe('day-2');
   });
 });

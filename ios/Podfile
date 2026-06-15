@@ -62,5 +62,29 @@ target 'ontheroad' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # withExtensionDeploymentTarget: bump pods below 16.4
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current && current.to_f < 16.4
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.4'
+        end
+      end
+    end
+  end
+end
+
+
+# apple-targets-extension-loader -- Dynamic loading of target configurations
+Dir.glob(File.join(__dir__, '..', 'targets', '**', 'pods.rb')).each do |target_file|
+  target_name = File.basename(File.dirname(target_file))
+  target target_name do
+    # Create a new binding with access to necessary methods and variables
+    target_binding = binding
+    target_binding.local_variable_set(:podfile_properties, podfile_properties)
+
+    # Evaluate the target file content in the new binding
+    eval(File.read(target_file), target_binding, target_file)
   end
 end

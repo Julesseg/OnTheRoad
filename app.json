@@ -10,6 +10,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.julesseguin.ontheroad",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.julesseguin.ontheroad"
+        ]
+      },
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
@@ -64,7 +69,9 @@
       "expo-maps",
       "expo-status-bar",
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@bacons/apple-targets",
+      "./plugins/withExtensionDeploymentTarget"
     ],
     "experiments": {
       "typedRoutes": true,

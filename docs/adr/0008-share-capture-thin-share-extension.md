@@ -1,4 +1,4 @@
-# Share Capture is a system Share Extension that hands its payload to the main app
+# Share Capture is a system Share Extension that captures in-sheet and hands off via an App Group
 
 ## Status
 
@@ -6,41 +6,69 @@ accepted — governs [Share Capture](../../CONTEXT.md#share-capture); complement
 [ADR-0007](0007-share-capture-network-coordinate-resolution.md), which covers
 only coordinate resolution within this feature.
 
+Supersedes the original "thin shim opens the app via a deep link" decision, which
+on-device testing (iOS 26.5) proved impossible — see Context.
+
 ## Context
 
 Share Capture must appear in the iOS **system share sheet** (Google Maps, Apple
 Maps, Safari), which is only possible with a native **Share Extension** target —
-a separate process that cannot see the main app's document directory. Two shapes
-were genuinely on the table:
+a separate process that cannot see the main app's document directory.
 
-- A **thin native extension** that captures the shared URL/text and hands it to
-  the main app, which does all the work.
-- An **RN-in-extension** (e.g. `expo-share-extension`) that renders its own
-  mini-editor, parses, geocodes, and writes Items straight into App-Group-shared
-  trip storage — never leaving the sheet.
+The original design was a **thin native shim**: capture the URL/text, encode an
+`ontheroad://share?…` deep link, **open the host app**, and dismiss. This does not
+work on modern iOS: a Share extension cannot open its containing app. The
+responder-chain `openURL:` hack was removed for app extensions in iOS 18+, and
+`NSExtensionContext.open` is restricted to Today/iMessage extensions (returns
+`false` for Share extensions). There is no API to open the host app from a Share
+extension. Confirmed on device and simulator: the extension activated and captured
+correctly, but the hand-off never brought the app forward.
+
+The remaining options were the standard ones every share-capable app uses: render
+the capture UI **inside the extension** (Things, Bear, Pinterest) and hand data
+off through a **shared App Group container**, never opening the app.
 
 ## Decision
 
-The extension is a **thin native shim**. It captures the shared URL and/or text,
-encodes it into an `ontheroad://share?…` deep link, opens the main app, and
-dismisses. All classification, network coordinate resolution, trip/day
-resolution, the [Share editor](../../CONTEXT.md#share-editor), and persistence
-live in the main app's TypeScript, reusing the existing item editor, Photon,
-maps, and store code. There is **no App-Group trip storage**; the extension
-never touches trip files.
+The extension **presents its own compose sheet** — a custom SwiftUI UI (a
+principal `UIViewController` hosting it, not `SLComposeServiceViewController`) themed
+to match the app's Ember palette, with a **Trip** menu, a **graphical Day** picker
+bounded to the trip's span, an optional **time** picker, and a note field. It hands
+the capture off through an **App Group** (`group.com.julesseguin.ontheroad`) and
+still does **no parsing**:
+
+- The app mirrors a lightweight `tripsIndex` (`{id, title, dates[]}` per trip) into
+  the App Group on every state change, so the extension's pickers are current.
+- On Add, the extension appends a `PendingCapture` (`{url?, text?, title?, note?,
+  tripId, date, time?, capturedAt}`) to a `pendingCaptures` queue in the App Group
+  `UserDefaults` suite, then dismisses. No editor, no app launch.
+- The app **drains the queue in the background** on launch and on every return to
+  the foreground (`lib/use-share-intake.ts`), running the existing pipeline —
+  `classifyShare` → `resolveShareCoords` → `upsertItem` — with no editor shown,
+  so several items shared before the app is opened all land.
+
+The wire contract (App Group keys + JSON shapes) is specified once in
+`lib/share-bridge.ts` and mirrored by `targets/share/ShareViewController.swift`; a
+round-trip test pins the two sides together. The `ontheroad://share` deep-link
+route and the [Share editor](../../CONTEXT.md#share-editor) remain for any external
+caller, but are no longer how the extension hands off.
 
 ## Consequences
 
-- One implementation of parsing/geocoding/storage (TS), not a duplicated
-  Swift/RN copy running in a second process. The extension stays small and
-  rarely changes.
-- Trip files stay single-process — no App Group, and no cross-process writes
-  racing the atomic-write guarantee in `lib/storage.ts`.
-- The cost is a visible hop: the share sheet dismisses and the app comes to the
-  foreground (cold-starting if it was closed) before the user confirms.
-  Accepted, because it lands the user on a screen where they can pick the
-  destination day — which the in-sheet model can't do as naturally. iOS does not
-  return to the source app afterwards.
-- Reversing to an in-sheet RN extension later means adding an App Group, shared
-  trip storage, and a second entry point into the store — meaningful work,
-  recorded so the thin-shim choice isn't mistaken for an oversight.
+- Classification/geocoding/persistence stay in one place (TS); the extension only
+  collects input and queues it. **Trip files stay single-process** — the extension
+  never writes them, so the atomic-write guarantee in `lib/storage.ts` is untouched.
+  Only the `tripsIndex` (app→extension) and `pendingCaptures` (extension→app) cross
+  the App Group boundary.
+- **Capture is deferred, not instant.** Tapping the action saves the item; it
+  appears the next time the app is opened, with no editor. This is inherent to the
+  platform constraint — a Share extension cannot route the user into the app.
+- The extension picks **trip + day** in-sheet; day defaults via the same
+  `defaultCaptureDate` rule as the editor. Coordinate resolution runs in the app on
+  ingest, so a network failure degrades to an address-only Place (as in the editor).
+- New surfaces to maintain: the App Group entitlement on both targets (auto-synced
+  by `@bacons/apple-targets`), the `share-bridge` contract, and the native compose
+  UI. Recorded so the in-sheet choice isn't mistaken for scope creep — it is the
+  only design that works on iOS 18+.
+- Zero-trips is a current gap: with no trips to pick, the extension cannot file a
+  capture. Acceptable for v1 (the app owns trip creation); revisit if needed.

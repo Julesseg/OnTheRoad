@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseMapsUrl, resolveMapsUrl } from './coords';
+import { parseMapsQuery, parseMapsUrl, resolveMapsUrl, unwrapConsentUrl } from './coords';
 
 describe('parseMapsUrl', () => {
   it('parses an Apple Maps ?ll= share URL', () => {
@@ -117,5 +117,54 @@ describe('resolveMapsUrl', () => {
     const fetchImpl = vi.fn();
     await expect(resolveMapsUrl('hello', fetchImpl)).resolves.toBeNull();
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('parseMapsQuery', () => {
+  // Google's short links resolve to a `?q=<address>` URL carrying no coordinates —
+  // the place name/address is the only geocodable signal in the resolved target.
+  it('extracts a decoded address from a resolved Google short link', () => {
+    expect(
+      parseMapsQuery(
+        'https://www.google.com/maps?q=Mus%C3%A9e+de+Montmartre,+12+Rue+Cortot,+75018+Paris&ftid=0x47e6',
+      ),
+    ).toBe('Musée de Montmartre, 12 Rue Cortot, 75018 Paris');
+  });
+
+  it('reads the Apple/Google query param variants', () => {
+    expect(parseMapsQuery('https://maps.apple.com/?q=Pike+Place+Market')).toBe('Pike Place Market');
+    expect(parseMapsQuery('https://maps.google.com/?destination=Louvre')).toBe('Louvre');
+    expect(parseMapsQuery('https://maps.apple.com/?daddr=Eiffel+Tower')).toBe('Eiffel Tower');
+  });
+
+  it('returns null when the query is bare coordinates (parseMapsUrl handles those)', () => {
+    expect(parseMapsQuery('https://maps.google.com/?q=47.6062,-122.3321')).toBeNull();
+  });
+
+  it('returns null when there is no query param, and for garbage', () => {
+    expect(parseMapsQuery('https://www.google.com/maps/@47.61,-122.34,17z')).toBeNull();
+    expect(parseMapsQuery('hello')).toBeNull();
+    expect(parseMapsQuery(null)).toBeNull();
+  });
+
+  // In the EU, Google redirects the short link to a cookie-consent interstitial that
+  // wraps the real maps URL (with its `q=`) inside the `continue=` param.
+  it('reads the address through a Google consent interstitial', () => {
+    const consent =
+      'https://consent.google.com/ml?continue=https://maps.google.com/maps?q%3DMus%25C3%25A9e%2Bde%2BMontmartre,%2B12%2BRue%2BCortot,%2B75018%2BParis%26ftid%3D0x47e6&gl=FR&hl=fr';
+    expect(parseMapsQuery(consent)).toBe('Musée de Montmartre, 12 Rue Cortot, 75018 Paris');
+  });
+});
+
+describe('unwrapConsentUrl', () => {
+  it('returns the continue target of a Google consent interstitial', () => {
+    expect(
+      unwrapConsentUrl('https://consent.google.com/ml?continue=https://maps.google.com/maps?q%3DX&gl=FR'),
+    ).toBe('https://maps.google.com/maps?q=X');
+  });
+
+  it('returns the input unchanged when there is no continue target', () => {
+    expect(unwrapConsentUrl('https://maps.google.com/maps?q=X')).toBe('https://maps.google.com/maps?q=X');
+    expect(unwrapConsentUrl('hello')).toBe('hello');
   });
 });

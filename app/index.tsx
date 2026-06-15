@@ -14,6 +14,7 @@ import { tripRouteCoords } from '@/lib/trip-route';
 import { todayString } from '@/lib/date-utils';
 import { tripCountdownBadge } from '@/lib/trip-badge';
 import { todayFilterModel } from '@/lib/today-filter';
+import { useShareIntake } from '@/lib/use-share-intake';
 
 // Matches the resting detent of the /days sheet so the route frames into the
 // visible top half of the map.
@@ -27,6 +28,9 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized]);
+
+  // Drain Share Extension captures in the background on launch + each foreground.
+  useShareIntake();
 
   const today = todayString();
   const tripId = effectiveTripId(displayedTripId, trips, activeTripId, today);

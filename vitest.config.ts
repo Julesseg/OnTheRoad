@@ -4,6 +4,7 @@ import path from 'node:path';
 const alias = {
   'react-native': 'react-native-web',
   'expo-maps': path.resolve(__dirname, '__mocks__/expo-maps.tsx'),
+  '@bacons/apple-targets': path.resolve(__dirname, '__mocks__/bacons-apple-targets.ts'),
   '@': path.resolve(__dirname, '.'),
 };
 
