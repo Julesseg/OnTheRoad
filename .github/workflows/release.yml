@@ -80,7 +80,7 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          sed "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" ios/ExportOptions.plist > /tmp/ExportOptions.plist
+          sed "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" ci/ExportOptions.plist > /tmp/ExportOptions.plist
           xcodebuild -exportArchive \
             -archivePath /tmp/ontheroad.xcarchive \
             -exportOptionsPlist /tmp/ExportOptions.plist \
