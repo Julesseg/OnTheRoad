@@ -26,7 +26,11 @@ jobs:
         run: npm ci
 
       - name: Expo prebuild
-        run: npx expo prebuild --platform ios --clean
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Pod install
+        run: /usr/local/bin/pod install
+        working-directory: ios
 
       - name: Install provisioning profile
         env:
