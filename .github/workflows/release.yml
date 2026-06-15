@@ -59,6 +59,8 @@ jobs:
         run: |
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
           security set-keychain-settings -t 3600 "$HOME/Library/Keychains/login.keychain-db"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -k "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
 
       - name: Archive
         env:
