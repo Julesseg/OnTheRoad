@@ -34,7 +34,12 @@ jobs:
           echo "$(brew --prefix ruby)/bin" >> $GITHUB_PATH
 
       - name: Install CocoaPods
-        run: gem install cocoapods --no-document
+        run: |
+          export GEM_HOME="$HOME/.gem"
+          export PATH="$GEM_HOME/bin:$PATH"
+          echo "GEM_HOME=$HOME/.gem" >> $GITHUB_ENV
+          echo "$HOME/.gem/bin" >> $GITHUB_PATH
+          gem install cocoapods --no-document
 
       - name: Pod install
         run: pod install
