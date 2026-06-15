@@ -28,8 +28,17 @@ jobs:
       - name: Expo prebuild
         run: npx expo prebuild --platform ios --clean --no-install
 
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: false
+
+      - name: Install CocoaPods
+        run: gem install cocoapods --no-document
+
       - name: Pod install
-        run: /usr/local/bin/pod install
+        run: pod install
         working-directory: ios
 
       - name: Install provisioning profile
