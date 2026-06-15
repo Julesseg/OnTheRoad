@@ -53,6 +53,13 @@ jobs:
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           echo "$APPLE_PROVISIONING_PROFILE" | base64 --decode -o "$PP_PATH"
 
+      - name: Unlock keychain
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
+          security set-keychain-settings -t 3600 "$HOME/Library/Keychains/login.keychain-db"
+
       - name: Archive
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
