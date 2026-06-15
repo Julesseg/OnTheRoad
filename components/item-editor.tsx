@@ -448,7 +448,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
             </VStack>
           </Section>
 
-          <Section header={<Text>Checklist</Text>}>
+          <Section header={<Text>Checklist</Text>} modifiers={[listRowBackground(c.surface)]}>
             {/* List.ForEach gives the rows the system swipe-to-delete (onDelete)
                 and long-press drag-to-reorder (onMove), matching the itinerary. */}
             <List.ForEach
