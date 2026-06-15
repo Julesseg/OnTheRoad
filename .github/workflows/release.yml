@@ -28,11 +28,10 @@ jobs:
       - name: Expo prebuild
         run: npx expo prebuild --platform ios --clean --no-install
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: false
+      - name: Setup Ruby via Homebrew
+        run: |
+          brew install ruby || true
+          echo "$(brew --prefix ruby)/bin" >> $GITHUB_PATH
 
       - name: Install CocoaPods
         run: gem install cocoapods --no-document
