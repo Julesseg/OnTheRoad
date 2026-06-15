@@ -9,6 +9,8 @@ jobs:
   build:
     name: Build & Publish
     runs-on: self-hosted
+    env:
+      PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
     steps:
       - name: Checkout
@@ -45,8 +47,7 @@ jobs:
             -archivePath /tmp/ontheroad.xcarchive \
             CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
             CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE_SPECIFIER="OnTheRoad Ad Hoc" \
-            | xcpretty
+            PROVISIONING_PROFILE_SPECIFIER="OnTheRoad Ad Hoc"
 
       - name: Export .ipa
         env:
@@ -56,8 +57,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath /tmp/ontheroad.xcarchive \
             -exportOptionsPlist /tmp/ExportOptions.plist \
-            -exportPath /tmp/ipa \
-            | xcpretty
+            -exportPath /tmp/ipa
 
       - name: Prepare GitHub Pages output
         run: |
