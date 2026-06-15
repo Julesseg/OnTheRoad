@@ -105,7 +105,15 @@ vi.mock('@expo/ui/swift-ui', async () => {
           text,
           placeholder,
           onTextChange,
-        }: { text?: { value: string }; placeholder?: string; onTextChange?: (t: string) => void },
+          autoFocus,
+          modifiers,
+        }: {
+          text?: { value: string };
+          placeholder?: string;
+          onTextChange?: (t: string) => void;
+          autoFocus?: boolean;
+          modifiers?: Record<string, unknown>[];
+        },
         ref: React.Ref<{ setText: (t: string) => void }>,
       ) => {
         const inputRef = React.useRef<HTMLInputElement>(null);
@@ -114,12 +122,21 @@ vi.mock('@expo/ui/swift-ui', async () => {
             if (inputRef.current) inputRef.current.value = t;
           },
         }));
+        // The native `onSubmit` modifier fires on Return; mirror it as an Enter
+        // keydown so tests can drive the "add next entry" behavior.
+        const onSubmit = modifiers?.find((m) => m && '__onSubmit' in m)?.__onSubmit as
+          | (() => void)
+          | undefined;
         return React.createElement('input', {
           ref: inputRef,
           placeholder,
           'aria-label': placeholder,
+          autoFocus,
           defaultValue: text?.value,
           onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
+          onKeyDown: (e: { key: string }) => {
+            if (e.key === 'Enter') onSubmit?.();
+          },
         });
       },
     ),
@@ -187,6 +204,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   contentTransition: vi.fn(() => ({})),
   animation: vi.fn(() => ({})),
   Animation: { default: {} },
+  submitLabel: vi.fn(() => ({})),
+  onSubmit: (fn: () => void) => ({ __onSubmit: fn }),
 }));
 
 vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
@@ -458,6 +477,35 @@ describe('ItemEditor', () => {
     expect(item.checklist).toHaveLength(1);
     expect(item.checklist![0]).toMatchObject({ label: 'Passport', checked: false });
     expect(item.checklist![0].id).toBeTruthy();
+  });
+
+  it('focuses the entry it just added so the keyboard opens', () => {
+    render(<ItemEditor itemId="cl-f" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    expect(screen.getByPlaceholderText('Checklist entry')).toHaveFocus();
+  });
+
+  it('does not steal focus to existing entries when editing an item', () => {
+    const initial: Item = {
+      id: 'cl-nf', name: 'Pack', category: 'activity',
+      checklist: [{ id: 'c1', label: 'Passport', checked: false }],
+    };
+    render(<ItemEditor itemId="cl-nf" initialItem={initial} onSubmit={() => {}} />);
+    expect(screen.getByPlaceholderText('Checklist entry')).not.toHaveFocus();
+  });
+
+  it('hitting Return on an entry adds a new blank entry to keep inputting', () => {
+    render(<ItemEditor itemId="cl-r" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    fireEvent.change(screen.getByPlaceholderText('Checklist entry'), { target: { value: 'Passport' } });
+
+    fireEvent.keyDown(screen.getByDisplayValue('Passport'), { key: 'Enter' });
+
+    const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    expect(fields).toHaveLength(2);
+    expect(fields[1].defaultValue).toBe('');
+    // The new entry takes focus so typing continues without reaching for the row.
+    expect(fields[1]).toHaveFocus();
   });
 
   const PACK_ITEM: Item = {
