@@ -43,7 +43,7 @@ jobs:
 
       - name: Setup Ruby via Homebrew
         run: |
-          brew install ruby || true
+          brew list ruby >/dev/null 2>&1 || brew install ruby
           echo "$(brew --prefix ruby)/bin" >> $GITHUB_PATH
 
       - name: Install CocoaPods
@@ -52,7 +52,7 @@ jobs:
           export PATH="$GEM_HOME/bin:$PATH"
           echo "GEM_HOME=$HOME/.gem" >> $GITHUB_ENV
           echo "$HOME/.gem/bin" >> $GITHUB_PATH
-          gem install cocoapods --no-document
+          gem list -i cocoapods >/dev/null 2>&1 || gem install cocoapods --no-document
 
       - name: Pod install
         run: pod install
