@@ -19,6 +19,23 @@ const trip: TripSummary = {
   endDate: '2026-09-07',
 };
 
+// `today` sits inside `trip`'s span so it counts as an active (non-archived) trip.
+const TODAY = '2026-09-06';
+
+const upcoming: TripSummary = {
+  id: '22222222-2222-2222-2222-222222222222',
+  title: 'Dolomites',
+  startDate: '2026-10-01',
+  endDate: '2026-10-05',
+};
+
+const archived: TripSummary = {
+  id: '33333333-3333-3333-3333-333333333333',
+  title: 'Last Year',
+  startDate: '2025-06-01',
+  endDate: '2025-06-10',
+};
+
 describe('constants', () => {
   it('names the App Group and the shared UserDefaults keys the Swift side reads/writes', () => {
     expect(APP_GROUP).toBe('group.com.anonymous.on-the-road');
@@ -29,7 +46,7 @@ describe('constants', () => {
 
 describe('buildTripsIndex', () => {
   it('maps each trip to its title and its inclusive day span for the extension pickers', () => {
-    expect(buildTripsIndex([trip])).toEqual([
+    expect(buildTripsIndex([trip], null, TODAY)).toEqual([
       {
         id: trip.id,
         title: 'Scotland Highlands',
@@ -38,8 +55,27 @@ describe('buildTripsIndex', () => {
     ]);
   });
 
+  it('excludes archived (past) trips the extension must not capture onto', () => {
+    expect(buildTripsIndex([trip, archived], null, TODAY).map((t) => t.id)).toEqual([trip.id]);
+  });
+
+  it('puts the favorite trip first so the extension defaults its picker to it', () => {
+    // No favorite set → the default is the current/next trip (the in-progress one).
+    expect(buildTripsIndex([upcoming, trip], null, TODAY).map((t) => t.id)).toEqual([
+      trip.id,
+      upcoming.id,
+    ]);
+    // An explicit favorite wins, even when another trip starts sooner.
+    expect(buildTripsIndex([trip, upcoming], upcoming.id, TODAY).map((t) => t.id)).toEqual([
+      upcoming.id,
+      trip.id,
+    ]);
+  });
+
   it('round-trips through serialize/parse', () => {
-    expect(parseTripsIndex(serializeTripsIndex([trip]))).toEqual(buildTripsIndex([trip]));
+    expect(parseTripsIndex(serializeTripsIndex([trip], null, TODAY))).toEqual(
+      buildTripsIndex([trip], null, TODAY),
+    );
   });
 });
 

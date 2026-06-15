@@ -50,6 +50,73 @@ export function parseMapsUrl(input: string | null | undefined): Coords | null {
 }
 
 /**
+ * Unwrap Google's EU cookie-consent interstitial — a short link resolves to
+ * `consent.google.com/…?continue=<real maps URL>` before the user accepts cookies —
+ * to the real maps URL it wraps in `continue=`. Returns the input unchanged when
+ * there's no http(s) `continue` target. The wrapped URL is percent-encoded once, which
+ * `URLSearchParams.get` decodes, yielding a directly parseable maps URL.
+ */
+export function unwrapConsentUrl(input: string | null | undefined): string {
+  if (typeof input !== 'string') return '';
+  try {
+    const cont = new URL(input).searchParams.get('continue');
+    if (cont && /^https?:\/\//i.test(cont)) return cont;
+  } catch {
+    // fall through to the input
+  }
+  return input;
+}
+
+// Maps URL params that carry a place name or address (vs. a coordinate pair).
+const QUERY_PARAMS = ['q', 'query', 'destination', 'daddr'];
+
+/**
+ * Extract a human-readable place query (name or address) from a Maps URL's
+ * `q`/`query`/`destination`/`daddr` param, percent-decoded. Returns null when no such
+ * param is present or it holds a bare coordinate pair ({@link parseMapsUrl} handles
+ * those, and coordinates are no use to a text geocoder).
+ *
+ * This is the salvage path for Google's short links: they redirect to a
+ * `…/maps?q=<address>` URL that carries no coordinates at all, so the only geocodable
+ * signal in the resolved target is the address sitting in `q=`.
+ */
+export function parseMapsQuery(input: string | null | undefined): string | null {
+  if (typeof input !== 'string') return null;
+  // Step past the EU consent interstitial to the maps URL it wraps, if present.
+  const target = unwrapConsentUrl(input);
+  let params: URLSearchParams;
+  try {
+    params = new URL(target).searchParams;
+  } catch {
+    return null;
+  }
+  for (const key of QUERY_PARAMS) {
+    const value = params.get(key)?.trim();
+    if (value && !parseLatLng(value)) return value;
+  }
+  return null;
+}
+
+/**
+ * Follow one network redirect for an http(s) link, returning the resolved URL and
+ * response body. Exposed so the Share layer can both parse coordinates from and
+ * geocode the place name out of a short link's resolved target without fetching it
+ * twice. Returns null for non-http input or a failed request.
+ */
+export async function fetchMapsTarget(
+  input: string | null | undefined,
+  fetchImpl: typeof fetch = globalThis.fetch,
+): Promise<{ url: string; body: string } | null> {
+  if (typeof input !== 'string' || !/^https?:\/\//i.test(input.trim())) return null;
+  try {
+    const res = await fetchImpl(input.trim());
+    return { url: res.url, body: await res.text() };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve coordinates from any pasted value, following one network redirect when needed.
  *
  * Google's Share button (and the iOS share sheet) yield a short link like
@@ -65,12 +132,7 @@ export async function resolveMapsUrl(
   const direct = parseMapsUrl(input);
   if (direct) return direct;
 
-  if (typeof input !== 'string' || !/^https?:\/\//i.test(input.trim())) return null;
-
-  try {
-    const res = await fetchImpl(input.trim());
-    return parseMapsUrl(res.url) ?? parseMapsUrl(await res.text());
-  } catch {
-    return null;
-  }
+  const resolved = await fetchMapsTarget(input, fetchImpl);
+  if (!resolved) return null;
+  return parseMapsUrl(unwrapConsentUrl(resolved.url)) ?? parseMapsUrl(resolved.body);
 }

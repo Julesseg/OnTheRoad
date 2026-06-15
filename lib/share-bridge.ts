@@ -1,5 +1,6 @@
 import type { TripSummary } from './schema';
 import { datesInRange } from './trip-days';
+import { resolveActiveTrip } from './active-trip';
 
 // The wire contract between the native iOS Share Extension and the app (ADR-0008).
 // The extension can't open the host app on iOS 18+, so instead of a deep link it
@@ -44,17 +45,38 @@ export interface PendingCapture {
   capturedAt: string;
 }
 
-/** Project the in-memory trip summaries into the picker index the extension reads. */
-export function buildTripsIndex(trips: TripSummary[]): TripIndexEntry[] {
-  return trips.map((t) => ({
+/**
+ * Project the in-memory trip summaries into the picker index the extension reads.
+ * Archived (past) trips are dropped — the extension captures only onto a live trip,
+ * matching the in-app destination rules — and the resolved default trip (the
+ * favorite, else the current/next trip; the same one the app displays by default)
+ * is placed first so the extension, whose picker defaults to the first entry, lands
+ * on that trip without needing the favorite logic in Swift.
+ */
+export function buildTripsIndex(
+  trips: TripSummary[],
+  activeTripId: string | null,
+  today: string,
+): TripIndexEntry[] {
+  const active = trips.filter((t) => t.endDate >= today);
+  const defaultId = resolveActiveTrip(trips, activeTripId, today).tripId;
+  const byStart = (a: TripSummary, b: TripSummary) => a.startDate.localeCompare(b.startDate);
+  const def = active.find((t) => t.id === defaultId);
+  const rest = active.filter((t) => t.id !== defaultId).sort(byStart);
+  const ordered = def ? [def, ...rest] : rest;
+  return ordered.map((t) => ({
     id: t.id,
     title: t.title,
     dates: datesInRange(t.startDate, t.endDate),
   }));
 }
 
-export function serializeTripsIndex(trips: TripSummary[]): string {
-  return JSON.stringify(buildTripsIndex(trips));
+export function serializeTripsIndex(
+  trips: TripSummary[],
+  activeTripId: string | null,
+  today: string,
+): string {
+  return JSON.stringify(buildTripsIndex(trips, activeTripId, today));
 }
 
 export function parseTripsIndex(json: string | null | undefined): TripIndexEntry[] {

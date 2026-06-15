@@ -17,8 +17,12 @@ import {
 const storage = new ExtensionStorage(APP_GROUP);
 
 /** Mirror the current trips into the App Group so the extension's pickers stay current. */
-export function writeTripsIndex(trips: TripSummary[]): void {
-  storage.set(TRIPS_INDEX_KEY, serializeTripsIndex(trips));
+export function writeTripsIndex(
+  trips: TripSummary[],
+  activeTripId: string | null,
+  today: string,
+): void {
+  storage.set(TRIPS_INDEX_KEY, serializeTripsIndex(trips, activeTripId, today));
 }
 
 /** Read the captures the extension has queued since the last drain. */

@@ -337,7 +337,7 @@ struct ShareComposeView: View {
     ScrollView {
       VStack(spacing: 16) {
         preview
-        if model.trips.count > 1 { tripCard }
+        if model.hasTrips { tripCard }
         dayCard
         timeCard
         noteCard
@@ -429,6 +429,7 @@ struct ShareComposeView: View {
           DatePicker("Time", selection: $model.time, displayedComponents: .hourAndMinute)
             .foregroundStyle(theme.text)
             .tint(theme.accent)
+            .padding(.top, 8)
         }
       }
     }

@@ -67,16 +67,16 @@ function writeState(snapshot: StateSnapshot): void {
     });
     // Mirror the trips into the App Group so the Share Extension's pickers stay
     // current (ADR-0008). Idempotent, so re-mirroring on a settings-only write is fine.
-    mirrorTripsIndex(snapshot.trips);
+    mirrorTripsIndex(snapshot.trips, snapshot.activeTripId);
   } catch (e) {
     console.error(e);
   }
 }
 
 /** Best-effort App Group mirror — never let a share-bridge failure break a state save. */
-function mirrorTripsIndex(trips: TripSummary[]): void {
+function mirrorTripsIndex(trips: TripSummary[], activeTripId: string | null): void {
   try {
-    writeTripsIndex(trips);
+    writeTripsIndex(trips, activeTripId, todayString());
   } catch (e) {
     console.error(e);
   }
@@ -137,7 +137,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
       applyAppearance(appearance);
       // Seed the Share Extension's picker index on launch (writeState below only
       // fires when the favorite was cleared, so mirror here too).
-      mirrorTripsIndex(trips);
+      mirrorTripsIndex(trips, activeTripId);
       if (resolution.shouldClearFavorite) {
         writeState({ trips, activeTripId: null, preferredMapsApp, appearance });
       }

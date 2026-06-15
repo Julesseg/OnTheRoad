@@ -13,9 +13,11 @@ import {
   parseShareParams,
   classifyShare,
   resolveShareCoords,
+  applyResolvedLocation,
+  resolveShareName,
   defaultCaptureDate,
+  type ResolvedShareLocation,
 } from '@/lib/share-capture';
-import type { Coords } from '@/lib/coords';
 import { useThemeColors } from '@/constants/theme';
 
 // Noon-anchored so the picker's time component can never shift the calendar day.
@@ -44,10 +46,13 @@ export default function ShareEditorScreen() {
   // place; `null` means resolved-to-nothing → the editor opens address-only.
   const hasPin = draft.location?.lat != null && draft.location?.lng != null;
   // Skip the network lookup entirely when there are no trips — the zero-trips
-  // return below replaces the editor, so any resolved coordinates are discarded.
-  const needsResolve =
-    trips.length > 0 && draft.category === 'location' && !!payload.url && !hasPin;
-  const [resolvedCoords, setResolvedCoords] = useState<Coords | null | undefined>(undefined);
+  // return below replaces the editor, so any resolved coordinates are discarded. A
+  // `location` draft always carries a Maps link (possibly embedded in `text`, as
+  // Google Maps shares it), so a missing pin alone warrants the resolve.
+  const needsResolve = trips.length > 0 && draft.category === 'location' && !hasPin;
+  const [resolvedCoords, setResolvedCoords] = useState<ResolvedShareLocation | null | undefined>(
+    undefined,
+  );
   useEffect(() => {
     if (!needsResolve) return;
     let active = true;
@@ -62,8 +67,12 @@ export default function ShareEditorScreen() {
   const [itemId] = useState(newId);
   const resolvedDraft = useMemo(() => {
     if (!resolvedCoords) return draft;
-    return { ...draft, location: { ...draft.location, ...resolvedCoords } };
-  }, [draft, resolvedCoords]);
+    return {
+      ...draft,
+      name: resolveShareName(draft.name, payload, resolvedCoords.address),
+      location: applyResolvedLocation(draft.location, resolvedCoords),
+    };
+  }, [draft, payload, resolvedCoords]);
   const initialItem: Item = useMemo(() => ({ id: itemId, ...resolvedDraft }), [itemId, resolvedDraft]);
 
   const defaultTripId = useMemo(
