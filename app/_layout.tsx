@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from 'react-native';
 import { LightTokens, DarkTokens } from '@/constants/theme';
+import { SHEET_DETENTS, INITIAL_SHEET_DETENT_INDEX } from '@/lib/sheet-detents';
 
 const EmberLightTheme = {
   ...DefaultTheme,
@@ -47,10 +48,11 @@ export default function RootLayout() {
             name="days"
             options={{
               presentation: 'formSheet',
-              sheetAllowedDetents: [0.5, 1],
-              sheetInitialDetentIndex: 0,
+              // XS peek, medium, full — opening at medium (see lib/sheet-detents).
+              sheetAllowedDetents: [...SHEET_DETENTS],
+              sheetInitialDetentIndex: INITIAL_SHEET_DETENT_INDEX,
               // Largest index stays undimmed: the map shows through at every detent.
-              sheetLargestUndimmedDetentIndex: 1,
+              sheetLargestUndimmedDetentIndex: 2,
               sheetGrabberVisible: true,
               // Permanent sheet: swipe-to-dismiss disabled, resize-only.
               gestureEnabled: false,

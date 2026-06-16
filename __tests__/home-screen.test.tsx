@@ -88,6 +88,16 @@ describe('HomeScreen', () => {
     expect(screen.queryByLabelText('Recenter')).not.toBeInTheDocument();
   });
 
+  it('always offers a distinct center-on-user button, even with no trip', async () => {
+    storeWith({});
+    const { default: HomeScreen } = await import('@/app/index');
+    render(<HomeScreen />);
+    // The center-on-user control is separate from the trip-route recenter (scope)
+    // button and is available even before a trip loads.
+    expect(screen.getByLabelText('Center on my location')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Recenter')).not.toBeInTheDocument();
+  });
+
   it('tapping the recenter button re-applies the framed viewport', async () => {
     const trip = makeTrip('trip-1', TRIP_ITEMS);
     const summary = makeSummary(trip);

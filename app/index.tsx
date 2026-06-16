@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 
 import { useTripStore } from '@/lib/store';
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
@@ -10,19 +11,18 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColors } from '@/constants/theme';
 import { effectiveTripId } from '@/lib/active-trip';
 import { framedViewport } from '@/lib/framed-viewport';
+import { panelFractionForDetent } from '@/lib/sheet-detents';
 import { tripRouteCoords } from '@/lib/trip-route';
 import { todayString } from '@/lib/date-utils';
+import { openInMaps } from '@/lib/maps';
 import { tripCountdownBadge } from '@/lib/trip-badge';
 import { todayFilterModel } from '@/lib/today-filter';
 import { useShareIntake } from '@/lib/use-share-intake';
-
-// Matches the resting detent of the /days sheet so the route frames into the
-// visible top half of the map.
-const PANEL_FRACTION = 0.5;
+import { centerOnUser, requestUserLocationPermission } from '@/lib/user-location';
 
 export default function HomeScreen() {
   const c = useThemeColors();
-  const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, initialized, initialize, loadTripById } =
+  const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, sheetDetentIndex, preferredMapsApp, initialized, initialize, loadTripById } =
     useTripStore();
 
   useEffect(() => {
@@ -31,6 +31,33 @@ export default function HomeScreen() {
 
   // Drain Share Extension captures in the background on launch + each foreground.
   useShareIntake();
+
+  const tripMapRef = useRef<TripMapHandle>(null);
+
+  // Show the traveller's own position once when-in-use permission is granted —
+  // requested as the home map first appears (CONTEXT.md#user-location).
+  const [showUserLocation, setShowUserLocation] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void requestUserLocationPermission(Location).then((granted) => {
+      if (!cancelled) setShowUserLocation(granted);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Center-on-user: animate to the user's position when permitted, otherwise route
+  // to Settings rather than dead-ending. Distinct from the scope button, which
+  // reframes the trip route.
+  const onCenterOnUser = useCallback(async () => {
+    const result = await centerOnUser(Location);
+    if (result.kind === 'located') {
+      tripMapRef.current?.centerOn(result.coordinates);
+    } else {
+      Linking.openSettings?.();
+    }
+  }, []);
 
   const today = todayString();
   const tripId = effectiveTripId(displayedTripId, trips, activeTripId, today);
@@ -67,14 +94,16 @@ export default function HomeScreen() {
     ? tripRouteCoords({ ...trip, days: trip.days.filter((d) => d.date === filterModel.activeDate) })
     : fullCoords;
   const coords = filteredCoords.length > 0 ? filteredCoords : fullCoords;
-  const viewport = framedViewport(coords, PANEL_FRACTION);
+  // Frame the route into the area the /days sheet leaves visible at its current
+  // detent: a peeked (XS) sheet gives the map nearly the full screen, a medium
+  // sheet the top half. Reframes when the detent settles (the store updates).
+  const viewport = framedViewport(coords, panelFractionForDetent(sheetDetentIndex));
 
   // The map is interactive — pan, pinch-zoom, two-finger rotate, and two-finger
   // pitch all activate as a bundle. expo-maps' AppleMaps exposes no per-gesture
   // toggle (AppleMapsUISettings only covers compass/my-location/scale/pitch
   // buttons), so the full standard MapKit gesture set rides along. This is
   // intentional: "interactive map" here means a normal MapKit map.
-  const tripMapRef = useRef<TripMapHandle>(null);
   const insets = useSafeAreaInsets();
 
   return (
@@ -88,6 +117,24 @@ export default function HomeScreen() {
           // even when the filtered day has no pins of its own (the viewport
           // still falls back to the whole route so the camera doesn't collapse).
           activeDate={filterModel.active ? (filterModel.activeDate ?? undefined) : undefined}
+          showUserLocation={showUserLocation}
+          // Tapping a pin's info card opens the full item editor or routes to the
+          // item in the preferred maps app.
+          onOpenItem={(located) =>
+            trip &&
+            router.push({
+              pathname: '/trip/[id]/item',
+              params: { id: trip.id, dayId: located.dayId, itemId: located.item.id },
+            })
+          }
+          onNavigateItem={(item) => {
+            const target = item.location?.lat != null && item.location?.lng != null
+              ? { coords: { lat: item.location.lat, lng: item.location.lng } }
+              : item.location?.address
+                ? { address: item.location.address }
+                : null;
+            if (target) void openInMaps(target, { app: preferredMapsApp });
+          }}
         />
       </View>
       {/* Manual pan/zoom persists across /days sheet re-presents and resets only
@@ -112,6 +159,21 @@ export default function HomeScreen() {
           <IconSymbol name="scope" size={22} color={c.accent} />
         </Pressable>
       )}
+      {/* Center-on-user: themed glass + Ember accent to match the scope button
+          (the native MapKit my-location button can't be tinted). Sits just below
+          the scope button and centres on the traveller, not the trip route. */}
+      <Pressable
+        style={[styles.userLocationBtn, { top: insets.top + 12 + 44 + 12 }]}
+        onPress={onCenterOnUser}
+        accessibilityLabel="Center on my location"
+      >
+        <GlassView
+          glassEffectStyle="regular"
+          isInteractive
+          style={[StyleSheet.absoluteFill, styles.recenterGlass]}
+        />
+        <IconSymbol name="location.fill" size={22} color={c.accent} />
+      </Pressable>
     </View>
   );
 }
@@ -119,6 +181,14 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   recenterBtn: {
+    position: 'absolute',
+    left: 16,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userLocationBtn: {
     position: 'absolute',
     left: 16,
     width: 44,

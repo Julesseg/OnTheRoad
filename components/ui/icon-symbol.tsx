@@ -22,6 +22,7 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'scope': 'my-location',
+  'location.fill': 'near-me',
 } as IconMapping;
 
 /**

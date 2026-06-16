@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useNavigation } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { VStack, HStack, Text as SwiftText } from '@expo/ui/swift-ui';
 import {
@@ -46,8 +46,27 @@ export default function DaysSheet() {
     resetDisplayedTrip,
     removeTrip,
     setTodayFilterOverride,
+    setSheetDetentIndex,
   } = useTripStore();
   const c = useThemeColors();
+  const navigation = useNavigation();
+
+  // Report the sheet's resting detent to the store so the home map can frame the
+  // route into the area it leaves visible. iOS only fires this when the detent
+  // settles (isStable), so the map reframes on the stable detent, not mid-drag.
+  useEffect(() => {
+    const unsubscribe = (
+      navigation as unknown as {
+        addListener: (
+          type: 'sheetDetentChange',
+          cb: (e: { data: { index: number; stable: boolean } }) => void,
+        ) => () => void;
+      }
+    ).addListener('sheetDetentChange', (e) => {
+      if (e.data.stable) setSheetDetentIndex(e.data.index);
+    });
+    return unsubscribe;
+  }, [navigation, setSheetDetentIndex]);
   const text = c.text;
   const subtext = c.textSubtle;
 

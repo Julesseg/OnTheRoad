@@ -12,6 +12,7 @@ import {
 } from './trip-mutations';
 import { resolveActiveTrip } from './active-trip';
 import type { DayFilterOverride } from './today-filter';
+import { INITIAL_SHEET_DETENT_INDEX } from './sheet-detents';
 import { todayString } from './date-utils';
 import { writeTripsIndex } from './share-bridge-native';
 
@@ -21,6 +22,7 @@ interface TripStore {
   activeTripId: string | null;
   displayedTripId: string | null;
   todayFilterOverride: DayFilterOverride;
+  sheetDetentIndex: number;
   preferredMapsApp: MapsApp;
   appearance: AppearanceMode;
   installedMapsApps: MapsApp[];
@@ -45,6 +47,7 @@ interface TripStore {
   setDisplayedTrip: (id: string) => void;
   resetDisplayedTrip: () => void;
   setTodayFilterOverride: (value: string | boolean) => void;
+  setSheetDetentIndex: (index: number) => void;
 }
 
 type StateSnapshot = {
@@ -114,6 +117,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   activeTripId: null,
   displayedTripId: null,
   todayFilterOverride: null,
+  sheetDetentIndex: INITIAL_SHEET_DETENT_INDEX,
   preferredMapsApp: 'apple',
   appearance: 'system',
   // Apple Maps always ships with iOS, so default to it until the probe resolves.
@@ -281,5 +285,12 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
   setTodayFilterOverride(value: string | boolean) {
     set({ todayFilterOverride: value });
+  },
+
+  // The /days sheet's resting detent, reported via onSheetDetentChanged. In-memory
+  // only (like the Displayed Trip): the home map reads it to frame the route into
+  // the area left visible above the sheet at the current detent.
+  setSheetDetentIndex(index: number) {
+    set({ sheetDetentIndex: index });
   },
 }));
