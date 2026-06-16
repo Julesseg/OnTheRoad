@@ -149,17 +149,24 @@ export default function DaysSheet() {
   // The native navigation row: a leading back-arrow while browsing a non-default
   // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Edit / Make
   // favorite / Export / Delete) that share one glass background.
+  const showBackArrow = model.showBackArrow;
+  const showFilter = filterModel.canFilter || filterModel.active;
   const chrome = (
     <>
       {/* Transparent native bar — the progressive blur behind it is an RN overlay
           (see the return below), since the native bar only does a uniform blur. */}
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
         <Stack.Toolbar placement="left">
-        {model.showBackArrow ? (
+        {showBackArrow ? (
           <Stack.Toolbar.Button
             icon="chevron.backward"
             accessibilityLabel="Back to default trip"
             tintColor={c.accent}
+            // separateBackground gives each its own liquid-glass capsule instead of
+            // sharing one with the adjacent filter button (maps to the iOS 26 bar
+            // button's sharesBackground=false); a spacer only adds gap, it doesn't
+            // split the glass.
+            separateBackground
             onPress={() => {
               // Dismiss BEFORE mutating the store so the two motions run together.
               // react-navigation marks this sheet for dismissal first, so the
@@ -174,12 +181,13 @@ export default function DaysSheet() {
             }}
           />
         ) : null}
-          {filterModel.canFilter || filterModel.active ? (
+          {showFilter ? (
             <Stack.Toolbar.Button
             icon="line.3.horizontal.decrease"
             accessibilityLabel="Filter day"
             tintColor={c.accent}
             selected={filterModel.active}
+            separateBackground
             onPress={() => setTodayFilterOverride(!filterModel.active)}
             />
           ) : null}

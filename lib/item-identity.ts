@@ -21,9 +21,9 @@ export interface ItemIdentity {
 
 export const ITEM_IDENTITY: Record<ItemCategory, ItemIdentity> = {
   activity: { category: 'activity', label: 'Activity', symbol: 'figure.hiking',        accent: EmberPalette.sage },
-  location: { category: 'location', label: 'Place',    symbol: 'mappin.circle.fill',    accent: EmberPalette.olive },
+  location: { category: 'location', label: 'Place',    symbol: 'mappin',                accent: EmberPalette.olive },
   stay:     { category: 'stay',     label: 'Stay',     symbol: 'bed.double.fill',       accent: EmberPalette.steel },
-  meal:     { category: 'meal',     label: 'Meal',     symbol: 'fork.knife.circle.fill', accent: EmberPalette.gold },
+  meal:     { category: 'meal',     label: 'Meal',     symbol: 'fork.knife',            accent: EmberPalette.gold },
   note:     { category: 'note',     label: 'Note',     symbol: 'note.text',             accent: EmberPalette.mauve },
 };
 

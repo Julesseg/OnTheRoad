@@ -13,10 +13,13 @@ import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { GlassView } from 'expo-glass-effect';
+import { Host, DatePicker } from '@expo/ui/swift-ui';
+import { datePickerStyle, tint } from '@expo/ui/swift-ui/modifiers';
 
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
 import { smartImportTrip } from '@/lib/smart-import';
+import { formatLocalDate, parseLocalDate } from '@/lib/trip-form';
 import { useTripStore } from '@/lib/store';
 import {
   getSmartImportAvailability,
@@ -52,6 +55,36 @@ export default function SmartImportSheet() {
   // willShow/willHide frame height is measured to the screen bottom, so padding
   // the body by it lifts the button exactly above the keyboard.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // The inline start-date prompt (issue #98). When the pasted plan carries no
+  // calendar dates, smartImportTrip asks for a start date through promptStartDate;
+  // we surface a date picker in place of the compose body — not a separate screen —
+  // and resolve that promise when the user confirms (the picked date) or cancels
+  // (null, which aborts the import with nothing saved). `value` is the YYYY-MM-DD
+  // currently shown in the picker.
+  const [pendingDate, setPendingDate] = useState<{
+    value: string;
+    resolve: (date: string | null) => void;
+  } | null>(null);
+
+  const promptStartDate = useCallback(
+    () =>
+      new Promise<string | null>((resolve) => {
+        setPendingDate({ value: formatLocalDate(new Date()), resolve });
+      }),
+    [],
+  );
+
+  const confirmStartDate = useCallback(() => {
+    if (!pendingDate) return;
+    pendingDate.resolve(pendingDate.value);
+    setPendingDate(null);
+  }, [pendingDate]);
+
+  const cancelStartDate = useCallback(() => {
+    if (!pendingDate) return;
+    pendingDate.resolve(null);
+    setPendingDate(null);
+  }, [pendingDate]);
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardWillShow', (e) =>
@@ -72,7 +105,13 @@ export default function SmartImportSheet() {
     if (!document || busy) return;
     setBusy(true);
     try {
-      const trip = await smartImportTrip(document);
+      // A document with no calendar dates pauses here for the inline start-date
+      // prompt; a null result means the user cancelled it — nothing to save.
+      const trip = await smartImportTrip(document, { promptStartDate });
+      if (!trip) {
+        setBusy(false);
+        return;
+      }
       await addTrip(trip);
       setDisplayedTrip(trip.id);
       router.dismissAll();
@@ -83,7 +122,7 @@ export default function SmartImportSheet() {
       );
       setBusy(false);
     }
-  }, [text, busy, addTrip, setDisplayedTrip]);
+  }, [text, busy, addTrip, setDisplayedTrip, promptStartDate]);
 
   const copySchemaPrompt = useCallback(async () => {
     // setStringAsync resolves false on a failed write and can reject outright;
@@ -121,7 +160,52 @@ export default function SmartImportSheet() {
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>Import Planning Document</Stack.Title>
 
-      {availability.available ? (
+      {availability.available && pendingDate ? (
+        // Inline start-date prompt: the plan had no dates, so we ask for one here
+        // rather than on a separate screen, then anchor the days to it (issue #98).
+        <View style={[styles.datePrompt, { paddingTop: NAV_BAR_HEIGHT }]}>
+          <Text style={[styles.lead, { color: c.text }]}>This plan didn’t include dates</Text>
+          <Text style={[styles.detail, { color: c.textSubtle }]}>
+            Pick a start date and we’ll lay the days out from there.
+          </Text>
+          {/* A graphical (inline month calendar) picker rather than compact: the
+              compact field's popover doesn't open reliably inside the formSheet,
+              leaving the date stuck on today — the calendar lets the user pick
+              directly. The host is given an explicit width+height so SwiftUI reflows
+              the month grid to fit (matchContents let it overflow the sheet). */}
+          <Host style={styles.datePickerHost} modifiers={[tint(c.accent)]}>
+            <DatePicker
+              title="Start"
+              selection={parseLocalDate(pendingDate.value)}
+              displayedComponents={['date']}
+              onDateChange={(d) =>
+                setPendingDate((p) => (p ? { ...p, value: formatLocalDate(d) } : p))
+              }
+              modifiers={[datePickerStyle('graphical')]}
+            />
+          </Host>
+          <Pressable
+            accessibilityRole="button"
+            onPress={confirmStartDate}
+            style={({ pressed }) => [styles.importButton, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <GlassView
+              glassEffectStyle="regular"
+              isInteractive
+              tintColor={c.accent}
+              style={[StyleSheet.absoluteFill, styles.glass]}
+            />
+            <Text style={[styles.buttonLabel, { color: c.onAccent }]}>Start trip</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={cancelStartDate}
+            style={({ pressed }) => [styles.cancelButton, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.cancelLabel, { color: c.textSubtle }]}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : availability.available ? (
         // Bottom padding follows the keyboard so the Import button rises above
         // it; paddingTop clears the transparent nav title and, with no keyboard,
         // the bottom inset keeps the button off the home indicator.
@@ -227,4 +311,12 @@ const styles = StyleSheet.create({
   // so the edge highlights wrap the corners instead of being clipped flat.
   glass: { borderRadius: 999 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
+  // Centered prompt column with slimmer side padding than `body` so the inline
+  // month calendar has the full width it needs to lay out seven day columns.
+  datePrompt: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, gap: 14 },
+  // Bound the SwiftUI host so the graphical calendar reflows to fit the sheet
+  // (stretch to the column width, fixed height) instead of overflowing it.
+  datePickerHost: { alignSelf: 'stretch', height: 360 },
+  cancelButton: { paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center' },
+  cancelLabel: { fontSize: 16, fontWeight: '500' },
 });
