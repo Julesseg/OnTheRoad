@@ -163,7 +163,7 @@ export default function SmartImportSheet() {
       {availability.available && pendingDate ? (
         // Inline start-date prompt: the plan had no dates, so we ask for one here
         // rather than on a separate screen, then anchor the days to it (issue #98).
-        <View style={[styles.body, { paddingTop: NAV_BAR_HEIGHT }]}>
+        <View style={[styles.datePrompt, { paddingTop: NAV_BAR_HEIGHT }]}>
           <Text style={[styles.lead, { color: c.text }]}>This plan didn’t include dates</Text>
           <Text style={[styles.detail, { color: c.textSubtle }]}>
             Pick a start date and we’ll lay the days out from there.
@@ -171,8 +171,9 @@ export default function SmartImportSheet() {
           {/* A graphical (inline month calendar) picker rather than compact: the
               compact field's popover doesn't open reliably inside the formSheet,
               leaving the date stuck on today — the calendar lets the user pick
-              directly. matchContents sizes the host to the calendar. */}
-          <Host matchContents style={styles.datePickerHost} modifiers={[tint(c.accent)]}>
+              directly. The host is given an explicit width+height so SwiftUI reflows
+              the month grid to fit (matchContents let it overflow the sheet). */}
+          <Host style={styles.datePickerHost} modifiers={[tint(c.accent)]}>
             <DatePicker
               title="Start"
               selection={parseLocalDate(pendingDate.value)}
@@ -310,9 +311,12 @@ const styles = StyleSheet.create({
   // so the edge highlights wrap the corners instead of being clipped flat.
   glass: { borderRadius: 999 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
-  // `matchContents` lets the SwiftUI host shrink to the compact picker rather than
-  // filling the centered column; a little vertical breathing room around it.
-  datePickerHost: { marginVertical: 4 },
+  // Centered prompt column with slimmer side padding than `body` so the inline
+  // month calendar has the full width it needs to lay out seven day columns.
+  datePrompt: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, gap: 14 },
+  // Bound the SwiftUI host so the graphical calendar reflows to fit the sheet
+  // (stretch to the column width, fixed height) instead of overflowing it.
+  datePickerHost: { alignSelf: 'stretch', height: 360 },
   cancelButton: { paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center' },
   cancelLabel: { fontSize: 16, fontWeight: '500' },
 });
