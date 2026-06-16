@@ -3,12 +3,20 @@ import { StyleSheet } from 'react-native';
 import { AppleMaps } from 'expo-maps';
 
 import type { Trip } from '@/lib/schema';
+import type { Coords } from '@/lib/coords';
 import { routeViewport, type Viewport } from '@/lib/trip-route';
+import { legCacheKey } from '@/lib/route-cache';
 import { panelLatShift } from '@/lib/framed-viewport';
 import { EmberPalette } from '@/constants/theme';
 
 const ACCENT = EmberPalette.coral;
 const DIMMED = '#8E8E93';
+
+// A routed leg is drawn solid at full width; a leg with no road geometry — still
+// resolving, offline, or a no-drivable-path hop — falls back to the straight line
+// drawn thinner so it reads as approximate rather than a real road (ADR-0009).
+const ROAD_WIDTH = 3;
+const APPROX_WIDTH = 2;
 
 export interface CenterOnOptions {
   zoom?: number;
@@ -32,6 +40,10 @@ export const TripMap = forwardRef<
     trip: Trip | null;
     viewport?: Viewport;
     activeDate?: string;
+    // Road-following geometry for resolved legs, keyed by legCacheKey(from, to).
+    // A leg present here is drawn along real roads; one absent falls back to the
+    // straight line. Computed lazily and cached by the screen (ADR-0009).
+    roadLegs?: Record<string, Coords[]>;
     // Shows the traveller's own position as the standard blue dot once when-in-use
     // location permission is granted.
     showUserLocation?: boolean;
@@ -42,7 +54,7 @@ export const TripMap = forwardRef<
   }
 >(
   function TripMap(
-    { trip, viewport: viewportProp, activeDate, showUserLocation, onSelectPin, onDeselect },
+    { trip, viewport: viewportProp, activeDate, roadLegs, showUserLocation, onSelectPin, onDeselect },
     ref,
   ) {
     // Same coords and order as tripRouteCoords, but keeps each pin's id and day so
@@ -61,30 +73,22 @@ export const TripMap = forwardRef<
       tintColor: activeDate && c.date !== activeDate ? DIMMED : ACCENT,
       systemImage: 'mappin',
     }));
-    // Split the route into runs of same-colored segments: a leg keeps the accent
-    // only when both endpoints are on the active date; with no activeDate the
-    // merge yields the single accent polyline as before.
-    const segments: { coordinates: { latitude: number; longitude: number }[]; color: string }[] =
-      [];
+    // One polyline per leg, so each can follow real roads independently. A leg
+    // keeps the accent only when both endpoints are on the active date (else it's
+    // dimmed); it draws along its road geometry when resolved, otherwise the
+    // straight-line fallback at a thinner approximate width. The route is never
+    // missing — a leg always has at least its two endpoints to draw.
+    const polylines = [];
     for (let i = 0; i < entries.length - 1; i++) {
       const a = entries[i];
       const b = entries[i + 1];
-      const color =
-        !activeDate || (a.date === activeDate && b.date === activeDate) ? ACCENT : DIMMED;
-      const last = segments[segments.length - 1];
-      if (last && last.color === color) {
-        last.coordinates.push({ latitude: b.lat, longitude: b.lng });
-      } else {
-        segments.push({
-          coordinates: [
-            { latitude: a.lat, longitude: a.lng },
-            { latitude: b.lat, longitude: b.lng },
-          ],
-          color,
-        });
-      }
+      const from: Coords = { lat: a.lat, lng: a.lng };
+      const to: Coords = { lat: b.lat, lng: b.lng };
+      const active = !activeDate || (a.date === activeDate && b.date === activeDate);
+      const road = roadLegs?.[legCacheKey(from, to)];
+      const coordinates = (road ?? [from, to]).map((c) => ({ latitude: c.lat, longitude: c.lng }));
+      polylines.push({ coordinates, color: active ? ACCENT : DIMMED, width: road ? ROAD_WIDTH : APPROX_WIDTH });
     }
-    const polylines = segments.map((s) => ({ ...s, width: 3 }));
     const viewport = viewportProp ?? routeViewport(coords);
 
     // The prop only sets the initial camera; all later moves go through the ref's

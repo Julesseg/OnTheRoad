@@ -18,6 +18,7 @@ interface MapMarker {
 interface MapPolyline {
   coordinates?: Coords[];
   color?: string;
+  width?: number;
 }
 
 interface MapProperties {
@@ -102,6 +103,8 @@ const View = forwardRef<AppleMapsViewHandle, MapViewProps>(function View(props, 
     'data-polyline-color': props.polylines?.[0]?.color ?? '',
     'data-polylines': props.polylines?.map((p) => pairsToString(p.coordinates)).join('|') ?? '',
     'data-polyline-colors': props.polylines?.map((p) => p.color ?? '').join(';') ?? '',
+    'data-polyline-widths':
+      props.polylines?.map((p) => (p.width === undefined ? '' : String(p.width))).join(';') ?? '',
     'data-selection-enabled':
       props.properties?.selectionEnabled === undefined
         ? ''

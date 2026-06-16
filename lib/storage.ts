@@ -3,6 +3,7 @@ import { AppState, AppStateSchema, Trip, TripSchema } from './schema';
 import { importTripFromJson, serializeTrip } from './trip-io';
 import { migrateTripData } from './trip-migrate';
 import { wallpaperRelativePath } from './wallpaper';
+import { RouteCacheData, RouteCacheSchema } from './route-cache';
 import { newId } from './id';
 
 const tripsDir = new Directory(Paths.document, 'trips');
@@ -83,6 +84,30 @@ export async function saveWallpaper(tripId: string, sourceUri: string): Promise<
 /** Resolve a stored relative `wallpaperUri` to a displayable `file://` uri. */
 export function wallpaperDisplayUri(relativePath: string): string {
   return new File(Paths.document, relativePath).uri;
+}
+
+function routeCacheFile(): File {
+  return new File(Paths.document, 'route-cache.json');
+}
+
+/**
+ * Load the persisted [trip route](../CONTEXT.md#trip-route) leg cache, a derived
+ * artifact kept in its own file outside any trip JSON (ADR-0009). A missing or
+ * corrupt file degrades to an empty cache — a recompute, never a crash.
+ */
+export async function loadRouteCache(): Promise<RouteCacheData> {
+  const file = routeCacheFile();
+  if (!file.exists) return {};
+  try {
+    return RouteCacheSchema.parse(JSON.parse(await file.text()));
+  } catch {
+    return {};
+  }
+}
+
+/** Persist the leg cache so computed legs render instantly on relaunch/offline. */
+export function saveRouteCache(data: RouteCacheData): void {
+  atomicWrite(routeCacheFile(), JSON.stringify(data));
 }
 
 function exportFileName(trip: Trip): string {

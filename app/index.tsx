@@ -17,6 +17,7 @@ import {
   MIN_SHEET_DETENT_INDEX,
 } from '@/lib/sheet-detents';
 import { tripRouteCoords } from '@/lib/trip-route';
+import { useRoadLegs } from '@/lib/use-road-legs';
 import { findLocatedItem } from '@/lib/pin-info-card';
 import { todayString } from '@/lib/date-utils';
 import { openInMaps } from '@/lib/maps';
@@ -103,6 +104,10 @@ export default function HomeScreen() {
     : fullCoords;
   const coords = filteredCoords.length > 0 ? filteredCoords : fullCoords;
 
+  // Resolve the trip's legs to real-road geometry (cached on-device), drawn by
+  // the map; off-day legs are still dimmed via activeDate (ADR-0009).
+  const roadLegs = useRoadLegs(trip);
+
   // The tapped pin's info card, shown above the day sheet at its XS peek.
   const selectedLocated = selectedPinId ? findLocatedItem(trip, selectedPinId) : null;
 
@@ -154,6 +159,7 @@ export default function HomeScreen() {
           // even when the filtered day has no pins of its own (the viewport
           // still falls back to the whole route so the camera doesn't collapse).
           activeDate={filterModel.active ? (filterModel.activeDate ?? undefined) : undefined}
+          roadLegs={roadLegs}
           showUserLocation={showUserLocation}
           // Tapping a pin shows its info card; tapping empty map dismisses it.
           onSelectPin={onSelectPin}
