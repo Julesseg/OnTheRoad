@@ -8,6 +8,7 @@ vi.mock('expo', () => ({ requireOptionalNativeModule: vi.fn() }));
 
 import {
   anchorDraft,
+  documentStatesCalendarDate,
   draftToTrip,
   eachDateInclusive,
   generateTripDraft,
@@ -269,7 +270,7 @@ describe('generateTripDraft', () => {
       }),
       day: vi.fn(async (_t, date: string) => ({ items: [{ name: `item ${date}` }] })),
     };
-    const generated = await generateTripDraft('plan', generate);
+    const generated = await generateTripDraft('Big Sur Aug 14-15', generate);
 
     expect(generated.needsStartDate).toBe(false);
     if (generated.needsStartDate) return;
@@ -308,6 +309,50 @@ describe('generateTripDraft', () => {
     await expect(generateTripDraft('plan', generate)).rejects.toThrow(/too long/i);
     // It fails before grinding through hundreds of per-day inferences.
     expect(generate.day).not.toHaveBeenCalled();
+  });
+
+  it('demotes a dated outline to the prompt path when the document states no dates', async () => {
+    // The on-device model sometimes sets hasDates=true and invents a span for a
+    // plan that has none (issue #98). We don't trust dates the source text can't
+    // support: keep the day span as the count, discard the invented dates, prompt.
+    const generate: DraftGenerator = {
+      outline: vi.fn().mockResolvedValue({
+        title: 'Iceland Ring Road',
+        startDate: '2026-08-14',
+        endDate: '2026-08-16',
+      }),
+      day: vi.fn(async (_t, _date, dayNumber: number) => ({ items: [{ name: `day ${dayNumber}` }] })),
+    };
+    const generated = await generateTripDraft('Day 1 land. Day 2 golden circle. Day 3 home.', generate);
+
+    expect(generated.needsStartDate).toBe(true);
+    if (!generated.needsStartDate) return;
+    expect(generated.draft.title).toBe('Iceland Ring Road');
+    // The 3-day span survives as a day count; the fabricated dates are dropped, so
+    // each per-day call is date-less and keyed by dayNumber.
+    expect(generated.draft.days.map((d) => d.items.map((i) => i.name))).toEqual([
+      ['day 1'],
+      ['day 2'],
+      ['day 3'],
+    ]);
+    expect(generate.day).toHaveBeenNthCalledWith(1, expect.any(String), '', 1, 3, true);
+    expect(generate.day).toHaveBeenNthCalledWith(3, expect.any(String), '', 3, 3, false);
+  });
+});
+
+describe('documentStatesCalendarDate', () => {
+  it('detects month+day, ISO, and numeric dates', () => {
+    expect(documentStatesCalendarDate('Barcelona March 10 to March 12')).toBe(true);
+    expect(documentStatesCalendarDate('land on the 18th of April')).toBe(true);
+    expect(documentStatesCalendarDate('start 2026-08-14')).toBe(true);
+    expect(documentStatesCalendarDate('depart 8/14')).toBe(true);
+    expect(documentStatesCalendarDate('Apr 20: drive south')).toBe(true);
+  });
+
+  it('does not fire on relative-day plans or bare month words', () => {
+    expect(documentStatesCalendarDate('Day 1 hike, Day 2 fish, Day 3 home')).toBe(false);
+    expect(documentStatesCalendarDate('we may need to book the ferry')).toBe(false);
+    expect(documentStatesCalendarDate('arrive mid-morning, leave in the evening')).toBe(false);
   });
 });
 
@@ -357,10 +402,10 @@ describe('smartImportTrip', () => {
       { title: 'Trip', startDate: '2026-08-14', endDate: '2026-08-15' },
       {},
     );
-    await smartImportTrip('plan', { generate, makeId: counterIds() });
+    await smartImportTrip('Trip Aug 14-15', { generate, makeId: counterIds() });
 
-    expect(generate.day).toHaveBeenNthCalledWith(1, 'plan', '2026-08-14', 1, 2, true);
-    expect(generate.day).toHaveBeenNthCalledWith(2, 'plan', '2026-08-15', 2, 2, false);
+    expect(generate.day).toHaveBeenNthCalledWith(1, 'Trip Aug 14-15', '2026-08-14', 1, 2, true);
+    expect(generate.day).toHaveBeenNthCalledWith(2, 'Trip Aug 14-15', '2026-08-15', 2, 2, false);
   });
 
   it('degrades a malformed per-day result to no items instead of failing', async () => {
@@ -368,7 +413,7 @@ describe('smartImportTrip', () => {
       { title: 'Trip', startDate: '2026-08-14', endDate: '2026-08-14' },
       { '2026-08-14': { items: 'not an array' } },
     );
-    const trip = await smartImportTrip('plan', { generate, makeId: counterIds() });
+    const trip = await smartImportTrip('Trip on Aug 14', { generate, makeId: counterIds() });
     expect(trip).not.toBeNull();
     if (!trip) return;
     expect(trip.days[0].items).toEqual([]);

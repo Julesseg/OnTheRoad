@@ -92,6 +92,35 @@ const DraftDayItemsSchema = z.object({ items: z.array(DraftItemSchema) });
 // this; beyond it we fail loud rather than grind.
 const MAX_TRIP_DAYS = 60;
 
+const MONTHS =
+  'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+
+// Deterministic backstop for the on-device model's date judgement. Apple's small
+// model sometimes sets hasDates=true and *invents* a calendar span for a plan that
+// states none ("Day 1 / Day 2"), defeating the inline start-date prompt (issue #98)
+// — a wrong date is worse than none (CONTEXT.md#smart-import). A document can only
+// truly carry dates if it actually names one, so these patterns let us veto a
+// "dated" outline the source text can't support. Conservative on purpose: a bare
+// month word ("may need to…") or a lone "the 18th" is not enough — a date needs a
+// month next to a day, an ISO date, or a numeric date.
+const CALENDAR_DATE_PATTERNS: RegExp[] = [
+  /\b\d{4}-\d{2}-\d{2}\b/, // ISO: 2026-08-14
+  new RegExp(`\\b(?:${MONTHS})\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?\\b`, 'i'), // March 10, Apr 20th
+  new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?(?:${MONTHS})\\b`, 'i'), // 18 April, 18th of April
+  /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/, // 8/14, 08/14/2026
+];
+
+/**
+ * Whether the Planning Document actually states a calendar date — a real month+day,
+ * an ISO date, or a numeric date. The deterministic veto over the on-device model's
+ * `hasDates` claim (issue #98): if the text names no date, the model can't have a
+ * real span, so the flow must ask the user for a start date instead of trusting an
+ * invented one.
+ */
+export function documentStatesCalendarDate(text: string): boolean {
+  return CALENDAR_DATE_PATTERNS.some((re) => re.test(text));
+}
+
 export interface PostProcessDeps {
   /** Id factory for the trip, days, items, and checklist entries. Defaults to newId. */
   makeId?: () => string;
@@ -276,9 +305,15 @@ async function generateDayItems(
  * lists, budgets → day one) is preserved by flagging only the first day.
  *
  * The header decides the shape: a *dated* outline drives one call per calendar date
- * in its span; an *undated* one (the model signalled "no dates found") drives one
- * call per relative day — no date to key on, so each call leans on dayNumber/
- * totalDays — and returns date-less days for `anchorDraft` to pin later. The
+ * in its span; an *undated* one drives one call per relative day — no date to key on,
+ * so each call leans on dayNumber/totalDays — and returns date-less days for
+ * `anchorDraft` to pin later.
+ *
+ * A dated outline is trusted only when the document actually states a date
+ * (`documentStatesCalendarDate`): the on-device model sometimes fabricates a span
+ * for a plan that has none, so a "dated" outline over a date-less document is
+ * demoted to the undated path (its span length kept as the day count, the invented
+ * dates discarded) and the flow asks the user for a start date (issue #98). The
  * fail-loud seam: a malformed header here, or a malformed assembly at the
  * `draftToTrip` gate downstream.
  */
@@ -286,7 +321,7 @@ export async function generateTripDraft(text: string, gen: DraftGenerator): Prom
   const rawOutline = await gen.outline(text);
 
   const dated = DatedOutlineSchema.safeParse(rawOutline);
-  if (dated.success) {
+  if (dated.success && documentStatesCalendarDate(text)) {
     const outline = dated.data;
     const dates = eachDateInclusive(outline.startDate, outline.endDate);
     const days = [];
@@ -300,21 +335,37 @@ export async function generateTripDraft(text: string, gen: DraftGenerator): Prom
     };
   }
 
-  const undated = UndatedOutlineSchema.safeParse(rawOutline);
-  if (!undated.success) throw new Error(undated.error.issues[0].message);
-  const outline = undated.data;
+  // Undated: the model either signalled "no dates found" (a day count) or fabricated
+  // a span the document never states (we keep its day span as the count and drop the
+  // invented dates). Either way the days are date-less and the flow prompts for a start.
+  let title: string;
+  let dayCount: number;
+  if (dated.success) {
+    // Reaching here with a dated outline means the document had no dates (the
+    // real-dates path returned above), so the span is invented — keep only its length.
+    title = dated.data.title;
+    dayCount = eachDateInclusive(dated.data.startDate, dated.data.endDate).length;
+  } else {
+    // UndatedOutlineSchema's dayCount .catch(1) makes it parse almost anything, so it
+    // is only meaningful once the dated shape is ruled out.
+    const undated = UndatedOutlineSchema.safeParse(rawOutline);
+    if (!undated.success) throw new Error(undated.error.issues[0].message);
+    title = undated.data.title;
+    dayCount = undated.data.dayCount;
+  }
+
   // Cap before generating so a hallucinated day count can't trigger hundreds of
   // sequential on-device inferences — the same guard eachDateInclusive applies.
-  if (outline.dayCount > MAX_TRIP_DAYS) {
+  if (dayCount > MAX_TRIP_DAYS) {
     throw new Error(`This plan spans more than ${MAX_TRIP_DAYS} days — too long to import.`);
   }
   const days = [];
-  for (let i = 0; i < outline.dayCount; i++) {
+  for (let i = 0; i < dayCount; i++) {
     // No calendar date yet, so the per-day call leans on dayNumber/totalDays.
-    const { items } = await generateDayItems(text, gen, '', i + 1, outline.dayCount);
+    const { items } = await generateDayItems(text, gen, '', i + 1, dayCount);
     days.push({ items });
   }
-  return { needsStartDate: true, draft: { title: outline.title, days } };
+  return { needsStartDate: true, draft: { title, days } };
 }
 
 export interface SmartImportDeps extends PostProcessDeps {
