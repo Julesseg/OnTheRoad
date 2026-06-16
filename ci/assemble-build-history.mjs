@@ -64,6 +64,63 @@ const manifestUrl = (pr) => `${slotUrl(pr)}/manifest.plist`;
 const installLink = (pr) =>
   `itms-services://?action=download-manifest&amp;url=${manifestUrl(pr)}`;
 
+// A build's identity for the "have I installed this?" mark: PR number + commit,
+// so a fresh build of the same PR reads as new again even though the slot is reused.
+const buildId = (slot) => `${slot.pr}-${slot.sha}`;
+
+// Client-side progressive enhancement, embedded in every page. Both features need
+// the browser because the page is generated once and served statically:
+//   - "have I installed this build?" lives in localStorage (scoped to the
+//     julesseg.github.io origin, so it survives every rebuild). Tapping Install
+//     marks the build seen; an un-installed build shows a NEW badge, an installed
+//     one dims and shows "installed". Tapping a badge toggles it by hand.
+//   - the relative "x ago" next to each build time, recomputed against now.
+const ENHANCE_SCRIPT = `<script>
+(function () {
+  var KEY = "ontheroad-seen-builds";
+  var load = function () {
+    try { return new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); }
+    catch (e) { return new Set(); }
+  };
+  var save = function (set) {
+    try { localStorage.setItem(KEY, JSON.stringify(Array.from(set))); } catch (e) {}
+  };
+  var seen = load();
+  var apply = function (el) {
+    var id = el.getAttribute("data-build-id");
+    var isSeen = seen.has(id);
+    el.classList.toggle("seen", isSeen);
+    el.classList.toggle("unseen", !isSeen);
+  };
+  document.querySelectorAll("[data-build-id]").forEach(function (el) {
+    apply(el);
+    var id = el.getAttribute("data-build-id");
+    var btn = el.querySelector("a.btn");
+    if (btn) btn.addEventListener("click", function () { seen.add(id); save(seen); apply(el); });
+    el.querySelectorAll(".new-badge, .seen-tag").forEach(function (t) {
+      t.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (seen.has(id)) seen.delete(id); else seen.add(id);
+        save(seen); apply(el);
+      });
+    });
+  });
+  var ago = function (iso) {
+    var s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 10) return "just now";
+    if (s < 60) return s + "s ago";
+    var m = Math.round(s / 60);
+    if (m < 60) return m + "m ago";
+    var h = Math.round(m / 60);
+    if (h < 24) return h + "h ago";
+    return Math.round(h / 24) + "d ago";
+  };
+  document.querySelectorAll("[data-time]").forEach(function (el) {
+    el.textContent = " · " + ago(el.getAttribute("data-time"));
+  });
+})();
+</script>`;
+
 const manifestPlist = (slot) => `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -117,6 +174,12 @@ const pageHead = (title) => `<!DOCTYPE html>
     .badge { display: inline-block; background: #007AFF; color: #fff; font-size: 0.7rem;
              font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
     .hint { color: #999; font-size: 0.8rem; margin-top: 32px; text-align: center; }
+    .new-badge { display: none; background: #FF3B30; color: #fff; font-size: 0.7rem; font-weight: 700;
+                 padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle; cursor: pointer; }
+    .seen-tag { display: none; color: #34C759; font-size: 0.78rem; font-weight: 600; margin-left: 8px; cursor: pointer; }
+    [data-build-id].unseen .new-badge { display: inline-block; }
+    [data-build-id].seen .seen-tag { display: inline-block; }
+    li.build.seen { opacity: 0.5; }
     @media (prefers-color-scheme: dark) {
       body { color: #f2f2f7; background: #000; }
       li.build { border-color: #2c2c2e; }
@@ -127,10 +190,13 @@ const pageHead = (title) => `<!DOCTYPE html>
 <body>`;
 
 const slotPage = (slot, isLatest) => `${pageHead(slot.title)}
-  <h1>${escapeHtml(slot.title)}${isLatest ? '<span class="badge">latest</span>' : ""}</h1>
-  <p class="sub">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}</p>
-  <a class="btn" href="${installLink(slot.pr)}">Install</a>
-  <p class="hint">Open this page in Safari on your iPhone, then tap Install.</p>
+  <main data-build-id="${buildId(slot)}">
+    <h1>${escapeHtml(slot.title)}${isLatest ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="seen-tag">✓ installed</span></h1>
+    <p class="sub">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}<span data-time="${slot.time}"></span></p>
+    <a class="btn" href="${installLink(slot.pr)}">Install</a>
+    <p class="hint">Open this page in Safari on your iPhone, then tap Install.</p>
+  </main>
+${ENHANCE_SCRIPT}
 </body>
 </html>
 `;
@@ -141,15 +207,16 @@ const rootPage = (slots) => `${pageHead("On the Road — Builds")}
   <ul class="builds">
 ${slots
   .map(
-    (slot, i) => `    <li class="build${i === 0 ? " latest" : ""}">
-      <div class="title">${escapeHtml(slot.title)}${i === 0 ? '<span class="badge">latest</span>' : ""}</div>
-      <div class="meta">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}</div>
+    (slot, i) => `    <li class="build${i === 0 ? " latest" : ""}" data-build-id="${buildId(slot)}">
+      <div class="title">${escapeHtml(slot.title)}${i === 0 ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="seen-tag">✓ installed</span></div>
+      <div class="meta">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}<span data-time="${slot.time}"></span></div>
       <a class="btn" href="${installLink(slot.pr)}">Install</a>
     </li>`,
   )
   .join("\n")}
   </ul>
   <p class="hint">Open this page in Safari on your iPhone, then tap Install on the build you want.</p>
+${ENHANCE_SCRIPT}
 </body>
 </html>
 `;
