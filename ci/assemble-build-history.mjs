@@ -116,7 +116,7 @@ const ENHANCE_SCRIPT = `<script>
     return Math.round(h / 24) + "d ago";
   };
   document.querySelectorAll("[data-time]").forEach(function (el) {
-    el.textContent = " · " + ago(el.getAttribute("data-time"));
+    el.textContent = ago(el.getAttribute("data-time"));
   });
 })();
 </script>`;
@@ -177,6 +177,9 @@ const pageHead = (title) => `<!DOCTYPE html>
     .new-badge { display: none; background: #FF3B30; color: #fff; font-size: 0.7rem; font-weight: 700;
                  padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle; cursor: pointer; }
     .seen-tag { display: none; color: #34C759; font-size: 0.78rem; font-weight: 600; margin-left: 8px; cursor: pointer; }
+    .time-pill { display: inline-block; background: #5856D6; color: #fff; font-size: 0.7rem; font-weight: 700;
+                 padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
+    .time-pill:empty { display: none; }
     [data-build-id].unseen .new-badge { display: inline-block; }
     [data-build-id].seen .seen-tag { display: inline-block; }
     li.build.seen { opacity: 0.5; }
@@ -191,8 +194,8 @@ const pageHead = (title) => `<!DOCTYPE html>
 
 const slotPage = (slot, isLatest) => `${pageHead(slot.title)}
   <main data-build-id="${buildId(slot)}">
-    <h1>${escapeHtml(slot.title)}${isLatest ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="seen-tag">✓ installed</span></h1>
-    <p class="sub">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}<span data-time="${slot.time}"></span></p>
+    <h1>${escapeHtml(slot.title)}${isLatest ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="time-pill" data-time="${slot.time}"></span><span class="seen-tag">✓ installed</span></h1>
+    <p class="sub">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}</p>
     <a class="btn" href="${installLink(slot.pr)}">Install</a>
     <p class="hint">Open this page in Safari on your iPhone, then tap Install.</p>
   </main>
@@ -208,8 +211,8 @@ const rootPage = (slots) => `${pageHead("On the Road — Builds")}
 ${slots
   .map(
     (slot, i) => `    <li class="build${i === 0 ? " latest" : ""}" data-build-id="${buildId(slot)}">
-      <div class="title">${escapeHtml(slot.title)}${i === 0 ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="seen-tag">✓ installed</span></div>
-      <div class="meta">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}<span data-time="${slot.time}"></span></div>
+      <div class="title">${escapeHtml(slot.title)}${i === 0 ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="time-pill" data-time="${slot.time}"></span><span class="seen-tag">✓ installed</span></div>
+      <div class="meta">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}</div>
       <a class="btn" href="${installLink(slot.pr)}">Install</a>
     </li>`,
   )
