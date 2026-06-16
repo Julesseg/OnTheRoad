@@ -162,6 +162,11 @@ export default function DaysSheet() {
             icon="chevron.backward"
             accessibilityLabel="Back to default trip"
             tintColor={c.accent}
+            // separateBackground gives each its own liquid-glass capsule instead of
+            // sharing one with the adjacent filter button (maps to the iOS 26 bar
+            // button's sharesBackground=false); a spacer only adds gap, it doesn't
+            // split the glass.
+            separateBackground
             onPress={() => {
               // Dismiss BEFORE mutating the store so the two motions run together.
               // react-navigation marks this sheet for dismissal first, so the
@@ -176,16 +181,13 @@ export default function DaysSheet() {
             }}
           />
         ) : null}
-          {/* A fixed spacer between back and filter breaks the shared liquid-glass
-              capsule into two separate glass elements without moving them. Only
-              needed when both are present. */}
-          {showBackArrow && showFilter ? <Stack.Toolbar.Spacer width={8} /> : null}
           {showFilter ? (
             <Stack.Toolbar.Button
             icon="line.3.horizontal.decrease"
             accessibilityLabel="Filter day"
             tintColor={c.accent}
             selected={filterModel.active}
+            separateBackground
             onPress={() => setTodayFilterOverride(!filterModel.active)}
             />
           ) : null}
