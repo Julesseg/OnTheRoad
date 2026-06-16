@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,14 +7,21 @@ import * as Location from 'expo-location';
 
 import { useTripStore } from '@/lib/store';
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
+import { PinInfoCard } from '@/components/pin-info-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColors } from '@/constants/theme';
 import { effectiveTripId } from '@/lib/active-trip';
 import { framedViewport } from '@/lib/framed-viewport';
-import { panelFractionForDetent } from '@/lib/sheet-detents';
+import {
+  panelFractionForDetent,
+  SHEET_DETENTS,
+  MIN_SHEET_DETENT_INDEX,
+} from '@/lib/sheet-detents';
 import { tripRouteCoords } from '@/lib/trip-route';
+import { findLocatedItem, pinInfoCard } from '@/lib/pin-info-card';
 import { todayString } from '@/lib/date-utils';
-import { openInMaps } from '@/lib/maps';
+import { openInMaps, type MapsTarget } from '@/lib/maps';
+import type { Item } from '@/lib/schema';
 import { tripCountdownBadge } from '@/lib/trip-badge';
 import { todayFilterModel } from '@/lib/today-filter';
 import { useShareIntake } from '@/lib/use-share-intake';
@@ -22,7 +29,7 @@ import { centerOnUser, requestUserLocationPermission } from '@/lib/user-location
 
 export default function HomeScreen() {
   const c = useThemeColors();
-  const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, sheetDetentIndex, preferredMapsApp, initialized, initialize, loadTripById } =
+  const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, sheetDetentIndex, selectedPinId, preferredMapsApp, initialized, initialize, loadTripById, setSheetDetentIndex, setSelectedPin } =
     useTripStore();
 
   useEffect(() => {
@@ -49,15 +56,18 @@ export default function HomeScreen() {
 
   // Center-on-user: animate to the user's position when permitted, otherwise route
   // to Settings rather than dead-ending. Distinct from the scope button, which
-  // reframes the trip route.
+  // reframes the trip route. Lifts the dot into the area above the sheet, matching
+  // the route framing at the current detent.
   const onCenterOnUser = useCallback(async () => {
     const result = await centerOnUser(Location);
     if (result.kind === 'located') {
-      tripMapRef.current?.centerOn(result.coordinates);
+      tripMapRef.current?.centerOn(result.coordinates, {
+        panelFraction: panelFractionForDetent(sheetDetentIndex),
+      });
     } else {
       Linking.openSettings?.();
     }
-  }, []);
+  }, [sheetDetentIndex]);
 
   const today = todayString();
   const tripId = effectiveTripId(displayedTripId, trips, activeTripId, today);
@@ -94,10 +104,39 @@ export default function HomeScreen() {
     ? tripRouteCoords({ ...trip, days: trip.days.filter((d) => d.date === filterModel.activeDate) })
     : fullCoords;
   const coords = filteredCoords.length > 0 ? filteredCoords : fullCoords;
-  // Frame the route into the area the /days sheet leaves visible at its current
-  // detent: a peeked (XS) sheet gives the map nearly the full screen, a medium
-  // sheet the top half. Reframes when the detent settles (the store updates).
-  const viewport = framedViewport(coords, panelFractionForDetent(sheetDetentIndex));
+
+  // The tapped pin's info card, shown above the day sheet at its XS peek.
+  const selectedLocated = selectedPinId ? findLocatedItem(trip, selectedPinId) : null;
+  const selectedCard = selectedLocated ? pinInfoCard(selectedLocated.item) : null;
+
+  // With a pin selected, frame the camera on that pin (so it sits in the area
+  // above the XS sheet); otherwise frame the whole route. Either way the frame is
+  // shifted for the area the /days sheet leaves visible at its current detent — a
+  // peeked (XS) sheet gives the map nearly the full screen, a medium sheet the top
+  // half, a full sheet a centred map. Reframes when the detent settles.
+  const selectedPinCoords =
+    selectedLocated?.item.location?.lat != null && selectedLocated.item.location?.lng != null
+      ? [{ lat: selectedLocated.item.location.lat, lng: selectedLocated.item.location.lng }]
+      : null;
+  const viewport = framedViewport(
+    selectedPinCoords ?? coords,
+    panelFractionForDetent(sheetDetentIndex),
+  );
+
+  // Tapping a pin shows its info card and frames the camera on it (via the viewport
+  // above). Drive the sheet down to the XS peek so the card has room above it —
+  // re-presenting is the only way to set the native detent (no imperative setter).
+  const onSelectPin = useCallback(
+    (id: string) => {
+      if (!findLocatedItem(trip, id)) return;
+      setSelectedPin(id);
+      if (sheetDetentIndex !== MIN_SHEET_DETENT_INDEX) {
+        setSheetDetentIndex(MIN_SHEET_DETENT_INDEX);
+        router.dismissAll();
+      }
+    },
+    [trip, sheetDetentIndex, setSelectedPin, setSheetDetentIndex],
+  );
 
   // The map is interactive — pan, pinch-zoom, two-finger rotate, and two-finger
   // pitch all activate as a bundle. expo-maps' AppleMaps exposes no per-gesture
@@ -105,6 +144,7 @@ export default function HomeScreen() {
   // buttons), so the full standard MapKit gesture set rides along. This is
   // intentional: "interactive map" here means a normal MapKit map.
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
 
   return (
     <View style={styles.container}>
@@ -118,23 +158,9 @@ export default function HomeScreen() {
           // still falls back to the whole route so the camera doesn't collapse).
           activeDate={filterModel.active ? (filterModel.activeDate ?? undefined) : undefined}
           showUserLocation={showUserLocation}
-          // Tapping a pin's info card opens the full item editor or routes to the
-          // item in the preferred maps app.
-          onOpenItem={(located) =>
-            trip &&
-            router.push({
-              pathname: '/trip/[id]/item',
-              params: { id: trip.id, dayId: located.dayId, itemId: located.item.id },
-            })
-          }
-          onNavigateItem={(item) => {
-            const target = item.location?.lat != null && item.location?.lng != null
-              ? { coords: { lat: item.location.lat, lng: item.location.lng } }
-              : item.location?.address
-                ? { address: item.location.address }
-                : null;
-            if (target) void openInMaps(target, { app: preferredMapsApp });
-          }}
+          // Tapping a pin shows its info card; tapping empty map dismisses it.
+          onSelectPin={onSelectPin}
+          onDeselect={() => setSelectedPin(null)}
         />
       </View>
       {/* Manual pan/zoom persists across /days sheet re-presents and resets only
@@ -174,8 +200,47 @@ export default function HomeScreen() {
         />
         <IconSymbol name="location.fill" size={22} color={c.accent} />
       </Pressable>
+      {/* Pin info card: floats just above the XS-peek day sheet (rendered after the
+          map buttons so it's never hidden behind them). Dismissed by tapping empty
+          map or expanding the sheet past the XS detent. */}
+      {selectedCard && selectedLocated ? (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.cardWrap,
+            { bottom: height * SHEET_DETENTS[MIN_SHEET_DETENT_INDEX] + 12 },
+          ]}
+        >
+          <PinInfoCard
+            card={selectedCard}
+            onOpen={() =>
+              trip &&
+              router.push({
+                pathname: '/trip/[id]/item',
+                params: {
+                  id: trip.id,
+                  dayId: selectedLocated.dayId,
+                  itemId: selectedLocated.item.id,
+                },
+              })
+            }
+            onNavigate={() => {
+              const target = mapsTargetForItem(selectedLocated.item);
+              if (target) void openInMaps(target, { app: preferredMapsApp });
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   );
+}
+
+function mapsTargetForItem(item: Item): MapsTarget | null {
+  if (item.location?.lat != null && item.location?.lng != null) {
+    return { coords: { lat: item.location.lat, lng: item.location.lng } };
+  }
+  if (item.location?.address) return { address: item.location.address };
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -197,4 +262,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   recenterGlass: { borderRadius: 22 },
+  cardWrap: { position: 'absolute', left: 16, right: 16 },
 });

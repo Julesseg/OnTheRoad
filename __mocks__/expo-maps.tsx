@@ -25,11 +25,16 @@ interface MapProperties {
   selectionEnabled?: boolean;
 }
 
+interface MapUiSettings {
+  myLocationButtonEnabled?: boolean;
+}
+
 interface MapViewProps {
   cameraPosition?: Camera;
   markers?: MapMarker[];
   polylines?: MapPolyline[];
   properties?: MapProperties;
+  uiSettings?: MapUiSettings;
   onMapClick?: (event: { coordinates: { latitude: number; longitude: number } }) => void;
   onMarkerClick?: (event: { id?: string }) => void;
   style?: unknown;
@@ -105,6 +110,10 @@ const View = forwardRef<AppleMapsViewHandle, MapViewProps>(function View(props, 
       props.properties?.isMyLocationEnabled === undefined
         ? ''
         : String(props.properties.isMyLocationEnabled),
+    'data-my-location-button-enabled':
+      props.uiSettings?.myLocationButtonEnabled === undefined
+        ? ''
+        : String(props.uiSettings.myLocationButtonEnabled),
     onClick: (e: { clientX?: number; clientY?: number }) => {
       const latitude = e.clientX ?? 12.34;
       const longitude = e.clientY ?? 56.78;

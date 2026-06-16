@@ -1,23 +1,30 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { AppleMaps } from 'expo-maps';
 
-import type { Item, Trip } from '@/lib/schema';
+import type { Trip } from '@/lib/schema';
 import { routeViewport, type Viewport } from '@/lib/trip-route';
-import { findLocatedItem, pinInfoCard, type LocatedItem } from '@/lib/pin-info-card';
-import { useThemeColors, EmberPalette } from '@/constants/theme';
+import { panelLatShift } from '@/lib/framed-viewport';
+import { EmberPalette } from '@/constants/theme';
 
 const ACCENT = EmberPalette.coral;
 const DIMMED = '#8E8E93';
 
-export interface TripMapHandle {
-  recenter(): void;
-  centerOn(coordinates: { latitude: number; longitude: number }): void;
+export interface CenterOnOptions {
+  zoom?: number;
+  // Lifts the point into the area the day sheet leaves visible, matching the
+  // route framing at the current detent.
+  panelFraction?: number;
 }
 
-// Zoom used when centring on the user's own location — street level, like the
-// native my-location button.
-const USER_LOCATION_ZOOM = 14;
+export interface TripMapHandle {
+  recenter(): void;
+  centerOn(coordinates: { latitude: number; longitude: number }, options?: CenterOnOptions): void;
+}
+
+// Zoom used when centring on a point (the user's own location or a tapped pin) —
+// street level, like the native my-location button.
+const CENTER_ON_ZOOM = 14;
 
 export const TripMap = forwardRef<
   TripMapHandle,
@@ -28,14 +35,14 @@ export const TripMap = forwardRef<
     // Shows the traveller's own position as the standard blue dot once when-in-use
     // location permission is granted.
     showUserLocation?: boolean;
-    // The info card's actions: open the full item editor, or navigate to it in the
-    // preferred maps app. Both optional so the bare map (e.g. tests) can omit them.
-    onOpenItem?: (located: LocatedItem) => void;
-    onNavigateItem?: (item: Item) => void;
+    // A trip pin was tapped (its item id) / empty map was tapped. The info card is
+    // owned by the screen so it can sit above the day sheet and follow its detent.
+    onSelectPin?: (id: string) => void;
+    onDeselect?: () => void;
   }
 >(
   function TripMap(
-    { trip, viewport: viewportProp, activeDate, showUserLocation, onOpenItem, onNavigateItem },
+    { trip, viewport: viewportProp, activeDate, showUserLocation, onSelectPin, onDeselect },
     ref,
   ) {
     // Same coords and order as tripRouteCoords, but keeps each pin's id and day so
@@ -102,99 +109,36 @@ export const TripMap = forwardRef<
 
     useImperativeHandle(ref, () => ({
       recenter: () => mapRef.current?.setCameraPosition(viewportRef.current),
-      centerOn: (coordinates) =>
-        mapRef.current?.setCameraPosition({ coordinates, zoom: USER_LOCATION_ZOOM }),
+      centerOn: (coordinates, options) => {
+        const zoom = options?.zoom ?? CENTER_ON_ZOOM;
+        const latShift = panelLatShift(zoom, options?.panelFraction ?? 0);
+        mapRef.current?.setCameraPosition({
+          coordinates: { latitude: coordinates.latitude - latShift, longitude: coordinates.longitude },
+          zoom,
+        });
+      },
     }));
 
-    // The tapped pin's item, shown as a floating info card. Tapping another pin
-    // replaces it; tapping empty map (onMapClick) dismisses it.
-    const c = useThemeColors();
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const located = selectedId ? findLocatedItem(trip, selectedId) : null;
-    const card = located ? pinInfoCard(located.item) : null;
-
     return (
-      <View style={styles.map}>
-        <AppleMaps.View
-          ref={mapRef}
-          style={styles.map}
-          cameraPosition={initialViewport}
-          markers={markers}
-          polylines={polylines}
-          // The map is a view onto the trip, not a place browser: tapping a non-trip
-          // POI must not open MapKit's place card. POI labels stay visible as context.
-          properties={{ selectionEnabled: false, isMyLocationEnabled: !!showUserLocation }}
-          onMarkerClick={(e) => setSelectedId(e.id ?? null)}
-          onMapClick={() => setSelectedId(null)}
-        />
-        {card && located ? (
-          // Pinned to the top of the map (below the nav buttons) so it never
-          // collides with the day sheet, which lives along the bottom edge.
-          <View
-            style={[styles.card, { backgroundColor: c.surface, borderColor: c.separator }]}
-            accessibilityLabel="Pin info card"
-          >
-            <View style={styles.cardHeader}>
-              <View style={[styles.accentDot, { backgroundColor: card.accent }]} />
-              <Text style={[styles.cardName, { color: c.text }]} numberOfLines={1}>
-                {card.name}
-              </Text>
-              {card.time ? (
-                <Text style={[styles.cardTime, { color: c.textSubtle }]}>{card.time}</Text>
-              ) : null}
-            </View>
-            {card.notesSnippet ? (
-              <Text style={[styles.cardNotes, { color: c.textSubtle }]} numberOfLines={2}>
-                {card.notesSnippet}
-              </Text>
-            ) : null}
-            <View style={styles.cardActions}>
-              <Pressable
-                accessibilityLabel="Open item"
-                onPress={() => onOpenItem?.(located)}
-                style={styles.cardAction}
-              >
-                <Text style={[styles.cardActionText, { color: c.accent }]}>Details</Text>
-              </Pressable>
-              {card.hasLocation ? (
-                <Pressable
-                  accessibilityLabel="Open in maps"
-                  onPress={() => onNavigateItem?.(located.item)}
-                  style={styles.cardAction}
-                >
-                  <Text style={[styles.cardActionText, { color: c.accent }]}>Directions</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-      </View>
+      <AppleMaps.View
+        ref={mapRef}
+        style={styles.map}
+        cameraPosition={initialViewport}
+        markers={markers}
+        polylines={polylines}
+        // The map is a view onto the trip, not a place browser: tapping a non-trip
+        // POI must not open MapKit's place card. POI labels stay visible as context.
+        properties={{ selectionEnabled: false, isMyLocationEnabled: !!showUserLocation }}
+        // The custom themed center-on-user button replaces the native one, which
+        // can't be tinted — hide it so the two aren't redundant.
+        uiSettings={{ myLocationButtonEnabled: false }}
+        onMarkerClick={(e) => (e.id ? onSelectPin?.(e.id) : undefined)}
+        onMapClick={() => onDeselect?.()}
+      />
     );
   },
 );
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
-  card: {
-    position: 'absolute',
-    top: 72,
-    left: 16,
-    right: 16,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 14,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  accentDot: { width: 10, height: 10, borderRadius: 5 },
-  cardName: { flex: 1, fontSize: 16, fontWeight: '600' },
-  cardTime: { fontSize: 14, fontWeight: '500' },
-  cardNotes: { fontSize: 13, lineHeight: 18 },
-  cardActions: { flexDirection: 'row', gap: 20, marginTop: 2 },
-  cardAction: { paddingVertical: 2 },
-  cardActionText: { fontSize: 15, fontWeight: '600' },
 });

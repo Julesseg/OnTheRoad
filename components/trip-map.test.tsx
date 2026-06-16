@@ -180,6 +180,13 @@ describe('TripMap', () => {
     );
   });
 
+  it('hides the native my-location button so it is not redundant with the custom one', () => {
+    render(<TripMap trip={null} showUserLocation />);
+    expect(
+      screen.getByTestId('apple-maps-view').getAttribute('data-my-location-button-enabled'),
+    ).toBe('false');
+  });
+
   it('centerOn() moves the camera to the given coordinates', () => {
     const ref = React.createRef<TripMapHandle>();
     render(<TripMap ref={ref} trip={null} />);
@@ -187,63 +194,38 @@ describe('TripMap', () => {
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('48.85,2.35');
   });
 
-  it('reveals an info card with the item name, time, and notes snippet when its pin is tapped', () => {
-    const trip = makeTrip([
-      {
-        category: 'meal' as const,
-        id: 'lunch',
-        name: 'Lunch at the pier',
-        time: '12:30',
-        notes: 'Window table',
-        location: { lat: 37.8, lng: -122.4 },
-      },
-    ]);
-    render(<TripMap trip={trip} />);
-    expect(screen.queryByText('Lunch at the pier')).not.toBeInTheDocument();
-
-    act(() => fireEvent.click(screen.getByTestId('map-marker-lunch')));
-
-    expect(screen.getByText('Lunch at the pier')).toBeInTheDocument();
-    expect(screen.getByText('12:30')).toBeInTheDocument();
-    expect(screen.getByText('Window table')).toBeInTheDocument();
+  it('centerOn() lifts the point north when given a panelFraction so it sits above the sheet', () => {
+    const ref = React.createRef<TripMapHandle>();
+    render(<TripMap ref={ref} trip={null} />);
+    act(() => ref.current!.centerOn({ latitude: 48.85, longitude: 2.35 }, { panelFraction: 0.5 }));
+    const [lat, lng] = screen.getByTestId('apple-maps-view').getAttribute('data-center')!.split(',');
+    // The camera centre sits south of the pin, so the pin appears in the visible
+    // area above the sheet. Longitude is unchanged.
+    expect(Number(lat)).toBeLessThan(48.85);
+    expect(Number(lng)).toBe(2.35);
   });
 
-  it('dismisses the info card when empty map is tapped', () => {
-    const trip = makeTrip([
-      { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8, lng: -122.4 } },
-    ]);
-    render(<TripMap trip={trip} />);
-    act(() => fireEvent.click(screen.getByTestId('map-marker-a')));
-    expect(screen.getByText('Golden Gate')).toBeInTheDocument();
-
-    act(() => fireEvent.click(screen.getByTestId('apple-maps-view')));
-    expect(screen.queryByText('Golden Gate')).not.toBeInTheDocument();
-  });
-
-  it('replaces the info card when another pin is tapped', () => {
+  it('reports the tapped pin id via onSelectPin', () => {
+    const onSelectPin = vi.fn();
     const trip = makeTrip([
       { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8, lng: -122.4 } },
       { category: 'location' as const, id: 'b', name: 'Big Sur', location: { lat: 36.27, lng: -121.8 } },
     ]);
-    render(<TripMap trip={trip} />);
+    render(<TripMap trip={trip} onSelectPin={onSelectPin} />);
     act(() => fireEvent.click(screen.getByTestId('map-marker-a')));
-    expect(screen.getByText('Golden Gate')).toBeInTheDocument();
-
+    expect(onSelectPin).toHaveBeenLastCalledWith('a');
     act(() => fireEvent.click(screen.getByTestId('map-marker-b')));
-    expect(screen.queryByText('Golden Gate')).not.toBeInTheDocument();
-    expect(screen.getByText('Big Sur')).toBeInTheDocument();
+    expect(onSelectPin).toHaveBeenLastCalledWith('b');
   });
 
-  it('offers a path to the full item via onOpenItem with the located item', () => {
-    const onOpenItem = vi.fn();
+  it('reports a deselect when empty map is tapped', () => {
+    const onDeselect = vi.fn();
     const trip = makeTrip([
       { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8, lng: -122.4 } },
     ]);
-    render(<TripMap trip={trip} onOpenItem={onOpenItem} />);
-    act(() => fireEvent.click(screen.getByTestId('map-marker-a')));
-    act(() => fireEvent.click(screen.getByLabelText('Open item')));
-    expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ dayId: 'd1' }));
-    expect(onOpenItem.mock.calls[0][0].item.id).toBe('a');
+    render(<TripMap trip={trip} onDeselect={onDeselect} />);
+    act(() => fireEvent.click(screen.getByTestId('apple-maps-view')));
+    expect(onDeselect).toHaveBeenCalled();
   });
 
   it('exposes recenter() that re-applies the current viewport', () => {

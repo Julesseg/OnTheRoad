@@ -26,6 +26,7 @@ import {
 import { todayString, formatDateRange } from '@/lib/date-utils';
 import { exportTripAsFile } from '@/lib/storage';
 import { todayFilterModel } from '@/lib/today-filter';
+import { MIN_SHEET_DETENT_INDEX } from '@/lib/sheet-detents';
 
 const WHITE = '#ffffff';
 // Height of the progressive-blur layer behind the transparent nav bar — the
@@ -47,6 +48,7 @@ export default function DaysSheet() {
     removeTrip,
     setTodayFilterOverride,
     setSheetDetentIndex,
+    setSelectedPin,
   } = useTripStore();
   const c = useThemeColors();
   const navigation = useNavigation();
@@ -54,6 +56,7 @@ export default function DaysSheet() {
   // Report the sheet's resting detent to the store so the home map can frame the
   // route into the area it leaves visible. iOS only fires this when the detent
   // settles (isStable), so the map reframes on the stable detent, not mid-drag.
+  // Expanding the sheet past the XS peek also dismisses any pin info card.
   useEffect(() => {
     const unsubscribe = (
       navigation as unknown as {
@@ -63,10 +66,12 @@ export default function DaysSheet() {
         ) => () => void;
       }
     ).addListener('sheetDetentChange', (e) => {
-      if (e.data.stable) setSheetDetentIndex(e.data.index);
+      if (!e.data.stable) return;
+      setSheetDetentIndex(e.data.index);
+      if (e.data.index !== MIN_SHEET_DETENT_INDEX) setSelectedPin(null);
     });
     return unsubscribe;
-  }, [navigation, setSheetDetentIndex]);
+  }, [navigation, setSheetDetentIndex, setSelectedPin]);
   const text = c.text;
   const subtext = c.textSubtle;
 
