@@ -149,13 +149,15 @@ export default function DaysSheet() {
   // The native navigation row: a leading back-arrow while browsing a non-default
   // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Edit / Make
   // favorite / Export / Delete) that share one glass background.
+  const showBackArrow = model.showBackArrow;
+  const showFilter = filterModel.canFilter || filterModel.active;
   const chrome = (
     <>
       {/* Transparent native bar — the progressive blur behind it is an RN overlay
           (see the return below), since the native bar only does a uniform blur. */}
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
         <Stack.Toolbar placement="left">
-        {model.showBackArrow ? (
+        {showBackArrow ? (
           <Stack.Toolbar.Button
             icon="chevron.backward"
             accessibilityLabel="Back to default trip"
@@ -174,7 +176,11 @@ export default function DaysSheet() {
             }}
           />
         ) : null}
-          {filterModel.canFilter || filterModel.active ? (
+          {/* A fixed spacer between back and filter breaks the shared liquid-glass
+              capsule into two separate glass elements without moving them. Only
+              needed when both are present. */}
+          {showBackArrow && showFilter ? <Stack.Toolbar.Spacer width={8} /> : null}
+          {showFilter ? (
             <Stack.Toolbar.Button
             icon="line.3.horizontal.decrease"
             accessibilityLabel="Filter day"
