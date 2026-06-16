@@ -67,6 +67,12 @@
         }
       ],
       "expo-maps",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow On the Road to show your location on the trip map."
+        }
+      ],
       "expo-status-bar",
       "expo-web-browser",
       "@react-native-community/datetimepicker",

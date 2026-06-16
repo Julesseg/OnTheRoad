@@ -10,6 +10,7 @@ type Coords = { latitude?: number; longitude?: number };
 type Camera = { coordinates?: Coords; zoom?: number };
 
 interface MapMarker {
+  id?: string;
   coordinates?: Coords;
   tintColor?: string;
 }
@@ -19,11 +20,23 @@ interface MapPolyline {
   color?: string;
 }
 
+interface MapProperties {
+  isMyLocationEnabled?: boolean;
+  selectionEnabled?: boolean;
+}
+
+interface MapUiSettings {
+  myLocationButtonEnabled?: boolean;
+}
+
 interface MapViewProps {
   cameraPosition?: Camera;
   markers?: MapMarker[];
   polylines?: MapPolyline[];
+  properties?: MapProperties;
+  uiSettings?: MapUiSettings;
   onMapClick?: (event: { coordinates: { latitude: number; longitude: number } }) => void;
+  onMarkerClick?: (event: { id?: string }) => void;
   style?: unknown;
 }
 
@@ -55,7 +68,23 @@ const View = forwardRef<AppleMapsViewHandle, MapViewProps>(function View(props, 
     props.markers?.map((m) => m.coordinates).filter((c): c is Coords => !!c) ?? [];
   const marker = markerCoords[0];
   const polyline = props.polylines?.[0]?.coordinates;
-  return React.createElement('div', {
+  // Render each marker as a nested element so tests can click an individual pin.
+  // The click stops propagation so it fires onMarkerClick only (not the map's
+  // onMapClick), mirroring the native behaviour where a marker tap is distinct.
+  const markerEls = (props.markers ?? []).map((m, i) =>
+    React.createElement('button', {
+      key: m.id ?? i,
+      'data-testid': `map-marker-${m.id ?? i}`,
+      'data-marker-id': m.id ?? '',
+      onClick: (e: { stopPropagation?: () => void }) => {
+        e.stopPropagation?.();
+        props.onMarkerClick?.({ id: m.id });
+      },
+    }),
+  );
+  return React.createElement(
+    'div',
+    {
     'data-testid': 'apple-maps-view',
     'data-center':
       center && typeof center.latitude === 'number' && typeof center.longitude === 'number'
@@ -73,12 +102,26 @@ const View = forwardRef<AppleMapsViewHandle, MapViewProps>(function View(props, 
     'data-polyline-color': props.polylines?.[0]?.color ?? '',
     'data-polylines': props.polylines?.map((p) => pairsToString(p.coordinates)).join('|') ?? '',
     'data-polyline-colors': props.polylines?.map((p) => p.color ?? '').join(';') ?? '',
+    'data-selection-enabled':
+      props.properties?.selectionEnabled === undefined
+        ? ''
+        : String(props.properties.selectionEnabled),
+    'data-my-location-enabled':
+      props.properties?.isMyLocationEnabled === undefined
+        ? ''
+        : String(props.properties.isMyLocationEnabled),
+    'data-my-location-button-enabled':
+      props.uiSettings?.myLocationButtonEnabled === undefined
+        ? ''
+        : String(props.uiSettings.myLocationButtonEnabled),
     onClick: (e: { clientX?: number; clientY?: number }) => {
       const latitude = e.clientX ?? 12.34;
       const longitude = e.clientY ?? 56.78;
       props.onMapClick?.({ coordinates: { latitude, longitude } });
     },
-  });
+    },
+    ...markerEls,
+  );
 });
 
 export const AppleMaps = { View };

@@ -6,6 +6,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from 'react-native';
 import { LightTokens, DarkTokens } from '@/constants/theme';
+import { useTripStore } from '@/lib/store';
+import {
+  SHEET_DETENTS,
+  INITIAL_SHEET_DETENT_INDEX,
+  MIN_SHEET_DETENT_INDEX,
+} from '@/lib/sheet-detents';
 
 const EmberLightTheme = {
   ...DefaultTheme,
@@ -37,6 +43,12 @@ const EmberDarkTheme = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  // A tapped pin opens the day sheet at the XS peek so its info card has room
+  // above the sheet; re-presenting is the only way to drive the native detent
+  // (react-native-screens has no imperative detent setter), so the home screen
+  // re-presents /days and this picks the matching initial detent.
+  const pinSelected = useTripStore((s) => s.selectedPinId !== null);
+  const daysInitialDetent = pinSelected ? MIN_SHEET_DETENT_INDEX : INITIAL_SHEET_DETENT_INDEX;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -47,10 +59,12 @@ export default function RootLayout() {
             name="days"
             options={{
               presentation: 'formSheet',
-              sheetAllowedDetents: [0.5, 1],
-              sheetInitialDetentIndex: 0,
+              // XS peek, medium, full — opening at medium, or XS while a pin's
+              // info card is showing (see lib/sheet-detents).
+              sheetAllowedDetents: [...SHEET_DETENTS],
+              sheetInitialDetentIndex: daysInitialDetent,
               // Largest index stays undimmed: the map shows through at every detent.
-              sheetLargestUndimmedDetentIndex: 1,
+              sheetLargestUndimmedDetentIndex: 2,
               sheetGrabberVisible: true,
               // Permanent sheet: swipe-to-dismiss disabled, resize-only.
               gestureEnabled: false,

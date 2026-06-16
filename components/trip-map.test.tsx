@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import type { Trip } from '@/lib/schema';
 import type { Viewport } from '@/lib/trip-route';
 import { TripMap, type TripMapHandle } from './trip-map';
@@ -23,6 +23,13 @@ describe('TripMap', () => {
   it('renders the Apple Maps view even when no trip is loaded', () => {
     render(<TripMap trip={null} />);
     expect(screen.getByTestId('apple-maps-view')).toBeInTheDocument();
+  });
+
+  it('disables tap-to-select so non-trip points of interest reveal no place card', () => {
+    render(<TripMap trip={null} />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-selection-enabled')).toBe(
+      'false',
+    );
   });
 
   it('renders a coral-tinted marker per location with coords, in itinerary order', () => {
@@ -160,6 +167,65 @@ describe('TripMap', () => {
     ]);
     rerender(<TripMap trip={trip} />);
     expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('41,-115');
+  });
+
+  it('shows the user-location dot only when user location is enabled', () => {
+    const { rerender } = render(<TripMap trip={null} />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-my-location-enabled')).toBe(
+      'false',
+    );
+    rerender(<TripMap trip={null} showUserLocation />);
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-my-location-enabled')).toBe(
+      'true',
+    );
+  });
+
+  it('hides the native my-location button so it is not redundant with the custom one', () => {
+    render(<TripMap trip={null} showUserLocation />);
+    expect(
+      screen.getByTestId('apple-maps-view').getAttribute('data-my-location-button-enabled'),
+    ).toBe('false');
+  });
+
+  it('centerOn() moves the camera to the given coordinates', () => {
+    const ref = React.createRef<TripMapHandle>();
+    render(<TripMap ref={ref} trip={null} />);
+    act(() => ref.current!.centerOn({ latitude: 48.85, longitude: 2.35 }));
+    expect(screen.getByTestId('apple-maps-view').getAttribute('data-center')).toBe('48.85,2.35');
+  });
+
+  it('centerOn() lifts the point north when given a panelFraction so it sits above the sheet', () => {
+    const ref = React.createRef<TripMapHandle>();
+    render(<TripMap ref={ref} trip={null} />);
+    act(() => ref.current!.centerOn({ latitude: 48.85, longitude: 2.35 }, { panelFraction: 0.5 }));
+    const [lat, lng] = screen.getByTestId('apple-maps-view').getAttribute('data-center')!.split(',');
+    // The camera centre sits south of the pin, so the pin appears in the visible
+    // area above the sheet. Longitude is unchanged.
+    expect(Number(lat)).toBeLessThan(48.85);
+    expect(Number(lng)).toBe(2.35);
+  });
+
+  it('reports the tapped pin id via onSelectPin', () => {
+    const onSelectPin = vi.fn();
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8, lng: -122.4 } },
+      { category: 'location' as const, id: 'b', name: 'Big Sur', location: { lat: 36.27, lng: -121.8 } },
+    ]);
+    render(<TripMap trip={trip} onSelectPin={onSelectPin} />);
+    act(() => fireEvent.click(screen.getByTestId('map-marker-a')));
+    expect(onSelectPin).toHaveBeenLastCalledWith('a');
+    act(() => fireEvent.click(screen.getByTestId('map-marker-b')));
+    expect(onSelectPin).toHaveBeenLastCalledWith('b');
+  });
+
+  it('reports a deselect when empty map is tapped', () => {
+    const onDeselect = vi.fn();
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'Golden Gate', location: { lat: 37.8, lng: -122.4 } },
+    ]);
+    render(<TripMap trip={trip} onDeselect={onDeselect} />);
+    act(() => fireEvent.click(screen.getByTestId('apple-maps-view')));
+    expect(onDeselect).toHaveBeenCalled();
   });
 
   it('exposes recenter() that re-applies the current viewport', () => {

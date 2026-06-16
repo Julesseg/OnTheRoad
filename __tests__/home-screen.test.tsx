@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 
 vi.mock('expo-router', () => ({
-  router: { push: vi.fn() },
+  router: { push: vi.fn(), dismissAll: vi.fn() },
   useFocusEffect: vi.fn(),
 }));
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
@@ -21,7 +21,9 @@ vi.mock('expo-blur', () => ({
 vi.mock('@/components/ui/icon-symbol', () => ({
   IconSymbol: () => null,
 }));
+vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
 
+import { router } from 'expo-router';
 import { useTripStore } from '@/lib/store';
 import type { Trip, TripSummary } from '@/lib/schema';
 
@@ -53,9 +55,13 @@ const storeWith = (overrides: object = {}) => {
     displayedTripId: null,
     activeTripId: null,
     todayFilterOverride: null,
+    sheetDetentIndex: 1,
+    selectedPinId: null,
     initialized: true,
     initialize: vi.fn(),
     loadTripById: vi.fn(),
+    setSheetDetentIndex: vi.fn(),
+    setSelectedPin: vi.fn(),
     ...overrides,
   };
   vi.mocked(useTripStore).mockImplementation((sel?: unknown) =>
@@ -69,7 +75,10 @@ const TRIP_ITEMS: Trip['days'][number]['items'] = [
   { category: 'location', id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
 ];
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.restoreAllMocks();
+});
 
 describe('HomeScreen', () => {
   it('renders a recenter button when a trip is loaded', async () => {
@@ -85,6 +94,16 @@ describe('HomeScreen', () => {
     storeWith({});
     const { default: HomeScreen } = await import('@/app/index');
     render(<HomeScreen />);
+    expect(screen.queryByLabelText('Recenter')).not.toBeInTheDocument();
+  });
+
+  it('always offers a distinct center-on-user button, even with no trip', async () => {
+    storeWith({});
+    const { default: HomeScreen } = await import('@/app/index');
+    render(<HomeScreen />);
+    // The center-on-user control is separate from the trip-route recenter (scope)
+    // button and is available even before a trip loads.
+    expect(screen.getByLabelText('Center on my location')).toBeInTheDocument();
     expect(screen.queryByLabelText('Recenter')).not.toBeInTheDocument();
   });
 
@@ -113,5 +132,58 @@ describe('HomeScreen', () => {
 
     expect(map.getAttribute('data-center')).toBe(centerAfterLoad);
     expect(map.getAttribute('data-zoom')).not.toBe('');
+  });
+
+  it('shows the info card for the selected pin', async () => {
+    const trip = makeTrip('trip-1', TRIP_ITEMS);
+    const summary = makeSummary(trip);
+    storeWith({
+      trips: [summary],
+      loadedTrips: { [trip.id]: trip },
+      activeTripId: trip.id,
+      selectedPinId: 'a',
+    });
+    const { default: HomeScreen } = await import('@/app/index');
+    render(<HomeScreen />);
+    expect(screen.getByLabelText('Pin info card')).toBeInTheDocument();
+    expect(screen.getByText('A')).toBeInTheDocument();
+  });
+
+  it('tapping a pin selects it and drops the sheet to the XS peek', async () => {
+    const trip = makeTrip('trip-1', TRIP_ITEMS);
+    const summary = makeSummary(trip);
+    const state = storeWith({
+      trips: [summary],
+      loadedTrips: { [trip.id]: trip },
+      activeTripId: trip.id,
+      sheetDetentIndex: 1,
+    });
+    const { default: HomeScreen } = await import('@/app/index');
+    render(<HomeScreen />);
+
+    act(() => fireEvent.click(screen.getByTestId('map-marker-a')));
+
+    expect(state.setSelectedPin).toHaveBeenCalledWith('a');
+    // Re-presents the sheet at the XS detent (no imperative native detent setter).
+    expect(state.setSheetDetentIndex).toHaveBeenCalledWith(0);
+    expect(router.dismissAll).toHaveBeenCalled();
+  });
+
+  it('does not re-present the sheet when a pin is tapped at the XS peek already', async () => {
+    const trip = makeTrip('trip-1', TRIP_ITEMS);
+    const summary = makeSummary(trip);
+    const state = storeWith({
+      trips: [summary],
+      loadedTrips: { [trip.id]: trip },
+      activeTripId: trip.id,
+      sheetDetentIndex: 0,
+    });
+    const { default: HomeScreen } = await import('@/app/index');
+    render(<HomeScreen />);
+
+    act(() => fireEvent.click(screen.getByTestId('map-marker-b')));
+
+    expect(state.setSelectedPin).toHaveBeenCalledWith('b');
+    expect(router.dismissAll).not.toHaveBeenCalled();
   });
 });

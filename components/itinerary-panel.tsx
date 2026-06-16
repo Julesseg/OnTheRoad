@@ -245,6 +245,10 @@ export function ItineraryPanel({
               </Text>
             </HStack>
             {progress(subtext)}
+            <Spacer />
+            {mapsTarget ? (
+              <Image systemName="map" color={subtext} size={13} />
+            ) : null}
           </HStack>
           <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
           {lines.map((line, i) => (

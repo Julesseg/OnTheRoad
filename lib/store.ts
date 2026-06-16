@@ -12,6 +12,7 @@ import {
 } from './trip-mutations';
 import { resolveActiveTrip } from './active-trip';
 import type { DayFilterOverride } from './today-filter';
+import { INITIAL_SHEET_DETENT_INDEX } from './sheet-detents';
 import { todayString } from './date-utils';
 import { writeTripsIndex } from './share-bridge-native';
 
@@ -21,6 +22,8 @@ interface TripStore {
   activeTripId: string | null;
   displayedTripId: string | null;
   todayFilterOverride: DayFilterOverride;
+  sheetDetentIndex: number;
+  selectedPinId: string | null;
   preferredMapsApp: MapsApp;
   appearance: AppearanceMode;
   installedMapsApps: MapsApp[];
@@ -45,6 +48,8 @@ interface TripStore {
   setDisplayedTrip: (id: string) => void;
   resetDisplayedTrip: () => void;
   setTodayFilterOverride: (value: string | boolean) => void;
+  setSheetDetentIndex: (index: number) => void;
+  setSelectedPin: (id: string | null) => void;
 }
 
 type StateSnapshot = {
@@ -114,6 +119,8 @@ export const useTripStore = create<TripStore>((set, get) => ({
   activeTripId: null,
   displayedTripId: null,
   todayFilterOverride: null,
+  sheetDetentIndex: INITIAL_SHEET_DETENT_INDEX,
+  selectedPinId: null,
   preferredMapsApp: 'apple',
   appearance: 'system',
   // Apple Maps always ships with iOS, so default to it until the probe resolves.
@@ -281,5 +288,18 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
   setTodayFilterOverride(value: string | boolean) {
     set({ todayFilterOverride: value });
+  },
+
+  // The /days sheet's resting detent, reported via onSheetDetentChanged. In-memory
+  // only (like the Displayed Trip): the home map reads it to frame the route into
+  // the area left visible above the sheet at the current detent.
+  setSheetDetentIndex(index: number) {
+    set({ sheetDetentIndex: index });
+  },
+
+  // The trip pin whose info card is showing. Set on pin tap; cleared on empty-map
+  // tap or when the day sheet is expanded past the XS detent. In-memory only.
+  setSelectedPin(id: string | null) {
+    set({ selectedPinId: id });
   },
 }));
