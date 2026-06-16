@@ -12,6 +12,8 @@
     <dict>
         <key>com.julesseguin.ontheroad</key>
         <string>OnTheRoad Ad Hoc</string>
+        <key>com.julesseguin.ontheroad.share</key>
+        <string>OnTheRoad Share Ad Hoc</string>
     </dict>
 </dict>
 </plist>

@@ -40,30 +40,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Clean prebuild (regenerate ios/ from scratch) only when native inputs
-      # changed; otherwise prebuild incrementally so Pods/ and DerivedData
-      # survive. The hash is stored on the persistent runner, outside the
-      # workspace, and only updated after a successful prebuild.
-      - name: Determine prebuild mode
-        id: prebuild_mode
-        run: |
-          HASH_FILE="$HOME/.ontheroad-ci/native-inputs.sha"
-          CURRENT="$(cat app.json package-lock.json | shasum -a 256 | awk '{print $1}')"
-          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$CURRENT" ]; then
-            echo "clean=" >> "$GITHUB_OUTPUT"
-            echo "Native inputs unchanged → incremental prebuild"
-          else
-            echo "clean=--clean" >> "$GITHUB_OUTPUT"
-            echo "Native inputs changed (or first run) → clean prebuild"
-          fi
-
+      # Always regenerate ios/ from scratch. The committed ios/ already contains
+      # the @bacons/apple-targets "share" extension target, and that plugin's
+      # incremental update path crashes ("Cannot read properties of undefined
+      # (reading 'removeFromProject')") when the target already exists. Only a
+      # clean prebuild is compatible with it, so we never prebuild incrementally.
       - name: Expo prebuild
-        run: |
-          npx expo prebuild --platform ios ${{ steps.prebuild_mode.outputs.clean }} --no-install
-          HASH_FILE="$HOME/.ontheroad-ci/native-inputs.sha"
-          mkdir -p "$(dirname "$HASH_FILE")"
-          echo "${{ steps.prebuild_mode.outputs.current }}" > "$HASH_FILE"
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      # The main app and the Share Extension are separate targets with separate
+      # explicit App IDs (both with App Groups), so each needs its own Ad Hoc
+      # provisioning profile. xcodebuild command-line build settings are global,
+      # so pin the per-target profile in the project here instead.
+      - name: Pin per-target code signing
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: node ci/set-release-signing.js
 
       - name: Setup Ruby via Homebrew
         run: |
@@ -85,10 +77,12 @@ jobs:
       - name: Install provisioning profile
         env:
           APPLE_PROVISIONING_PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE }}
+          APPLE_PROVISIONING_PROFILE_SHARE: ${{ secrets.APPLE_PROVISIONING_PROFILE_SHARE }}
         run: |
-          PP_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/ontheroad_adhoc.mobileprovision"
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "$APPLE_PROVISIONING_PROFILE" | base64 --decode -o "$PP_PATH"
+          PP_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PP_DIR"
+          echo "$APPLE_PROVISIONING_PROFILE" | base64 --decode -o "$PP_DIR/ontheroad_adhoc.mobileprovision"
+          echo "$APPLE_PROVISIONING_PROFILE_SHARE" | base64 --decode -o "$PP_DIR/ontheroad_share_adhoc.mobileprovision"
 
       - name: Unlock keychain
         env:
@@ -110,8 +104,7 @@ jobs:
             -archivePath /tmp/ontheroad.xcarchive \
             -derivedDataPath "$HOME/Library/Developer/Xcode/DerivedData/ontheroad-runner" \
             CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
-            CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE_SPECIFIER="OnTheRoad Ad Hoc"
+            CODE_SIGN_STYLE=Manual
 
       - name: Export .ipa
         env:
