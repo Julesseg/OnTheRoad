@@ -12,15 +12,17 @@ on:
       - 'CONTEXT.md'
       - 'LICENSE'
 
-# Pages serves a single site, so only one build may be in flight at a time.
-# A new PR run cancels any currently-running one — newest wins.
+# Supersede only an OLDER build of the SAME PR — a new push to PR #X cancels
+# PR #X's in-flight run (we keep just the latest build per PR anyway). Different
+# PRs have different groups, so they build in parallel and never cancel each
+# other. The shared publish step is serialized separately, on the deploy job.
 concurrency:
-  group: pages-deploy
+  group: release-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build & Publish
+    name: Build
     runs-on: self-hosted
     env:
       PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
@@ -38,13 +40,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Always regenerate ios/ from scratch. The committed ios/ already contains
-      # the @bacons/apple-targets "share" extension target, and that plugin's
-      # incremental update path crashes ("Cannot read properties of undefined
-      # (reading 'removeFromProject')") when the target already exists. Only a
-      # clean prebuild is compatible with it, so we never prebuild incrementally.
+      # Clean prebuild (regenerate ios/ from scratch) only when native inputs
+      # changed; otherwise prebuild incrementally so Pods/ and DerivedData
+      # survive. The hash is stored on the persistent runner, outside the
+      # workspace, and only updated after a successful prebuild.
+      - name: Determine prebuild mode
+        id: prebuild_mode
+        run: |
+          HASH_FILE="$HOME/.ontheroad-ci/native-inputs.sha"
+          CURRENT="$(cat app.json package-lock.json | shasum -a 256 | awk '{print $1}')"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$CURRENT" ]; then
+            echo "clean=" >> "$GITHUB_OUTPUT"
+            echo "Native inputs unchanged → incremental prebuild"
+          else
+            echo "clean=--clean" >> "$GITHUB_OUTPUT"
+            echo "Native inputs changed (or first run) → clean prebuild"
+          fi
+
       - name: Expo prebuild
-        run: npx expo prebuild --platform ios --clean --no-install
+        run: |
+          npx expo prebuild --platform ios ${{ steps.prebuild_mode.outputs.clean }} --no-install
+          HASH_FILE="$HOME/.ontheroad-ci/native-inputs.sha"
+          mkdir -p "$(dirname "$HASH_FILE")"
+          echo "${{ steps.prebuild_mode.outputs.current }}" > "$HASH_FILE"
 
       - name: Setup Ruby via Homebrew
         run: |
@@ -104,91 +123,128 @@ jobs:
             -exportOptionsPlist /tmp/ExportOptions.plist \
             -exportPath /tmp/ipa
 
-      - name: Prepare GitHub Pages output
-        run: |
-          SHA="${GITHUB_SHA::7}"
-          IPA_URL="https://julesseg.github.io/OnTheRoad/builds/${SHA}/ontheroad.ipa"
-          MANIFEST_URL="https://julesseg.github.io/OnTheRoad/builds/${SHA}/manifest.plist"
-          INSTALL_LINK="itms-services://?action=download-manifest&url=${MANIFEST_URL}"
-
-          mkdir -p /tmp/pages/builds/"$SHA"
-          cp /tmp/ipa/ontheroad.ipa /tmp/pages/builds/"$SHA"/ontheroad.ipa
-
-          cat > /tmp/pages/builds/"$SHA"/manifest.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>items</key>
-              <array>
-                  <dict>
-                      <key>assets</key>
-                      <array>
-                          <dict>
-                              <key>kind</key>
-                              <string>software-package</string>
-                              <key>url</key>
-                              <string>${IPA_URL}</string>
-                          </dict>
-                      </array>
-                      <key>metadata</key>
-                      <dict>
-                          <key>bundle-identifier</key>
-                          <string>com.julesseguin.ontheroad</string>
-                          <key>bundle-version</key>
-                          <string>${SHA}</string>
-                          <key>kind</key>
-                          <string>software</string>
-                          <key>title</key>
-                          <string>On the Road</string>
-                      </dict>
-                  </dict>
-              </array>
-          </dict>
-          </plist>
-          EOF
-
-          cat > /tmp/pages/index.html << EOF
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>On the Road — Install</title>
-            <style>
-              body { font-family: -apple-system, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 24px; text-align: center; }
-              h1 { font-size: 1.6rem; margin-bottom: 8px; }
-              p { color: #666; margin-bottom: 32px; }
-              a.btn { display: inline-block; background: #007AFF; color: #fff; text-decoration: none;
-                      padding: 14px 32px; border-radius: 12px; font-size: 1.1rem; font-weight: 600; }
-              .version { margin-top: 24px; font-size: 0.85rem; color: #999; }
-            </style>
-          </head>
-          <body>
-            <h1>On the Road</h1>
-            <p>Open this page in Safari on your iPhone to install.</p>
-            <a class="btn" href="${INSTALL_LINK}">Install</a>
-            <div class="version">${SHA}</div>
-          </body>
-          </html>
-          EOF
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      # Hand the signed .ipa to the deploy job, which publishes it. The build
+      # itself touches nothing shared, so it stays per-PR parallel.
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: /tmp/pages
+          name: ipa
+          path: /tmp/ipa/ontheroad.ipa
+          if-no-files-found: error
+          retention-days: 1
 
   deploy:
-    name: Deploy to GitHub Pages
+    name: Publish & Deploy
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      contents: write   # force-push the build-history branch
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    # Serialize the shared publish across ALL PRs — the read-modify-write of the
+    # build-history branch and the Pages deploy must not race. Queue, never
+    # cancel (cancel-in-progress: false), so a different PR's publish waits its
+    # turn instead of being killed.
+    concurrency:
+      group: build-history-publish
+      cancel-in-progress: false
+
     steps:
-      - name: Deploy
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download .ipa artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ipa
+          path: /tmp/ipa
+
+      # Seed the working site from the existing build-history branch (the
+      # published builds we're keeping). `git archive` extracts the tree without
+      # any git metadata; on the very first run the branch is absent and we
+      # start empty.
+      - name: Seed site from build-history
+        run: |
+          SITE=/tmp/site
+          rm -rf "$SITE"; mkdir -p "$SITE"
+          if git fetch origin build-history; then
+            git archive origin/build-history | tar -x -C "$SITE"
+            echo "Seeded from existing build-history branch."
+          else
+            echo "No build-history branch yet — starting fresh."
+          fi
+
+      - name: Assemble build history
+        env:
+          SITE_DIR: /tmp/site
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+          IPA_PATH: /tmp/ipa/ontheroad.ipa
+          PAGES_BASE_URL: https://julesseg.github.io/OnTheRoad
+          RETENTION: '5'
+        run: node ci/assemble-build-history.mjs
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/site
+
+      # Persist the assembled site back to the build-history branch as a single
+      # rolling commit (force-push), so old multi-MB .ipa blobs never accumulate
+      # in git history. The branch is a derived store, not a record.
+      - name: Push build-history branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /tmp/site
+          git init -q
+          git checkout -q -b build-history
+          git add -A
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "Publish PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" build-history
+
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  notify:
+    name: Notify
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send ntfy notification
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          SHORT_SHA: ${{ github.event.pull_request.head.sha }}
+          INSTALL_URL: https://julesseg.github.io/OnTheRoad/builds/pr-${{ github.event.pull_request.number }}/
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "NTFY_TOPIC secret not set — skipping notification."
+            exit 0
+          fi
+          SHA7="${SHORT_SHA:0:7}"
+          if [ "${{ needs.build.result }}" = "success" ] && [ "${{ needs.deploy.result }}" = "success" ]; then
+            curl -fsS \
+              -H "Title: On the Road build ready" \
+              -H "Tags: white_check_mark" \
+              -H "Click: ${INSTALL_URL}" \
+              -d "${PR_TITLE} — ${SHA7}" \
+              "https://ntfy.sh/${NTFY_TOPIC}"
+          else
+            curl -fsS \
+              -H "Title: On the Road build failed" \
+              -H "Tags: x" \
+              -H "Priority: high" \
+              -H "Click: ${RUN_URL}" \
+              -d "${PR_TITLE} — ${SHA7} · tap for logs" \
+              "https://ntfy.sh/${NTFY_TOPIC}"
+          fi
