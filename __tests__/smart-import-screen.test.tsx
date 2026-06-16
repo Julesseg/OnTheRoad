@@ -29,9 +29,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
 });
 vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   datePickerStyle: vi.fn(() => ({})),
-  background: vi.fn(() => ({})),
-  listRowBackground: vi.fn(() => ({})),
-  scrollContentBackground: vi.fn(() => ({})),
+  tint: vi.fn(() => ({})),
 }));
 
 // The native chrome is expo-router's Stack.Header / Stack.Title; Header renders

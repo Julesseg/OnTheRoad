@@ -13,8 +13,8 @@ import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { GlassView } from 'expo-glass-effect';
-import { Host, Form, Section, DatePicker } from '@expo/ui/swift-ui';
-import { background, datePickerStyle, listRowBackground, scrollContentBackground } from '@expo/ui/swift-ui/modifiers';
+import { Host, DatePicker } from '@expo/ui/swift-ui';
+import { datePickerStyle, tint } from '@expo/ui/swift-ui/modifiers';
 
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
@@ -168,20 +168,20 @@ export default function SmartImportSheet() {
           <Text style={[styles.detail, { color: c.textSubtle }]}>
             Pick a start date and we’ll lay the days out from there.
           </Text>
-          <Host matchContents style={styles.datePickerHost}>
-            <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
-              <Section modifiers={[listRowBackground(c.surface)]}>
-                <DatePicker
-                  title="Start"
-                  selection={parseLocalDate(pendingDate.value)}
-                  displayedComponents={['date']}
-                  onDateChange={(d) =>
-                    setPendingDate((p) => (p ? { ...p, value: formatLocalDate(d) } : p))
-                  }
-                  modifiers={[datePickerStyle('compact')]}
-                />
-              </Section>
-            </Form>
+          {/* A graphical (inline month calendar) picker rather than compact: the
+              compact field's popover doesn't open reliably inside the formSheet,
+              leaving the date stuck on today — the calendar lets the user pick
+              directly. matchContents sizes the host to the calendar. */}
+          <Host matchContents style={styles.datePickerHost} modifiers={[tint(c.accent)]}>
+            <DatePicker
+              title="Start"
+              selection={parseLocalDate(pendingDate.value)}
+              displayedComponents={['date']}
+              onDateChange={(d) =>
+                setPendingDate((p) => (p ? { ...p, value: formatLocalDate(d) } : p))
+              }
+              modifiers={[datePickerStyle('graphical')]}
+            />
           </Host>
           <Pressable
             accessibilityRole="button"
