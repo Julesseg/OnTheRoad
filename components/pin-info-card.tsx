@@ -26,7 +26,8 @@ export function mapsTargetForItem(item: Item): MapsTarget | null {
  * liquid glass to match the rest of the app and shows the **same information as
  * the item's row in the itinerary panel** — category symbol + label, checklist
  * progress, name, the address/time/notes lines, and the ticking checklist — with
- * colored-pill actions through to the full item and the preferred maps app.
+ * a Directions pill in the top-right corner that opens the preferred maps app.
+ * Tapping anywhere on the card body opens the full item editor.
  * Purely presentational; the owning screen positions it above the day sheet.
  */
 export function PinInfoCard({
@@ -52,30 +53,50 @@ export function PinInfoCard({
       style={styles.card}
       accessibilityLabel="Pin info card"
     >
-      <Pressable onPress={onOpen} accessibilityLabel="Open item" style={styles.body}>
-        <View style={styles.typeRow}>
-          <SymbolView
-            name={identity.symbol as SymbolViewProps['name']}
-            tintColor={identity.accent}
-            resizeMode="scaleAspectFit"
-            style={styles.typeIcon}
-          />
-          <Text style={[styles.typeLabel, { color: c.textSubtle }]}>{typeLabel.toUpperCase()}</Text>
-          {checklist.length > 0 ? (
-            <Text style={[styles.progress, { color: c.textSubtle }]}>
-              {checklistProgress(checklist)}
-            </Text>
-          ) : null}
-        </View>
-        <Text style={[styles.title, { color: c.text }]} numberOfLines={2}>
-          {title}
-        </Text>
-        {lines.map((line, i) => (
-          <Text key={i} style={[styles.line, { color: c.textSubtle }]} numberOfLines={2}>
-            {line}
+      {/* Header row: tappable body on the left, Directions pill pinned top-right */}
+      <View style={styles.headerRow}>
+        <Pressable onPress={onOpen} accessibilityLabel="Open item" style={styles.body}>
+          <View style={styles.typeRow}>
+            <SymbolView
+              name={identity.symbol as SymbolViewProps['name']}
+              tintColor={identity.accent}
+              resizeMode="scaleAspectFit"
+              style={styles.typeIcon}
+            />
+            <Text style={[styles.typeLabel, { color: c.textSubtle }]}>{typeLabel.toUpperCase()}</Text>
+            {checklist.length > 0 ? (
+              <>
+                <SymbolView
+                  name={'checklist' as SymbolViewProps['name']}
+                  tintColor={c.textSubtle}
+                  resizeMode="scaleAspectFit"
+                  style={styles.checklistProgressIcon}
+                />
+                <Text style={[styles.progress, { color: c.textSubtle }]}>
+                  {checklistProgress(checklist)}
+                </Text>
+              </>
+            ) : null}
+          </View>
+          <Text style={[styles.title, { color: c.text }]} numberOfLines={2}>
+            {title}
           </Text>
-        ))}
-      </Pressable>
+          {lines.map((line, i) => (
+            <Text key={i} style={[styles.line, { color: c.textSubtle }]} numberOfLines={2}>
+              {line}
+            </Text>
+          ))}
+        </Pressable>
+        {hasMapsTarget ? (
+          <ActionPill
+            label="Directions"
+            accessibilityLabel="Open in maps"
+            symbol="map"
+            tint={c.secondaryAction}
+            onPress={onNavigate}
+          />
+        ) : null}
+      </View>
 
       {checklist.length > 0 ? (
         <View style={styles.checklist}>
@@ -97,25 +118,6 @@ export function PinInfoCard({
           ))}
         </View>
       ) : null}
-
-      <View style={styles.actions}>
-        <ActionPill
-          label="Details"
-          accessibilityLabel="Open item"
-          symbol="pencil"
-          tint={c.accent}
-          onPress={onOpen}
-        />
-        {hasMapsTarget ? (
-          <ActionPill
-            label="Directions"
-            accessibilityLabel="Open in maps"
-            symbol="map"
-            tint={c.secondaryAction}
-            onPress={onNavigate}
-          />
-        ) : null}
-      </View>
     </GlassView>
   );
 }
@@ -147,19 +149,20 @@ function ActionPill({
 const styles = StyleSheet.create({
   // The glass rounds its own corners; no overflow:'hidden' so the edge highlight
   // isn't clipped (see app/index.tsx).
-  card: { borderRadius: 20, padding: 14, gap: 8 },
-  body: { gap: 3 },
+  card: { borderRadius: 28, padding: 14, gap: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  body: { gap: 3, flex: 1 },
   typeRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   typeIcon: { width: 13, height: 13 },
+  checklistProgressIcon: { width: 10, height: 10 },
   typeLabel: { fontSize: 11, fontWeight: '600' },
-  progress: { fontSize: 11, fontWeight: '600', marginLeft: 4 },
+  progress: { fontSize: 11, fontWeight: '600' },
   title: { fontSize: 16, fontWeight: '600', marginTop: 1 },
   line: { fontSize: 14 },
   checklist: { gap: 6, marginTop: 2 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   checkIcon: { width: 18, height: 18 },
   checkLabel: { fontSize: 14 },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

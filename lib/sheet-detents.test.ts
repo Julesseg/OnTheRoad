@@ -8,7 +8,7 @@ import {
 
 describe('panelFractionForDetent', () => {
   it('frames into the area the XS and medium sheets leave visible', () => {
-    expect(panelFractionForDetent(0)).toBe(0.12);
+    expect(panelFractionForDetent(0)).toBe(0.1);
     expect(panelFractionForDetent(1)).toBe(0.5);
   });
 
@@ -18,7 +18,7 @@ describe('panelFractionForDetent', () => {
 
   it('opens at the medium detent and peeks at the XS detent', () => {
     expect(SHEET_DETENTS[INITIAL_SHEET_DETENT_INDEX]).toBe(0.5);
-    expect(SHEET_DETENTS[MIN_SHEET_DETENT_INDEX]).toBe(0.12);
+    expect(SHEET_DETENTS[MIN_SHEET_DETENT_INDEX]).toBe(0.1);
   });
 
   it('falls back to the medium fraction for an out-of-range index', () => {

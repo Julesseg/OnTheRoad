@@ -236,23 +236,29 @@ export function ItineraryPanel({
         spacing={6}
         modifiers={isToday ? [listRowBackground(c.accentFaint)] : []}
       >
-        <VStack alignment="leading" spacing={2} modifiers={[onTapGesture(edit)]}>
-          <HStack spacing={8}>
-            <HStack spacing={4}>
-              <Image systemName={identity.symbol} color={identity.accent} size={12} />
-              <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
-                {typeLabel.toUpperCase()}
-              </Text>
+        <HStack alignment="top" spacing={8} modifiers={[onTapGesture(edit)]}>
+          <VStack alignment="leading" spacing={2}>
+            <HStack spacing={8}>
+              <HStack spacing={4}>
+                <Image systemName={identity.symbol} color={identity.accent} size={12} />
+                <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(subtext)]}>
+                  {typeLabel.toUpperCase()}
+                </Text>
+              </HStack>
+              {progress(subtext)}
             </HStack>
-            {progress(subtext)}
-          </HStack>
-          <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
-          {lines.map((line, i) => (
-            <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
-              {line}
-            </Text>
-          ))}
-        </VStack>
+            <Text modifiers={[font({ size: 16, weight: 'semibold' })]}>{title}</Text>
+            {lines.map((line, i) => (
+              <Text key={i} modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
+                {line}
+              </Text>
+            ))}
+          </VStack>
+          <Spacer />
+          {mapsTarget ? (
+            <Image systemName="map" color={subtext} size={13} />
+          ) : null}
+        </HStack>
         {checklistRows({ tick: c.accent, idle: subtext })}
       </VStack>
     );

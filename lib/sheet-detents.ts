@@ -2,7 +2,7 @@
 // full screen, a medium half-sheet, and full. The home map frames the trip route
 // into the area left visible above the sheet, so the fraction it subtracts is the
 // sheet's current detent fraction (see CONTEXT.md#trip-route).
-export const SHEET_DETENTS = [0.12, 0.5, 1.0] as const;
+export const SHEET_DETENTS = [0.1, 0.5, 1.0] as const;
 
 // The detent the sheet opens at — medium.
 export const INITIAL_SHEET_DETENT_INDEX = 1;
