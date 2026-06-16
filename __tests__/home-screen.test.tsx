@@ -21,6 +21,7 @@ vi.mock('expo-blur', () => ({
 vi.mock('@/components/ui/icon-symbol', () => ({
   IconSymbol: () => null,
 }));
+vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
 
 import { router } from 'expo-router';
 import { useTripStore } from '@/lib/store';

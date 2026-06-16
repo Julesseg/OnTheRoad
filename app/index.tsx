@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Linking, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
 import { useTripStore } from '@/lib/store';
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
-import { PinInfoCard } from '@/components/pin-info-card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { PinInfoCard, mapsTargetForItem } from '@/components/pin-info-card';
+import { MapControlButton } from '@/components/map-control-button';
 import { useThemeColors } from '@/constants/theme';
 import { effectiveTripId } from '@/lib/active-trip';
 import { framedViewport } from '@/lib/framed-viewport';
@@ -18,10 +17,9 @@ import {
   MIN_SHEET_DETENT_INDEX,
 } from '@/lib/sheet-detents';
 import { tripRouteCoords } from '@/lib/trip-route';
-import { findLocatedItem, pinInfoCard } from '@/lib/pin-info-card';
+import { findLocatedItem } from '@/lib/pin-info-card';
 import { todayString } from '@/lib/date-utils';
-import { openInMaps, type MapsTarget } from '@/lib/maps';
-import type { Item } from '@/lib/schema';
+import { openInMaps } from '@/lib/maps';
 import { tripCountdownBadge } from '@/lib/trip-badge';
 import { todayFilterModel } from '@/lib/today-filter';
 import { useShareIntake } from '@/lib/use-share-intake';
@@ -29,7 +27,7 @@ import { centerOnUser, requestUserLocationPermission } from '@/lib/user-location
 
 export default function HomeScreen() {
   const c = useThemeColors();
-  const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, sheetDetentIndex, selectedPinId, preferredMapsApp, initialized, initialize, loadTripById, setSheetDetentIndex, setSelectedPin } =
+  const { trips, loadedTrips, displayedTripId, activeTripId, todayFilterOverride, sheetDetentIndex, selectedPinId, preferredMapsApp, initialized, initialize, loadTripById, setSheetDetentIndex, setSelectedPin, toggleChecklistEntry } =
     useTripStore();
 
   useEffect(() => {
@@ -107,7 +105,6 @@ export default function HomeScreen() {
 
   // The tapped pin's info card, shown above the day sheet at its XS peek.
   const selectedLocated = selectedPinId ? findLocatedItem(trip, selectedPinId) : null;
-  const selectedCard = selectedLocated ? pinInfoCard(selectedLocated.item) : null;
 
   // With a pin selected, frame the camera on that pin (so it sits in the area
   // above the XS sheet); otherwise frame the whole route. Either way the frame is
@@ -169,41 +166,28 @@ export default function HomeScreen() {
           framed viewport. Hidden when no trip is loaded so it can't snap the
           camera to the world-view default. */}
       {trip && (
-        <Pressable
-          style={[styles.recenterBtn, { top: insets.top + 12 }]}
-          onPress={() => tripMapRef.current?.recenter()}
+        <MapControlButton
+          name="scope"
           accessibilityLabel="Recenter"
-        >
-          {/* Liquid glass to match the native MapKit controls (iOS 26+). The glass
-              rounds its own corners; clipping it with overflow:'hidden' on the
-              parent would cut off the edge highlights. */}
-          <GlassView
-            glassEffectStyle="regular"
-            isInteractive
-            style={[StyleSheet.absoluteFill, styles.recenterGlass]}
-          />
-          <IconSymbol name="scope" size={22} color={c.accent} />
-        </Pressable>
+          color={c.accent}
+          style={[styles.mapButton, { top: insets.top + 12 }]}
+          onPress={() => tripMapRef.current?.recenter()}
+        />
       )}
       {/* Center-on-user: themed glass + Ember accent to match the scope button
           (the native MapKit my-location button can't be tinted). Sits just below
           the scope button and centres on the traveller, not the trip route. */}
-      <Pressable
-        style={[styles.userLocationBtn, { top: insets.top + 12 + 44 + 12 }]}
-        onPress={onCenterOnUser}
+      <MapControlButton
+        name="location.fill"
         accessibilityLabel="Center on my location"
-      >
-        <GlassView
-          glassEffectStyle="regular"
-          isInteractive
-          style={[StyleSheet.absoluteFill, styles.recenterGlass]}
-        />
-        <IconSymbol name="location.fill" size={22} color={c.accent} />
-      </Pressable>
+        color={c.accent}
+        style={[styles.mapButton, { top: insets.top + 12 + 44 + 12 }]}
+        onPress={onCenterOnUser}
+      />
       {/* Pin info card: floats just above the XS-peek day sheet (rendered after the
           map buttons so it's never hidden behind them). Dismissed by tapping empty
           map or expanding the sheet past the XS detent. */}
-      {selectedCard && selectedLocated ? (
+      {selectedLocated ? (
         <View
           pointerEvents="box-none"
           style={[
@@ -212,7 +196,7 @@ export default function HomeScreen() {
           ]}
         >
           <PinInfoCard
-            card={selectedCard}
+            item={selectedLocated.item}
             onOpen={() =>
               trip &&
               router.push({
@@ -228,6 +212,9 @@ export default function HomeScreen() {
               const target = mapsTargetForItem(selectedLocated.item);
               if (target) void openInMaps(target, { app: preferredMapsApp });
             }}
+            onToggleChecklistEntry={(entryId) =>
+              trip && toggleChecklistEntry(trip.id, selectedLocated.dayId, selectedLocated.item.id, entryId)
+            }
           />
         </View>
       ) : null}
@@ -235,32 +222,8 @@ export default function HomeScreen() {
   );
 }
 
-function mapsTargetForItem(item: Item): MapsTarget | null {
-  if (item.location?.lat != null && item.location?.lng != null) {
-    return { coords: { lat: item.location.lat, lng: item.location.lng } };
-  }
-  if (item.location?.address) return { address: item.location.address };
-  return null;
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  recenterBtn: {
-    position: 'absolute',
-    left: 16,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userLocationBtn: {
-    position: 'absolute',
-    left: 16,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recenterGlass: { borderRadius: 22 },
+  mapButton: { position: 'absolute', left: 16 },
   cardWrap: { position: 'absolute', left: 16, right: 16 },
 });
