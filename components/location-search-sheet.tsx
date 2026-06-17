@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import { Stack, router, useNavigation } from 'expo-router';
-import { Host, Form, Section, HStack, VStack, Spacer, Text, TextField, Button } from '@expo/ui/swift-ui';
+import { Host, Form, Section, HStack, VStack, Spacer, Text, TextField, Button, useNativeState } from '@expo/ui/swift-ui';
 import {
   accessibilityLabel,
   background,
@@ -47,6 +47,13 @@ export function LocationSearchSheet() {
   const rowList = rows(state);
   const canSelect = committedLocation(state) != null;
   const pinMode = state.mode === 'pin';
+
+  // The SwiftUI TextField is uncontrolled natively, and pin mode unmounts the
+  // whole list+field subtree (only the toolbar shows at the 0.1 peek). Binding the
+  // field to a persisted observable means that when the subtree remounts after
+  // cancelling pin mode, the field still shows the restored query rather than
+  // going blank while the address-fallback row reads the old text.
+  const queryState = useNativeState(state.query);
 
   // The query text is the single source for the async work: a coordinate needs no
   // network, a URL is resolved, anything else is a live Photon search.
@@ -210,6 +217,7 @@ export function LocationSearchSheet() {
               <Section modifiers={[listRowBackground(c.surface)]}>
                 <HStack spacing={8}>
                   <TextField
+                    text={queryState}
                     placeholder="Search or paste a location"
                     onTextChange={(text) => dispatch({ type: 'queryChanged', text })}
                   />

@@ -19,6 +19,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
     VStack: pass('div'),
     HStack: pass('div'),
     Text: pass('span'),
+    useNativeState: (initial: string) => ({ value: initial }),
     TextField: ({
       placeholder,
       onTextChange,
