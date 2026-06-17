@@ -1,8 +1,13 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { View, Text, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+  runOnUI,
+} from 'react-native-reanimated';
 import { Stack, router, useNavigation } from 'expo-router';
-import * as Sharing from 'expo-sharing';
 import { VStack, HStack, Text as SwiftText } from '@expo/ui/swift-ui';
 import {
   font,
@@ -24,7 +29,6 @@ import {
   compactCountdownPillLabel,
 } from '@/lib/trip-badge';
 import { todayString, formatDateRange } from '@/lib/date-utils';
-import { exportTripAsFile } from '@/lib/storage';
 import { todayFilterModel } from '@/lib/today-filter';
 import { MIN_SHEET_DETENT_INDEX } from '@/lib/sheet-detents';
 
@@ -33,6 +37,11 @@ const WHITE = '#ffffff';
 // screen content already starts at the safe-area top, so this spans just the
 // standard (collapsed) navigation bar, not the status-bar inset above it.
 const NAV_BAR_HEIGHT = 64;
+// Cap the inline title/subtitle width so a long trip name truncates with an
+// ellipsis instead of running under the toolbar buttons. Half the sheet width
+// leaves a quarter on each side for the (worst-case) back-arrow + Day-filter
+// group on the left and the Trips button on the right.
+const INLINE_TITLE_MAX_WIDTH = Dimensions.get('window').width * 0.5;
 
 export default function DaysSheet() {
   const {
@@ -41,11 +50,10 @@ export default function DaysSheet() {
     displayedTripId,
     activeTripId,
     todayFilterOverride,
+    sheetDetentIndex,
     initialized,
     loadTripById,
-    setFavorite,
     resetDisplayedTrip,
-    removeTrip,
     setTodayFilterOverride,
     setSheetDetentIndex,
     setSelectedPin,
@@ -92,49 +100,40 @@ export default function DaysSheet() {
   // slide+fade is a discrete transition, not a scrub. Hysteresis (collapse at 20,
   // expand below 6) keeps it from flickering when held right at the edge.
   // (ADR-0002.) Driven on the UI thread by SwiftUI's scroll geometry.
-  const collapsed = useSharedValue(0);
-  const isCollapsed = useSharedValue(false);
+  //
+  // The inline title is forced on whenever EITHER the large title has scrolled
+  // past the threshold OR the sheet rests at its XS peek detent — at the peek the
+  // list is too short to scroll, so the scroll trigger can never fire and the
+  // large title has no room. Both inputs feed the same cross-fade; leaving XS
+  // reverts to the scroll-derived state. (ADR-0002.)
+  const scrolledPast = useSharedValue(false);
+  const atXSDetent = useSharedValue(false);
+  // The cross-fade target is the OR of the two inputs, animated through withTiming
+  // so a flip in either input slides the inline title in (or out) on its own timing.
+  const collapsed = useDerivedValue(() =>
+    withTiming(scrolledPast.value || atXSDetent.value ? 1 : 0, { duration: 220 }),
+  );
   const scrollModifier = useScrollGeometryChange((geometry) => {
     'worklet';
     const y = geometry.contentOffsetY;
-    const next = isCollapsed.value ? y > 6 : y > 20;
-    if (next !== isCollapsed.value) {
-      isCollapsed.value = next;
-      collapsed.value = withTiming(next ? 1 : 0, { duration: 220 });
-    }
+    const next = scrolledPast.value ? y > 6 : y > 20;
+    if (next !== scrolledPast.value) scrolledPast.value = next;
   });
+  // The detent settles on the JS thread (settle-only listener above); push the XS
+  // flag to the UI thread so the derived cross-fade reacts. The fade lands as the
+  // detent comes to rest, which ADR-0002 accepts.
+  useEffect(() => {
+    const atXS = sheetDetentIndex === MIN_SHEET_DETENT_INDEX;
+    runOnUI(() => {
+      atXSDetent.value = atXS;
+    })();
+  }, [sheetDetentIndex, atXSDetent]);
   // Slide + fade: as the large title scrolls up and out, the inline title rises
   // from 10pt below and fades in — Apple's large→inline cross-fade motion.
   const inlineTitleStyle = useAnimatedStyle(() => ({
     opacity: collapsed.value,
     transform: [{ translateY: (1 - collapsed.value) * 20 }],
   }));
-
-  async function onExport() {
-    if (!summary) return;
-    try {
-      const uri = await exportTripAsFile(summary.id);
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/json',
-          UTI: 'public.json',
-          dialogTitle: `Export ${summary.title}`,
-        });
-      } else {
-        Alert.alert('Sharing unavailable', 'Sharing is not available on this device.');
-      }
-    } catch {
-      Alert.alert('Export failed', 'Could not export this trip.');
-    }
-  }
-
-  function onDelete() {
-    if (!summary) return;
-    Alert.alert('Delete trip', `Delete "${summary.title}"? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => removeTrip(summary.id) },
-    ]);
-  }
 
   if (!initialized) {
     return (
@@ -171,8 +170,9 @@ export default function DaysSheet() {
   const filterModel = trip ? todayFilterModel(trip.days, badge, todayFilterOverride, today) : { canFilter: false, active: false, activeDate: null };
 
   // The native navigation row: a leading back-arrow while browsing a non-default
-  // Trip, and a trailing group of Trips and a `⋯` overflow Menu (Edit / Make
-  // favorite / Export / Delete) that share one glass background.
+  // Trip plus the Day-filter button, and a trailing single Trips button. The
+  // per-trip actions (Edit / Make favorite / Export / Delete) live on the trip
+  // list's swipe actions, so there is no header overflow menu.
   const showBackArrow = model.showBackArrow;
   const showFilter = filterModel.canFilter || filterModel.active;
   const chrome = (
@@ -205,14 +205,20 @@ export default function DaysSheet() {
             }}
           />
         ) : null}
-          {showFilter ? (
+          {/* Always mounted (once the trip is loaded) and toggled via `hidden`, so the
+              native toolbar host animates the Day-filter button's show/hide in both
+              directions — e.g. it slides in when an Upcoming trip is filtered by a
+              Day-header tap. Gating the mount on the loaded trip keeps an eligible
+              In-progress trip from animating in on first paint. */}
+          {trip ? (
             <Stack.Toolbar.Button
-            icon="line.3.horizontal.decrease"
-            accessibilityLabel="Filter day"
-            tintColor={c.accent}
-            selected={filterModel.active}
-            separateBackground
-            onPress={() => setTodayFilterOverride(!filterModel.active)}
+              icon="line.3.horizontal.decrease"
+              accessibilityLabel="Filter day"
+              tintColor={c.accent}
+              selected={filterModel.active}
+              hidden={!showFilter}
+              separateBackground
+              onPress={() => setTodayFilterOverride(!filterModel.active)}
             />
           ) : null}
         </Stack.Toolbar>
@@ -223,25 +229,6 @@ export default function DaysSheet() {
           tintColor={c.accent}
           onPress={() => router.push('/trips')}
         />
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" tintColor={c.accent}>
-          <Stack.Toolbar.MenuAction
-            icon="pencil"
-            onPress={() => router.push(`/trip/${summary.id}/edit`)}
-          >
-            Edit
-          </Stack.Toolbar.MenuAction>
-          {model.showStar ? (
-            <Stack.Toolbar.MenuAction icon="star" onPress={() => setFavorite(model.tripId)}>
-              Make favorite
-            </Stack.Toolbar.MenuAction>
-          ) : null}
-          <Stack.Toolbar.MenuAction icon="square.and.arrow.up" onPress={onExport}>
-            Export
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction icon="trash" destructive onPress={onDelete}>
-            Delete
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
       </Stack.Toolbar>
 
       {/* Collapsed inline title, centred between the button groups; cross-fades
@@ -325,7 +312,7 @@ const styles = StyleSheet.create({
   loader: { marginTop: 24 },
   navBlur: { position: 'absolute', top: 0, left: 0, right: 0 },
 
-  inlineTitle: { justifyContent: 'center' },
+  inlineTitle: { justifyContent: 'center', maxWidth: INLINE_TITLE_MAX_WIDTH },
   inlineTitleText: { fontSize: 16, fontWeight: '700' },
   inlineSubtitle: { fontSize: 11, marginTop: 1, alignSelf: 'flex-start' },
 
