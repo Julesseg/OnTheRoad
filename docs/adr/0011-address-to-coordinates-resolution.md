@@ -2,10 +2,15 @@
 
 ## Status
 
-accepted — governs coordinate enrichment for [Items](../../CONTEXT.md#item)
-that carry an address but no `lat`/`lng`; interacts with
-[Smart Import](../../CONTEXT.md#smart-import) and the
-[Location Picker](../../CONTEXT.md#item).
+superseded by [ADR-0012](0012-map-centered-location-picker.md). Both call sites
+it defined are gone: the Location Picker's silent geocode-on-confirm is replaced
+by the map-centered picker's *visible* search-and-pick resolution (ADR-0012), and
+the Smart Import fire-and-forget pass is dropped because the Smart Import feature
+is being retired. Kept for the historical record of why address-only items exist
+and why on-load enrichment was rejected — that reasoning still holds.
+
+Original status: accepted — governed coordinate enrichment for
+[Items](../../CONTEXT.md#item) that carry an address but no `lat`/`lng`.
 
 ## Context
 
