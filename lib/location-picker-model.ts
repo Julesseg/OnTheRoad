@@ -130,6 +130,9 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
     case 'selectRow':
       return { ...state, selected: event.key };
     case 'enterPinMode': {
+      // Idempotent: the sheet drives this both by drag and by button, so the event
+      // can arrive when already in pin mode — re-saving would clobber the search.
+      if (state.mode === 'pin') return state;
       const { query, results, synthesized, resolving, selected } = state;
       return {
         ...state,
@@ -141,6 +144,8 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
     case 'dropPin':
       return { ...state, droppedPin: event.coords };
     case 'cancelPinMode': {
+      // Idempotent for the same reason as enterPinMode.
+      if (state.mode === 'search') return state;
       if (!state.saved) return { ...state, mode: 'search', droppedPin: null };
       return { ...state, ...state.saved, mode: 'search', droppedPin: null, saved: null };
     }

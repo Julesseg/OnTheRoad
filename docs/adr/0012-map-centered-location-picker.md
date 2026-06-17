@@ -95,3 +95,33 @@ full-screen map with a sheet over it.
 - **Smart Import is being retired**, so the second call site ADR-0011 defined
   (fire-and-forget geocoding after a Smart Import save) is dropped rather than
   reworked.
+
+## Amendment — pin mode is a sheet detent, via a patched detent setter
+
+The first cut shipped pin mode as a *toggle on the pin button* (above) precisely
+because `react-native-screens` had "no imperative/controlled detent setter". In
+use that read as two unrelated controls — a button that changed the body while the
+sheet stayed put — and the sheet felt abrupt. We now make the **sheet detent itself
+the mode**:
+
+- The search sheet rests at two detents, `[0.1, 0.5]`. **0.5 is search**; **0.1 is
+  pin mode** (the sheet shrinks out of the way so the map is clear to drop a pin).
+  The mode follows the detent both ways: dragging between detents toggles it
+  (`onSheetDetentChanged`), and the in-sheet buttons move the detent.
+- To move the detent *smoothly* from a button we lifted the once-only guard on
+  `sheetInitialDetentIndex`. A small **patch to `react-native-screens`**
+  (`patches/react-native-screens+4.25.1.patch`, applied via `patch-package`)
+  clears `_sheetHasInitialDetentSet` when the prop changes and lets index 0 drive a
+  selection, so changing `sheetInitialDetentIndex` re-applies the detent through
+  UIKit's `animateChanges:` (animated) instead of snapping. This retires the
+  "no controlled detent setter" constraint cited in Context for this screen.
+- **Controls by mode.** Pin mode (0.1) shows **Cancel** (back to 0.5, leaving pin
+  mode) and **Select** (commit the dropped pin's coordinates and dismiss the
+  picker). Search mode (0.5) shows the `Stack.SearchBar` + a **pin button** to its
+  right (no selected/active tint); a result row is committed by *tapping it*. The
+  empty-state shows a top **Cancel** that aborts the whole pick; once results are
+  on screen the top buttons hide so the whole list stays tappable.
+- The sheet is **titleless and transparent** (`contentStyle` clear +
+  `backgroundGlass`/`surfaceGlass` wash) so it reads as liquid glass over the map,
+  and the full-screen map page **slides up from the bottom** rather than appearing
+  abruptly.

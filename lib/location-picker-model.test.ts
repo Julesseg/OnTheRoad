@@ -166,6 +166,30 @@ describe('LocationPicker model', () => {
     expect(committedLocation(back)).toEqual(committedLocation(loaded));
   });
 
+  it('re-entering pin mode is idempotent — it does not clobber the saved search', () => {
+    const loaded = pickerReducer(
+      pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
+      { type: 'resultsLoaded', results: [PIKE] },
+    );
+    const pin = pickerReducer(loaded, { type: 'enterPinMode' });
+    const dropped = pickerReducer(pin, { type: 'dropPin', coords: { lat: 1, lng: 2 } });
+
+    // A second enterPinMode (e.g. the detent settle event) is a no-op: the saved
+    // search is preserved and the dropped pin is untouched.
+    const again = pickerReducer(dropped, { type: 'enterPinMode' });
+    expect(again).toBe(dropped);
+    const back = pickerReducer(again, { type: 'cancelPinMode' });
+    expect(rows(back)).toEqual(rows(loaded));
+  });
+
+  it('cancelling pin mode while already in search mode is a no-op', () => {
+    const loaded = pickerReducer(
+      pickerReducer(initialPickerState, { type: 'queryChanged', text: 'pike' }),
+      { type: 'resultsLoaded', results: [PIKE] },
+    );
+    expect(pickerReducer(loaded, { type: 'cancelPinMode' })).toBe(loaded);
+  });
+
   it('clearing the query empties the rows and the selection', () => {
     const loaded = pickerReducer(
       pickerReducer(initialPickerState, { type: 'queryChanged', text: 'pike' }),

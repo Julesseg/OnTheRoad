@@ -42,7 +42,14 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   tint: vi.fn(() => ({})),
 }));
 
-const { back } = vi.hoisted(() => ({ back: vi.fn() }));
+const { back, setOptions, detentListeners } = vi.hoisted(() => ({
+  back: vi.fn(),
+  setOptions: vi.fn(),
+  detentListeners: [] as Array<(e: { data: { index: number; stable: boolean } }) => void>,
+}));
+function emitDetent(index: number, stable = true) {
+  act(() => detentListeners.forEach((l) => l({ data: { index, stable } })));
+}
 vi.mock('expo-router', async () => {
   const React = await import('react');
   const Stack: any = () => null;
@@ -80,7 +87,20 @@ vi.mock('expo-router', async () => {
     );
   Stack.Toolbar.SearchBarSlot = () => null;
   Stack.Toolbar.Spacer = () => null;
-  return { Stack, router: { back } };
+  return {
+    Stack,
+    router: { back },
+    useNavigation: () => ({
+      setOptions,
+      addListener: (type: string, cb: (e: { data: { index: number; stable: boolean } }) => void) => {
+        if (type === 'sheetDetentChange') detentListeners.push(cb);
+        return () => {
+          const i = detentListeners.indexOf(cb);
+          if (i >= 0) detentListeners.splice(i, 1);
+        };
+      },
+    }),
+  };
 });
 
 const PIKE_FEATURE = {
@@ -109,6 +129,8 @@ function type(value: string) {
 
 beforeEach(() => {
   back.mockClear();
+  setOptions.mockClear();
+  detentListeners.length = 0;
   usePickerStore.getState().end();
 });
 afterEach(() => {
@@ -118,7 +140,7 @@ afterEach(() => {
 });
 
 describe('LocationSearchSheet', () => {
-  it('resolves a typed street address into a selectable result with coordinates', async () => {
+  it('commits a typed street address to the editor when its result row is tapped', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', photonFetchReturning([ADDRESS_FEATURE]));
     const onConfirm = vi.fn();
@@ -132,25 +154,28 @@ describe('LocationSearchSheet', () => {
     expect(screen.getByText('123 Main Street')).toBeInTheDocument();
     expect(screen.getByText('Springfield')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    // Tapping the result row is the commit in search mode.
+    fireEvent.click(screen.getByText('123 Main Street'));
     expect(onConfirm).toHaveBeenCalledWith({ address: '123 Main Street', lat: 37.77, lng: -122.42 });
     expect(back).toHaveBeenCalled();
   });
 
-  it('disables Select until a result is chosen, then arms on auto-select', async () => {
+  it('hides the abort Cancel once results are on screen so the list stays tappable', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
     usePickerStore.getState().begin(() => {});
     render(<LocationSearchSheet />);
 
-    expect(screen.getByRole('button', { name: 'Select' })).toBeDisabled();
+    // Empty state: a Cancel is available to abort the whole pick.
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
 
     type('pike');
     await flushDebounce();
-    expect(screen.getByRole('button', { name: 'Select' })).not.toBeDisabled();
+    expect(screen.getByText('Pike Place Market')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
   });
 
-  it('Cancel pops the sheet without confirming', () => {
+  it('empty-state Cancel aborts the pick without confirming', () => {
     const onConfirm = vi.fn();
     usePickerStore.getState().begin(onConfirm);
     render(<LocationSearchSheet />);
@@ -160,7 +185,7 @@ describe('LocationSearchSheet', () => {
     expect(back).toHaveBeenCalled();
   });
 
-  it('the pin button toggles pin mode, hiding the result list', async () => {
+  it('the pin button enters pin mode, hiding the result list', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
     usePickerStore.getState().begin(() => {});
@@ -172,5 +197,48 @@ describe('LocationSearchSheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Drop a pin' }));
     expect(screen.queryByText('Pike Place Market')).not.toBeInTheDocument();
+    expect(usePickerStore.getState().state.mode).toBe('pin');
+  });
+
+  it('in pin mode Select is disabled until a pin is dropped, then commits its coords', () => {
+    const onConfirm = vi.fn();
+    usePickerStore.getState().begin(onConfirm);
+    render(<LocationSearchSheet />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drop a pin' }));
+    expect(screen.getByRole('button', { name: 'Select' })).toBeDisabled();
+
+    act(() => usePickerStore.getState().dispatch({ type: 'dropPin', coords: { lat: 1.5, lng: 2.5 } }));
+    const select = screen.getByRole('button', { name: 'Select' });
+    expect(select).not.toBeDisabled();
+
+    fireEvent.click(select);
+    expect(onConfirm).toHaveBeenCalledWith({ lat: 1.5, lng: 2.5 });
+    expect(back).toHaveBeenCalled();
+  });
+
+  it('in pin mode Cancel returns to search without aborting the pick', () => {
+    const onConfirm = vi.fn();
+    usePickerStore.getState().begin(onConfirm);
+    render(<LocationSearchSheet />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Drop a pin' }));
+    expect(usePickerStore.getState().state.mode).toBe('pin');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(usePickerStore.getState().state.mode).toBe('search');
+    expect(back).not.toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('a stable detent change drives the mode (drag in/out of pin mode)', () => {
+    usePickerStore.getState().begin(() => {});
+    render(<LocationSearchSheet />);
+
+    emitDetent(0); // dragged to the small detent
+    expect(usePickerStore.getState().state.mode).toBe('pin');
+
+    emitDetent(1); // dragged back up
+    expect(usePickerStore.getState().state.mode).toBe('search');
   });
 });
