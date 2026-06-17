@@ -143,12 +143,19 @@ private func generateDayJSON(
   address TEXT ONLY — never latitude/longitude. Never invent or complete an address. \
   Omit it when the plan names no place.
   - Packing and to-do lists become a checklist only when there is more than one item.
+  - A reminder, booking, or to-do written elsewhere in the plan (these often sit up \
+  front, like "book the ferry" or "reserve the clambake") belongs on THIS day when the \
+  text makes clear it concerns this day — for example a booking for an outing that \
+  happens today. Capture it here as a note item, even though it is written outside this \
+  day's section.
   """
   if includeUnscheduled {
     instructions += """
 
-    - Also include any trip-wide content with no specific day (a packing list, a \
-    budget, "book the ferry") here, as note items or checklists.
+    - Also include any trip-wide content that concerns no particular day (a packing \
+    list, a budget, a general "book the rental car") here, as note items or checklists. \
+    Leave a reminder that clearly concerns a specific day to that day instead; only \
+    content with no plausible single day belongs here.
     """
   }
 

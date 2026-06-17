@@ -1,0 +1,5 @@
+Maine coast getaway
+
+We're driving up the coast of Maine over a long weekend, September 18 to 20, 2026 — just the two of us in the old wagon. A few things to sort before we leave: the Monhegan ferry sells out, so book the Saturday morning crossing the minute the window opens, and call the lobster shack in Camden to reserve the Sunday clambake. The wagon is due an oil change before a drive this long. And don't forget to throw the cooler and the rain jackets in the back — the forecast looks iffy.
+
+Friday we'll get a late start out of Boston and stop in Portland for a long lunch at Eventide around 1, then poke around the Old Port before checking into the inn up in Camden. Saturday is the big one: the early ferry out to Monhegan Island, a whole day hiking the cliff trails and out to the lighthouse, then back on the late-afternoon boat — dinner somewhere on the harbor after. Sunday we take it slow, breakfast at the inn, a short hike up Mount Battie for the view over the bay, the clambake down at the harbor at 5, and then the long drive home.

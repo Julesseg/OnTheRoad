@@ -38,6 +38,18 @@ describe('Schema Prompt', () => {
     expect(prompt).toMatch(/never lat|address text only/i);
   });
 
+  it('tells the model to drop nothing, placing undated content on its most plausible day', () => {
+    const prompt = buildSchemaPrompt();
+    // Issue #99: the manual Schema-Prompt path must carry the same never-drop rule
+    // as the on-device prompt — a packing list becomes a checklist, a booking
+    // reminder lands on the day it concerns, and trip-wide content defaults to day 1.
+    // Pinned so a future prompt edit can't silently lose contextual placement.
+    expect(prompt).toMatch(/never drop content/i);
+    expect(prompt).toMatch(/on the day it concerns/i);
+    expect(prompt).toMatch(/day 1/i);
+    expect(prompt).toMatch(/checklist/i);
+  });
+
   it('never instructs free-text questions while demanding JSON-only output', () => {
     const prompt = buildSchemaPrompt();
     // The output always re-enters through the strict TripSchema gate, so the
