@@ -3,14 +3,13 @@ import { serializeTrip } from './trip-io';
 
 /**
  * The Schema Prompt (see CONTEXT.md#schema-prompt). A ready-to-paste prompt that
- * bundles the full persisted Trip JSON schema with instructions, offered when
- * Smart Import is unavailable (no Apple Intelligence — see ADR-0006). The user
+ * bundles the full persisted Trip JSON schema with instructions — the single
+ * AI-assisted on-ramp (ADR-0012), surfaced from the Import Trip sheet. The user
  * pastes it, together with their Planning Document, into any LLM; the LLM's JSON
  * comes back in through the ordinary JSON Import, which enforces the strict
  * `TripSchema` gate. The prompt therefore describes the *full* persisted shape —
- * uuids, ISO timestamps, and `schemaVersion` — not the lenient draft schema the
- * on-device path uses. The app makes no network call; the user carries the text
- * across by hand.
+ * uuids, ISO timestamps, and `schemaVersion`. The app makes no network call; the
+ * user carries the text across by hand.
  */
 
 // A concrete, importable trip the prompt tells the model to imitate. It exercises

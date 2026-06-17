@@ -92,7 +92,7 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
-            name="smart-import"
+            name="import"
             options={{
               presentation: 'formSheet',
               sheetGrabberVisible: true,
