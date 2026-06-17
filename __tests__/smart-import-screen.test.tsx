@@ -90,7 +90,7 @@ vi.mock('@/lib/smart-import', () => smartImportMock);
 const storeMock = vi.hoisted(() => ({
   addTrip: vi.fn(),
   setDisplayedTrip: vi.fn(),
-  resolveTripAddresses: vi.fn(),
+  resolveTripAddresses: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('@/lib/store', () => ({
   useTripStore: () => ({

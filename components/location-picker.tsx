@@ -79,8 +79,14 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
 
   const abortRef = useRef<AbortController | null>(null);
   const resolveAbortRef = useRef<AbortController | null>(null);
+  // Aborts the on-confirm geocode so a Cancel (or unmount) mid-resolve doesn't
+  // still fire onConfirm on a dismissed picker.
+  const confirmAbortRef = useRef<AbortController | null>(null);
   const mapRef = useRef<AppleMaps.MapView>(null);
   const zoomRef = useRef(12);
+
+  // Abort any in-flight on-confirm geocode when the picker goes away.
+  useEffect(() => () => confirmAbortRef.current?.abort(), []);
 
   // Resolve maps URL asynchronously
   useEffect(() => {
@@ -128,8 +134,20 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
   // the item can render as a Pin. On success return address + coords; on failure
   // fall back to address-only — the stable last resort, never retried (ADR-0011).
   async function confirmAddress(address: string) {
+    // The debounced search may already hold the top suggestion for this exact
+    // query; reuse it (the ADR's auto-pick-first-result) rather than firing a
+    // second Photon request and waiting on it again.
+    if (photonResults.length > 0) {
+      const { lat, lng } = photonResults[0].coords;
+      onConfirm({ address, lat, lng });
+      return;
+    }
     setConfirming(true);
-    const coords = await geocodeAddress(address);
+    const ctrl = new AbortController();
+    confirmAbortRef.current = ctrl;
+    const coords = await geocodeAddress(address, { signal: ctrl.signal });
+    // Bail if the picker was cancelled/dismissed while the geocode was in flight.
+    if (ctrl.signal.aborted) return;
     onConfirm(coords ? { address, lat: coords.lat, lng: coords.lng } : { address });
   }
 
@@ -157,6 +175,13 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
         : FALLBACK_CENTER),
   );
 
+  // Cancel aborts any in-flight on-confirm geocode so it can't fire onConfirm
+  // after the picker is dismissed, then defers to the parent's cancel handler.
+  function handleCancel() {
+    confirmAbortRef.current?.abort();
+    onCancel?.();
+  }
+
   // Square map window sized to the Form row's usable width.
   const mapSide = Math.min(width - 72, 500);
 
@@ -165,7 +190,7 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       {onCancel ? (
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={accent} onPress={onCancel}>
+          <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={accent} onPress={handleCancel}>
             Cancel
           </Stack.Toolbar.Button>
         </Stack.Toolbar>

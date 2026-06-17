@@ -116,8 +116,9 @@ export default function SmartImportSheet() {
       setDisplayedTrip(trip.id);
       // Fire-and-forget: geocode address-only items in the background so they
       // gain Pins once resolved (ADR-0011). Best-effort — failures stay
-      // address-only and never block opening the trip.
-      void resolveTripAddresses(trip.id);
+      // address-only and never block opening the trip; the .catch keeps a
+      // synchronous saveTrip throw from surfacing as an unhandled rejection.
+      void resolveTripAddresses(trip.id).catch(() => {});
       router.dismissAll();
     } catch (e) {
       Alert.alert(

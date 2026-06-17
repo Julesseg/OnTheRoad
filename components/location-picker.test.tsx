@@ -249,6 +249,62 @@ describe('LocationPicker', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it('cancelling mid-resolve aborts the geocode and never confirms', async () => {
+    // A geocode that only settles once its signal aborts — mirrors a request the
+    // user cancels before it returns.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            );
+          }),
+      ),
+    );
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    render(<LocationPicker onConfirm={onConfirm} onCancel={onCancel} />);
+
+    fireEvent.change(screen.getByLabelText('Search or paste a location'), {
+      target: { value: 'Pike Place' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /use.*plain address/i }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    });
+
+    expect(onCancel).toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('reuses an already-loaded suggestion on plain-address confirm without a second request', async () => {
+    vi.useFakeTimers();
+    const fetchMock = photonFetchReturning([PIKE_FEATURE]);
+    vi.stubGlobal('fetch', fetchMock);
+    const onConfirm = vi.fn();
+    render(<LocationPicker onConfirm={onConfirm} />);
+
+    fireEvent.change(screen.getByLabelText('Search or paste a location'), {
+      target: { value: 'pike place' },
+    });
+    // Let the debounced search populate photonResults.
+    await flushDebounce();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /use.*plain address/i }));
+    expect(onConfirm).toHaveBeenCalledWith({
+      address: 'pike place',
+      lat: 47.6097,
+      lng: -122.3422,
+    });
+    // No extra Photon round-trip — the loaded suggestion was reused.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('Photon results appear after debounce and tapping one confirms with address+coords', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
