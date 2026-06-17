@@ -1,5 +1,13 @@
-import { useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  Animated,
+  StyleSheet,
+  Alert,
+  useWindowDimensions,
+} from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
@@ -24,11 +32,20 @@ import { useTripStore } from '@/lib/store';
 // Clears the transparent native nav bar so body content doesn't render under the
 // title (matches the trips/settings sheets).
 const NAV_BAR_HEIGHT = 64;
+// How long the Copy Prompt button stays on its "Copied" checkmark before reverting.
+const COPIED_FEEDBACK_MS = 2000;
 
 export default function ImportSheet() {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { importTrip, setDisplayedTrip } = useTripStore();
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copiedTimer.current) clearTimeout(copiedTimer.current);
+  }, []);
 
   // The JSON Import (exact restore, fresh id — see CONTEXT.md): pick a .json file,
   // validate through the store's importTrip, then open the new trip the same way
@@ -51,20 +68,19 @@ export default function ImportSheet() {
   }, [importTrip, setDisplayedTrip]);
 
   const onCopyPrompt = useCallback(async () => {
-    // setStringAsync resolves false on a failed write and can reject outright;
-    // either way the user must be told rather than fail silently or leak a
-    // rejection.
-    let copied = false;
+    // setStringAsync resolves false on a failed write and can reject outright.
+    // On success the button itself confirms (morphs to a checkmark) — no popup;
+    // only a failure interrupts with an alert.
+    let ok = false;
     try {
-      copied = await Clipboard.setStringAsync(buildSchemaPrompt());
+      ok = await Clipboard.setStringAsync(buildSchemaPrompt());
     } catch {
-      copied = false;
+      ok = false;
     }
-    if (copied) {
-      Alert.alert(
-        'Prompt copied',
-        'Paste it into any AI along with your trip plan, then import the JSON it produces here.',
-      );
+    if (ok) {
+      setCopied(true);
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
     } else {
       Alert.alert('Couldn’t copy', 'Something went wrong copying the prompt. Please try again.');
     }
@@ -95,18 +111,22 @@ export default function ImportSheet() {
           <Text style={[styles.detail, { color: c.textSubtle }]}>
             Turn a free-text plan into a trip with any AI, then import the result:
           </Text>
-          <Step n={1} color={c.text} accent={c.accent}>
-            Copy the prompt.
-          </Step>
-          <Step n={2} color={c.text} accent={c.accent}>
-            Paste it into your favorite AI chat with your trip plan.
-          </Step>
-          <Step n={3} color={c.text} accent={c.accent}>
-            Save the JSON it produces and import it here.
-          </Step>
+          {/* Half-width step column so the lines wrap evenly rather than running
+              the full sheet width. */}
+          <View style={[styles.steps, { width: width * 0.5 }]}>
+            <Step n={1} color={c.text} accent={c.accent}>
+              Copy the prompt.
+            </Step>
+            <Step n={2} color={c.text} accent={c.accent}>
+              Paste it into your favorite AI chat with your trip plan.
+            </Step>
+            <Step n={3} color={c.text} accent={c.accent}>
+              Save the JSON it produces and import it here.
+            </Step>
+          </View>
           <GlassButton
-            label="Copy Prompt"
-            icon="doc.on.doc"
+            label={copied ? 'Copied' : 'Copy Prompt'}
+            icon={copied ? 'checkmark' : 'doc.on.doc'}
             accent={c.accent}
             onPress={onCopyPrompt}
           />
@@ -125,7 +145,7 @@ function Step({
   n: number;
   color: string;
   accent: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <View style={styles.step}>
@@ -139,7 +159,8 @@ function Step({
 // The glass fills behind via an absolute GlassView that rounds its own corners
 // (clipping it with overflow:'hidden' would cut off the edge highlights that give
 // Liquid Glass its look). No tint — the material stays clear and the accent-colored
-// content reads on top, matching the map controls.
+// content reads on top, matching the map controls. The content springs whenever the
+// icon changes, so swapping to a checkmark on copy reads as a confirmation.
 function GlassButton({
   label,
   icon,
@@ -151,6 +172,24 @@ function GlassButton({
   accent: string;
   onPress: () => void;
 }) {
+  const [scale] = useState(() => new Animated.Value(1));
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    // Skip the initial mount; only pop when the icon actually swaps.
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    scale.setValue(0.7);
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 24,
+      bounciness: 14,
+    }).start();
+  }, [icon, scale]);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -162,7 +201,7 @@ function GlassButton({
         isInteractive
         style={[StyleSheet.absoluteFill, styles.glass]}
       />
-      <View style={styles.buttonContent}>
+      <Animated.View style={[styles.buttonContent, { transform: [{ scale }] }]}>
         <SymbolView
           name={icon}
           tintColor={accent}
@@ -170,23 +209,23 @@ function GlassButton({
           style={styles.buttonIcon}
         />
         <Text style={[styles.buttonLabel, { color: accent }]}>{label}</Text>
-      </View>
+      </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // flex:1 so the body claims the sheet's height; the content is centered both
-  // ways. (Matches the proven RN-content pattern in archived.tsx / the old
-  // smart-import compose body.)
-  body: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
+  // flex:1 so the body claims the sheet's height; the two sections and the divider
+  // are distributed with space-around and centered horizontally. (Matches the
+  // proven RN-content pattern in archived.tsx / the old smart-import compose body.)
+  body: { flex: 1, paddingHorizontal: 24, justifyContent: 'space-around', alignItems: 'center' },
   section: { alignSelf: 'stretch', alignItems: 'center', gap: 12 },
   heading: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   detail: { fontSize: 15, lineHeight: 21, textAlign: 'center' },
   mono: { fontFamily: 'Menlo' },
-  // Generous breathing room between the two sections and the divider line.
-  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: 32 },
+  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
+  steps: { alignSelf: 'center', gap: 8 },
   step: { flexDirection: 'row', justifyContent: 'center', gap: 6, alignSelf: 'stretch' },
   stepNumber: { fontSize: 15, fontWeight: '700', lineHeight: 21 },
   stepText: { flexShrink: 1, fontSize: 15, lineHeight: 21, textAlign: 'center' },

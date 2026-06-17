@@ -123,7 +123,7 @@ describe('ImportSheet — Schema Prompt round trip', () => {
     expect(screen.getByText(/save the json it produces/i)).toBeInTheDocument();
   });
 
-  it('puts the Schema Prompt on the clipboard and confirms it did', async () => {
+  it('copies the Schema Prompt and confirms inline with a checkmark, no popup', async () => {
     await renderSheet();
 
     fireEvent.click(screen.getByText('Copy Prompt'));
@@ -131,9 +131,9 @@ describe('ImportSheet — Schema Prompt round trip', () => {
     await waitFor(() =>
       expect(clipboardMock.setStringAsync).toHaveBeenCalledWith(buildSchemaPrompt()),
     );
-    await waitFor(() =>
-      expect(alertMock.mock.calls.some(([title]) => /copied/i.test(String(title)))).toBe(true),
-    );
+    // The button itself confirms by morphing to "Copied" — no alert popup.
+    await waitFor(() => expect(screen.getByText('Copied')).toBeInTheDocument());
+    expect(alertMock).not.toHaveBeenCalled();
   });
 
   it('warns instead of confirming when the clipboard write fails', async () => {
