@@ -216,19 +216,22 @@ function GlassButton({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // flex:1 so the body claims the sheet's height; the two sections and the divider
-  // are distributed with space-around and centered horizontally. (Matches the
-  // proven RN-content pattern in archived.tsx / the old smart-import compose body.)
-  body: { flex: 1, paddingHorizontal: 24, justifyContent: 'space-around', alignItems: 'center' },
+  // flex:1 so the body claims the sheet's height; the content is centered both
+  // ways. (Matches the proven RN-content pattern in archived.tsx / the old
+  // smart-import compose body.)
+  body: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
   section: { alignSelf: 'stretch', alignItems: 'center', gap: 12 },
   heading: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   detail: { fontSize: 15, lineHeight: 21, textAlign: 'center' },
   mono: { fontFamily: 'Menlo' },
-  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
+  // Generous breathing room between the two sections and the divider line.
+  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: 32 },
   steps: { alignSelf: 'center', gap: 8 },
-  step: { flexDirection: 'row', justifyContent: 'center', gap: 6, alignSelf: 'stretch' },
+  // Marker hugs the text with a small gap; wrapped lines hang-indent under the
+  // first line (text left-aligned, not centered, so it doesn't drift off the marker).
+  step: { flexDirection: 'row', alignSelf: 'stretch', gap: 6, alignItems: 'flex-start' },
   stepNumber: { fontSize: 15, fontWeight: '700', lineHeight: 21 },
-  stepText: { flexShrink: 1, fontSize: 15, lineHeight: 21, textAlign: 'center' },
+  stepText: { flex: 1, fontSize: 15, lineHeight: 21 },
   button: {
     alignSelf: 'center',
     minWidth: 180,
