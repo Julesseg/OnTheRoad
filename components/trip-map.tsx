@@ -51,10 +51,31 @@ export const TripMap = forwardRef<
     // owned by the screen so it can sit above the day sheet and follow its detent.
     onSelectPin?: (id: string) => void;
     onDeselect?: () => void;
+    // Renders the trip's own pins and route greyed, as static context behind the
+    // Location Picker's result pins (CONTEXT.md#result-pin).
+    dimmed?: boolean;
+    // Accent result pins drawn on top of the (greyed) trip — search candidates.
+    resultPins?: Coords[];
+    // A single hand-dropped accent pin in the Location Picker's pin mode.
+    droppedPin?: Coords | null;
+    // A tap on empty map, reported as coordinates so the picker can drop a pin.
+    onMapPress?: (coords: Coords) => void;
   }
 >(
   function TripMap(
-    { trip, viewport: viewportProp, activeDate, roadLegs, showUserLocation, onSelectPin, onDeselect },
+    {
+      trip,
+      viewport: viewportProp,
+      activeDate,
+      roadLegs,
+      showUserLocation,
+      onSelectPin,
+      onDeselect,
+      dimmed,
+      resultPins,
+      droppedPin,
+      onMapPress,
+    },
     ref,
   ) {
     // Same coords and order as tripRouteCoords, but keeps each pin's id and day so
@@ -67,12 +88,25 @@ export const TripMap = forwardRef<
         )
       : [];
     const coords = entries;
-    const markers = entries.map((c) => ({
+    const tripMarkers = entries.map((c) => ({
       id: c.id,
       coordinates: { latitude: c.lat, longitude: c.lng },
-      tintColor: activeDate && c.date !== activeDate ? DIMMED : ACCENT,
+      // The picker greys the whole trip as context; otherwise off-day pins dim.
+      tintColor: dimmed || (activeDate && c.date !== activeDate) ? DIMMED : ACCENT,
       systemImage: 'mappin',
     }));
+    // Accent result pins (search candidates) and the hand-dropped pin layer over
+    // the trip's own pins — drawn last so they sit on top.
+    const overlayPins = [
+      ...(resultPins ?? []).map((p, i) => ({ id: `result-${i}`, lat: p.lat, lng: p.lng })),
+      ...(droppedPin ? [{ id: 'dropped', lat: droppedPin.lat, lng: droppedPin.lng }] : []),
+    ].map((p) => ({
+      id: p.id,
+      coordinates: { latitude: p.lat, longitude: p.lng },
+      tintColor: ACCENT,
+      systemImage: 'mappin',
+    }));
+    const markers = [...tripMarkers, ...overlayPins];
     // One polyline per leg, so each can follow real roads independently. A leg
     // keeps the accent only when both endpoints are on the active date (else it's
     // dimmed); it draws along its road geometry when resolved, otherwise the
@@ -84,7 +118,7 @@ export const TripMap = forwardRef<
       const b = entries[i + 1];
       const from: Coords = { lat: a.lat, lng: a.lng };
       const to: Coords = { lat: b.lat, lng: b.lng };
-      const active = !activeDate || (a.date === activeDate && b.date === activeDate);
+      const active = !dimmed && (!activeDate || (a.date === activeDate && b.date === activeDate));
       const road = roadLegs?.[legCacheKey(from, to)];
       const coordinates = (road ?? [from, to]).map((c) => ({ latitude: c.lat, longitude: c.lng }));
       polylines.push({ coordinates, color: active ? ACCENT : DIMMED, width: road ? ROAD_WIDTH : APPROX_WIDTH });
@@ -137,7 +171,13 @@ export const TripMap = forwardRef<
         // can't be tinted — hide it so the two aren't redundant.
         uiSettings={{ myLocationButtonEnabled: false }}
         onMarkerClick={(e) => (e.id ? onSelectPin?.(e.id) : undefined)}
-        onMapClick={() => onDeselect?.()}
+        onMapClick={(e) => {
+          onDeselect?.();
+          const { latitude, longitude } = e.coordinates;
+          if (typeof latitude === 'number' && typeof longitude === 'number') {
+            onMapPress?.({ lat: latitude, lng: longitude });
+          }
+        }}
       />
     );
   },

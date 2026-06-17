@@ -56,7 +56,7 @@ import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
 import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
-import { beginLocationPick } from '@/lib/location-picker-session';
+import { beginLocationPick } from '@/lib/location-picker-store';
 import { moveEntries, sanitizeChecklist } from '@/lib/checklist';
 import { newId } from '@/lib/id';
 
@@ -338,10 +338,9 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
 
   function openLocationPicker() {
-    beginLocationPick({
-      initialLocation: location ?? undefined,
-      onConfirm: (loc) => setLocation(loc ?? null),
-    });
+    // The picker opens blank every time (ADR-0012): it does not read the item's
+    // current location, and cancelling leaves it untouched.
+    beginLocationPick((loc) => setLocation(loc ?? null));
     router.push('/trip/location-picker');
   }
 

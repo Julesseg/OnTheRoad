@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ItemEditor } from '@/components/item-editor';
-import { getLocationPickSession, endLocationPick } from '@/lib/location-picker-session';
+import { usePickerStore } from '@/lib/location-picker-store';
 import type { Item } from '@/lib/schema';
 
 // Capture DatePicker props keyed by title, and Picker props keyed by label.
@@ -237,7 +237,7 @@ beforeEach(() => {
   delete forEachHandlers.onMove;
   routerMock.push.mockClear();
   routerMock.back.mockClear();
-  endLocationPick();
+  usePickerStore.getState().end();
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -437,14 +437,16 @@ describe('ItemEditor', () => {
     );
   });
 
-  it('tapping the location row opens the picker sheet with the current location', () => {
+  it('tapping the location row opens the picker, which begins blank (ADR-0012)', () => {
     const initial: Item = { id: 'x', name: 'Hike', category: 'activity', location: { address: 'Santorini' } };
     render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Santorini' }));
 
     expect(routerMock.push).toHaveBeenCalledWith('/trip/location-picker');
-    expect(getLocationPickSession()?.initialLocation).toEqual({ address: 'Santorini' });
+    // The picker no longer reads the item's current location — it opens blank.
+    expect(usePickerStore.getState().state.query).toBe('');
+    expect(usePickerStore.getState().onConfirm).not.toBeNull();
   });
 
   // --- Checklist section (issue #77) ---
@@ -706,10 +708,10 @@ describe('ItemEditor', () => {
 
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Caldera view' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add location' }));
-    // The picker sheet lives on its own route; the editor hands it a session.
-    const session = getLocationPickSession();
-    expect(session).not.toBeNull();
-    act(() => session!.onConfirm({ address: 'Santorini', lat: 36.39, lng: 25.46 }));
+    // The picker lives on its own route; the editor hands its callback to the store.
+    const onConfirm = usePickerStore.getState().onConfirm;
+    expect(onConfirm).not.toBeNull();
+    act(() => onConfirm!({ address: 'Santorini', lat: 36.39, lng: 25.46 }));
 
     save();
     await waitFor(() =>
