@@ -38,16 +38,16 @@ Two facts about the environment shaped the mechanics:
 The picker becomes **map-centered**, mirroring the home screen's split of a
 full-screen map with a sheet over it.
 
-- **Architecture (Option B).** The picker is a *single* full-screen page
-  (`presentation: 'fullScreenModal'`) that renders its *own* full-screen
-  `TripMap` instance — not the literal home-screen map. It is a `fullScreenModal`
-  rather than a plain push so the map is edge-to-edge: pushed inside the editor's
-  own modal frame the map would be inset (the parent peeking at the top), not
-  truly full-screen. The editor stays mounted underneath, so its draft survives
-  and the existing `beginLocationPick` handoff is unchanged. (Option A — reusing
-  the live home map by dismissing the editor — was rejected: it would require
-  lifting the editor's whole draft into a durable store for one continuous camera
-  animation.)
+- **Architecture (Option B).** The picker renders its *own* full-screen `TripMap`
+  instance (`presentation: 'fullScreenModal'`) with the search sheet presented
+  over it — mirroring the home map + `/days` split, not the literal home-screen
+  map. It is a `fullScreenModal` rather than a plain push so the map is
+  edge-to-edge: pushed inside the editor's own modal frame the map would be inset
+  (the parent peeking at the top), not truly full-screen. The editor stays
+  mounted underneath, so its draft survives and the existing `beginLocationPick`
+  handoff is unchanged. (Option A — reusing the live home map by dismissing the
+  editor — was rejected: it would require lifting the editor's whole draft into a
+  durable store for one continuous camera animation.)
 - **Two map layers.** The trip's existing [Pins](../../CONTEXT.md#pin) and route
   are always rendered **greyed** as context; search candidates are accent
   **[result pins](../../CONTEXT.md#result-pin)** on top.
@@ -63,13 +63,12 @@ full-screen map with a sheet over it.
   address" row sits at the bottom of the list; selecting it is the lone
   zoom-*out* (it frames the greyed trip) and commits address-only
   `{ address }`. This is the only path that produces an address-only location.
-- **Search field and pin button live in a bottom toolbar.** The full-screen map
-  carries a native bottom `Stack.Toolbar` (`placement="bottom"`) holding a
-  `Stack.SearchBar` slot and a separate pin button. Typing surfaces the result
-  rows in a list that floats over the map above the toolbar; the page's top
-  toolbar carries **X** (cancel) and **Select** (confirm, disabled until
-  something is selected). There is no sheet and no detents — the search field is
-  always in reach and the map is always full-screen behind it.
+- **Toolbars and results live in the sheet, not on the map.** The search sheet
+  over the full-screen map carries everything: a top toolbar with **X** (cancel)
+  and **Select** (confirm, disabled until something is selected), a native bottom
+  `Stack.Toolbar` (`placement="bottom"`) holding a `Stack.SearchBar` slot and a
+  separate pin button, and the result-row list in its body. The map underneath is
+  static context the camera animates over; the sheet owns all the controls.
 - **Pin-selection mode** lets the user drop a pin anywhere on the map for
   coordinates with no address, for when search finds nothing usable. It is a
   **toggle on the pin button** (not a sheet detent): turning it on hides the
@@ -87,9 +86,9 @@ full-screen map with a sheet over it.
 - **Resolution is visible and user-driven.** There is no silent geocode-on-
   confirm and no background enrichment pass; a wrong auto-pick is seen on the map
   and corrected before commit. ADR-0011's silent two-call-site scheme is retired.
-- **The picker is one full-screen page** — a map with a bottom-toolbar search
-  field and a floating result list — that owns its transient picker state in one
-  place rather than threading it through a separate sheet screen.
+- **The picker spans two screens** — a full-screen map and the search sheet over
+  it — sharing transient picker state through the store, matching the home/`days`
+  idiom but adding a second place that reads picker state.
 - **Address-only items from old data or JSON import still don't gain pins
   automatically** (no on-load enrichment) — the user re-opens the item and picks
   a point. Same gap ADR-0011 noted; this is now the only route to closing it.
