@@ -63,6 +63,23 @@ describe('LocationPicker model', () => {
     expect(committedLocation(s)).toEqual({ lat: 48.85, lng: 2.35 });
   });
 
+  it('suppresses the plain-address row while a coord/URL pin stands in', () => {
+    // A pasted coordinate already has a point; address-only would discard it.
+    const coord = pickerReducer(initialPickerState, { type: 'queryChanged', text: '48.85, 2.35' });
+    expect(rows(coord).some((r) => r.kind === 'address')).toBe(false);
+
+    // While a URL is resolving there is a point coming; no address fallback yet.
+    const resolving = pickerReducer(initialPickerState, {
+      type: 'queryChanged',
+      text: 'https://maps.app.goo.gl/abc',
+    });
+    expect(rows(resolving).some((r) => r.kind === 'address')).toBe(false);
+
+    // But once a URL fails to resolve, the address row returns as the escape hatch.
+    const failed = pickerReducer(resolving, { type: 'urlResolved', coords: null });
+    expect(rows(failed)).toContainEqual({ kind: 'address', text: 'https://maps.app.goo.gl/abc' });
+  });
+
   it('a maps URL shows a transient Resolving row, then resolves to an auto-selected coords-only pin', () => {
     const pasted = pickerReducer(initialPickerState, {
       type: 'queryChanged',

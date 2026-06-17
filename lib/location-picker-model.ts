@@ -156,8 +156,12 @@ export function rows(state: PickerState): Row[] {
   const out: Row[] = [];
   if (state.resolving) out.push({ kind: 'resolving' });
   resultList(state).forEach((result, index) => out.push({ kind: 'result', index, result }));
+  // The plain-address last resort is only for ordinary free text. A pasted
+  // coordinate or resolved URL already has a point (so address-only would discard
+  // it), and a URL still resolving has one coming — suppress the row in both cases.
+  // It returns if the URL fails to resolve (synthesized stays null, resolving clears).
   const text = state.query.trim();
-  if (text) out.push({ kind: 'address', text });
+  if (text && !state.synthesized && !state.resolving) out.push({ kind: 'address', text });
   return out;
 }
 
