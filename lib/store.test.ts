@@ -18,9 +18,13 @@ vi.mock('./maps', () => ({
 vi.mock('./appearance', () => ({
   applyAppearance: vi.fn(),
 }));
+// geocode.ts reaches Photon through searchPlaces; stub it so the background
+// resolution pass is deterministic and makes no network call.
+vi.mock('./photon', () => ({ searchPlaces: vi.fn() }));
 
 import * as storage from './storage';
 import { applyAppearance } from './appearance';
+import { searchPlaces } from './photon';
 import { useTripStore } from './store';
 import type { Trip, TripSummary } from './schema';
 
@@ -93,6 +97,54 @@ describe('updateTrip', () => {
     });
     // Other trips are untouched.
     expect(summaries.find((t) => t.id === 'other')?.title).toBe('Other');
+  });
+});
+
+describe('resolveTripAddresses', () => {
+  function tripWithAddressOnlyItem(): Trip {
+    return tripFixture({
+      days: [
+        {
+          id: 'd1',
+          date: '2026-07-01',
+          items: [
+            { id: 'i1', name: 'Diner', category: 'meal', location: { address: '123 Main St' } },
+          ],
+        },
+      ],
+    });
+  }
+
+  it('geocodes address-only items in the background and persists the coords', async () => {
+    vi.mocked(searchPlaces).mockResolvedValue([
+      { title: '123 Main St', coords: { lat: 47.6, lng: -122.3 } },
+    ]);
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithAddressOnlyItem() } });
+
+    await useTripStore.getState().resolveTripAddresses('trip-1');
+
+    const item = useTripStore.getState().loadedTrips['trip-1'].days[0].items[0];
+    expect(item.location).toEqual({ address: '123 Main St', lat: 47.6, lng: -122.3 });
+    expect(storage.saveTrip).toHaveBeenCalled();
+  });
+
+  it('leaves the trip untouched when nothing geocodes, with no save', async () => {
+    vi.mocked(searchPlaces).mockResolvedValue([]);
+    const trip = tripWithAddressOnlyItem();
+    useTripStore.setState({ loadedTrips: { 'trip-1': trip } });
+
+    await useTripStore.getState().resolveTripAddresses('trip-1');
+
+    expect(useTripStore.getState().loadedTrips['trip-1']).toBe(trip);
+    expect(storage.saveTrip).not.toHaveBeenCalled();
+  });
+
+  it('does not geocode on trip load', async () => {
+    vi.mocked(storage.loadTrip).mockResolvedValue(tripWithAddressOnlyItem());
+
+    await useTripStore.getState().loadTripById('trip-1');
+
+    expect(searchPlaces).not.toHaveBeenCalled();
   });
 });
 

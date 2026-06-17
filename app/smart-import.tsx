@@ -44,7 +44,7 @@ const NAV_BAR_HEIGHT = 64;
 export default function SmartImportSheet() {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { addTrip, setDisplayedTrip } = useTripStore();
+  const { addTrip, setDisplayedTrip, resolveTripAddresses } = useTripStore();
   // Probe once on mount; the result drives both the gate alert and the body copy.
   const [availability] = useState(getSmartImportAvailability);
   const [text, setText] = useState('');
@@ -114,6 +114,10 @@ export default function SmartImportSheet() {
       }
       await addTrip(trip);
       setDisplayedTrip(trip.id);
+      // Fire-and-forget: geocode address-only items in the background so they
+      // gain Pins once resolved (ADR-0011). Best-effort — failures stay
+      // address-only and never block opening the trip.
+      void resolveTripAddresses(trip.id);
       router.dismissAll();
     } catch (e) {
       Alert.alert(
@@ -122,7 +126,7 @@ export default function SmartImportSheet() {
       );
       setBusy(false);
     }
-  }, [text, busy, addTrip, setDisplayedTrip, promptStartDate]);
+  }, [text, busy, addTrip, setDisplayedTrip, resolveTripAddresses, promptStartDate]);
 
   const copySchemaPrompt = useCallback(async () => {
     // setStringAsync resolves false on a failed write and can reject outright;

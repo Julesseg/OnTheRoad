@@ -11,6 +11,7 @@ import {
   toggleChecklistEntryInTrip,
 } from './trip-mutations';
 import { resolveActiveTrip } from './active-trip';
+import { resolveTripAddressCoords, applyResolvedCoords } from './geocode';
 import type { DayFilterOverride } from './today-filter';
 import { INITIAL_SHEET_DETENT_INDEX } from './sheet-detents';
 import { todayString } from './date-utils';
@@ -35,6 +36,7 @@ interface TripStore {
   updateTrip: (trip: Trip) => void;
   importTrip: (uri: string) => Promise<Trip>;
   loadTripById: (id: string) => Promise<void>;
+  resolveTripAddresses: (id: string) => Promise<void>;
   removeTrip: (id: string) => Promise<void>;
   upsertItem: (tripId: string, dayId: string, item: Item) => void;
   deleteItem: (tripId: string, dayId: string, itemId: string) => void;
@@ -190,6 +192,22 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const trip = await loadTrip(id);
     if (!trip) return;
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [id]: trip } }));
+  },
+
+  // Fire-and-forget after a Smart Import save (ADR-0011): geocode every
+  // address-only item, then write the resolved coords back so they render as
+  // Pins — no user action. Failures stay address-only; never run on trip load,
+  // so unresolvable addresses are never silently retried. The coords are applied
+  // onto the *current* loaded trip so a concurrent edit isn't clobbered.
+  async resolveTripAddresses(id: string) {
+    const trip = get().loadedTrips[id];
+    if (!trip) return;
+    const resolved = await resolveTripAddressCoords(trip);
+    const current = get().loadedTrips[id];
+    if (!current) return;
+    const next = applyResolvedCoords(current, resolved);
+    if (next === current) return;
+    get().updateTrip(next);
   },
 
   upsertItem(tripId: string, dayId: string, item: Item) {

@@ -87,9 +87,17 @@ vi.mock('@/lib/smart-import-availability', () => ({
 const smartImportMock = vi.hoisted(() => ({ smartImportTrip: vi.fn() }));
 vi.mock('@/lib/smart-import', () => smartImportMock);
 
-const storeMock = vi.hoisted(() => ({ addTrip: vi.fn(), setDisplayedTrip: vi.fn() }));
+const storeMock = vi.hoisted(() => ({
+  addTrip: vi.fn(),
+  setDisplayedTrip: vi.fn(),
+  resolveTripAddresses: vi.fn(),
+}));
 vi.mock('@/lib/store', () => ({
-  useTripStore: () => ({ addTrip: storeMock.addTrip, setDisplayedTrip: storeMock.setDisplayedTrip }),
+  useTripStore: () => ({
+    addTrip: storeMock.addTrip,
+    setDisplayedTrip: storeMock.setDisplayedTrip,
+    resolveTripAddresses: storeMock.resolveTripAddresses,
+  }),
 }));
 
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
@@ -207,6 +215,8 @@ describe('SmartImportSheet — generating a trip from pasted text', () => {
     await waitFor(() => expect(storeMock.addTrip).toHaveBeenCalledWith(trip));
     expect(storeMock.setDisplayedTrip).toHaveBeenCalledWith('trip-1');
     expect(router.dismissAll).toHaveBeenCalled();
+    // The saved trip's address-only items are geocoded in the background (ADR-0011).
+    expect(storeMock.resolveTripAddresses).toHaveBeenCalledWith('trip-1');
   });
 
   it('asks for a start date inline, then saves the trip anchored to the picked date', async () => {

@@ -30,6 +30,7 @@ import {
 
 import { parseLatLng, resolveMapsUrl } from '@/lib/coords';
 import { searchPlaces, type PhotonResult } from '@/lib/photon';
+import { geocodeAddress } from '@/lib/geocode';
 import { AppleMaps } from 'expo-maps';
 import type { Item } from '@/lib/schema';
 import { useThemeColors } from '@/constants/theme';
@@ -67,6 +68,9 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
   const [inputKind, setInputKind] = useState<InputKind>(null);
   const [photonResults, setPhotonResults] = useState<PhotonResult[]>([]);
   const [showMap, setShowMap] = useState(false);
+  // True while a confirmed plain address is being geocoded before dismissing
+  // (ADR-0011). Drives the brief "Resolving…" indicator.
+  const [confirming, setConfirming] = useState(false);
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(
     initialLocation?.lat != null && initialLocation?.lng != null
       ? { lat: initialLocation.lat, lng: initialLocation.lng }
@@ -119,6 +123,15 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
       abortRef.current?.abort();
     };
   }, [inputKind]);
+
+  // Confirming a plain address (no coords yet): attempt a Photon geocode first so
+  // the item can render as a Pin. On success return address + coords; on failure
+  // fall back to address-only — the stable last resort, never retried (ADR-0011).
+  async function confirmAddress(address: string) {
+    setConfirming(true);
+    const coords = await geocodeAddress(address);
+    onConfirm(coords ? { address, lat: coords.lat, lng: coords.lng } : { address });
+  }
 
   function handleQueryChange(text: string) {
     abortRef.current?.abort();
@@ -268,7 +281,7 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
             </Section>
           ) : null}
 
-          {inputKind?.type === 'resolving' ? (
+          {confirming || inputKind?.type === 'resolving' ? (
             <Section modifiers={[listRowBackground(c.surface)]}>
               <Text>Resolving…</Text>
             </Section>
@@ -283,7 +296,7 @@ export function LocationPicker({ initialLocation, onConfirm, onCancel }: Locatio
             <Section modifiers={[listRowBackground(c.surface)]}>
               <Button
                 label={`Use '${inputKind.text}' as a plain address`}
-                onPress={() => onConfirm({ address: inputKind.text })}
+                onPress={() => confirmAddress(inputKind.text)}
               />
               {photonResults.map((r, i) => (
                 <Button

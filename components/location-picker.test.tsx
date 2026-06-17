@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LocationPicker } from '@/components/location-picker';
 
 /* eslint-disable react/display-name */
@@ -198,15 +198,55 @@ describe('LocationPicker', () => {
     expect(onConfirm).toHaveBeenCalledWith({ lat: 47.6097, lng: -122.3422 });
   });
 
-  it('first row for free text confirms with address-only location', () => {
+  it('confirming a plain address geocodes it and returns address + coords', async () => {
+    vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
     const onConfirm = vi.fn();
     render(<LocationPicker onConfirm={onConfirm} />);
 
     fireEvent.change(screen.getByLabelText('Search or paste a location'), {
-      target: { value: 'Paris, France' },
+      target: { value: 'Pike Place' },
     });
     fireEvent.click(screen.getByRole('button', { name: /use.*plain address/i }));
-    expect(onConfirm).toHaveBeenCalledWith({ address: 'Paris, France' });
+
+    await waitFor(() =>
+      expect(onConfirm).toHaveBeenCalledWith({
+        address: 'Pike Place',
+        lat: 47.6097,
+        lng: -122.3422,
+      }),
+    );
+  });
+
+  it('confirming a plain address that fails to geocode returns address-only', async () => {
+    vi.stubGlobal('fetch', photonFetchReturning([]));
+    const onConfirm = vi.fn();
+    render(<LocationPicker onConfirm={onConfirm} />);
+
+    fireEvent.change(screen.getByLabelText('Search or paste a location'), {
+      target: { value: 'Somewhere vague' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /use.*plain address/i }));
+
+    await waitFor(() =>
+      expect(onConfirm).toHaveBeenCalledWith({ address: 'Somewhere vague' }),
+    );
+  });
+
+  it('shows a Resolving… indicator while the confirm geocode is in flight', async () => {
+    // A fetch that never settles so the resolving state stays visible.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    const onConfirm = vi.fn();
+    render(<LocationPicker onConfirm={onConfirm} />);
+
+    fireEvent.change(screen.getByLabelText('Search or paste a location'), {
+      target: { value: 'Pike Place' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /use.*plain address/i }));
+    });
+
+    expect(screen.getByText('Resolving…')).toBeInTheDocument();
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('Photon results appear after debounce and tapping one confirms with address+coords', async () => {
