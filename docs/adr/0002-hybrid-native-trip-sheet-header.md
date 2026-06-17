@@ -68,3 +68,16 @@ Use a **hybrid** header on `/days`:
   Settings/Archived/Import) and a non-collapsing "On the Road" large title.
 - A future reader must not "simplify" this to `Stack.Title large` — that breaks
   the collapse against the SwiftUI `List`. This caveat is the reason for the ADR.
+- The inline title is additionally forced on when the `/days` sheet rests at its
+  **XS detent** (`sheetDetentChange` index 0): at a ~10%-height peek the list is
+  too short to scroll, so the scroll trigger can never fire and the large title
+  has no room — the collapse is therefore driven by `scrolledPastThreshold OR
+  detentIsXS`, reusing the same cross-fade. Leaving XS reverts to the scroll
+  state. The settle-only nature of `sheetDetentChange` (it fires on `isStable`)
+  means the cross-fade lands as the detent comes to rest, which is accepted.
+- This XS-detent requirement was the occasion to re-evaluate moving the title to
+  native `headerLargeTitle`. It was **rejected again** for the original reason —
+  the SwiftUI `List` is not the navigation controller's content scroll view, so a
+  native large title would never collapse on scroll — and additionally because a
+  native large title is just the trip-name string and cannot carry the custom
+  `dates · countdown-pill` line. The hybrid stands.
