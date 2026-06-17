@@ -170,6 +170,21 @@ hasn't started). When the trip is in progress, the **next item** (`nextItemId`)
 is the earliest item whose time is at or after now — the one the traveller is
 heading to next.
 
+### Day filter
+
+The lens that narrows the trip to a single [Day](#day): the itinerary list shows
+only that day's [Items](#item), and on the map the other days' [pins](#pin) and
+legs are **dimmed** rather than hidden ([Trip route](#trip-route)), so the whole
+journey stays visible with the chosen day emphasised. For an **In progress**
+trip it defaults to today and is offered as a toggle in the day sheet; for an
+**Upcoming** trip nothing is filtered by default, and the filter is engaged by
+tapping a Day's header, at which point its toggle appears. Distinct from the
+[Today selection](#today-selection--next-item), which only *spotlights* a day;
+the Day filter actually restricts what is shown.
+
+Prefer **Day filter** over "today filter" in user-facing language, even though
+the override that backs it is keyed on today by default.
+
 ### Preferred maps app
 
 The maps application used to open an address or coordinate: **Apple Maps**,
