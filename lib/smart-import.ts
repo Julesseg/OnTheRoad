@@ -367,7 +367,14 @@ export type GeneratedDraft =
   | { needsStartDate: true; draft: UndatedDraft };
 
 /** One day's items from the model, degrading a malformed/empty result to no items
- *  rather than sinking the whole trip; `draftToTrip` still validates the assembly. */
+ *  rather than sinking the whole trip; `draftToTrip` still validates the assembly.
+ *
+ *  An empty slice never reaches the model: segmentation can leave a day with no
+ *  sentences (every one landed on another day), and a small model told to "extract
+ *  day N of M" from blank text does not answer "nothing" — it hallucinates a
+ *  plausible generic day, inventing places the plan never named and tacking a
+ *  checklist onto each invented item. An empty day is honest; a fabricated one is
+ *  actively wrong, so we short-circuit to no items rather than ask. */
 async function generateDayItems(
   text: string,
   gen: DraftGenerator,
@@ -375,6 +382,7 @@ async function generateDayItems(
   dayNumber: number,
   totalDays: number,
 ): Promise<{ items: DraftItem[] }> {
+  if (text.trim().length === 0) return { items: [] };
   const raw = await gen.day(text, date, dayNumber, totalDays, dayNumber === 1);
   const parsed = DraftDayItemsSchema.safeParse(raw);
   return { items: parsed.success ? parsed.data.items : [] };

@@ -147,15 +147,23 @@ private func generateOutlineJSON(from document: String) async throws -> String {
 private func segmentDaysJSON(from numberedSentences: String, dayCount: Int) async throws -> String {
   let instructions = """
   You are given a numbered list of sentences from a trip plan that spans \(dayCount) \
-  days. For EACH sentence, decide which day it belongs to and output that day's number \
-  (1 to \(dayCount)). Output 0 only when a sentence is trip-wide and belongs to no single \
-  day — a packing list, a budget, a general pre-trip errand.
+  days. For EACH sentence output one integer: the day (1 to \(dayCount)) on which the \
+  thing it describes HAPPENS, or 0 when the sentence belongs to the trip as a whole \
+  rather than to any single day.
 
-  Use the plan's own day cues: a sentence under "Day 2", a weekday, or a date goes to \
-  that day. A booking or reminder that names a day belongs to that day — "book the \
-  Saturday crossing" goes to whichever day is Saturday, not day 1. Assign every \
-  sentence to exactly one day; output one integer per sentence, in the same order, and \
-  nothing else.
+  Output 0 for: a trip title or overview sentence (the plan's summary — what kind of \
+  trip it is, who is going, the drive in general); a packing list; a budget; and any \
+  pre-trip preparation done before leaving — a booking, a reservation, buying a pass, \
+  an errand like an oil change — EVEN when it mentions the day it is for. "Reserve the \
+  lodge for the last night" and "book the Saturday ferry before we go" are pre-trip \
+  to-dos: output 0, not the day they reference. (These are gathered onto day one later.)
+
+  Output a day number (1 to \(dayCount)) only for something that actually happens on \
+  that day. Use the plan's own day cues: a sentence under "Day 2", a weekday, or a date \
+  goes to that day, and an activity, meal, or check-in described as happening then goes \
+  to that day.
+
+  Output one integer per sentence, in the same order, and nothing else.
   """
 
   let session = LanguageModelSession(instructions: instructions)

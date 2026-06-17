@@ -305,7 +305,7 @@ describe('generateTripDraft', () => {
       segment: vi.fn(async () => [1, 2, 3]),
       day: vi.fn(async (_t, _date, dayNumber: number) => ({ items: [{ name: `day ${dayNumber}` }] })),
     };
-    const generated = await generateTripDraft('day 1 hike, day 2 fish, day 3 home', generate);
+    const generated = await generateTripDraft('Day 1 hike. Day 2 fish. Day 3 home.', generate);
 
     expect(generated.needsStartDate).toBe(true);
     if (!generated.needsStartDate) return;
@@ -342,6 +342,27 @@ describe('generateTripDraft', () => {
     expect(slicesByDay[1]).toBe('Drive up. Pack layers.');
     expect(slicesByDay[2]).toBe('Hike the falls.');
     expect(slicesByDay[2]).not.toContain('Drive up');
+  });
+
+  it('never asks the model to extract a day whose slice is empty, leaving it blank instead', async () => {
+    // Segmentation can route every sentence to other days, leaving a day with no
+    // text. A small model told to "extract day 2 of 2" from nothing does not answer
+    // "empty" — it hallucinates a plausible generic day (places the plan never named,
+    // a checklist on each invented item). An empty slice must skip the call entirely.
+    const generate: DraftGenerator = {
+      outline: vi.fn().mockResolvedValue({ title: 'Coast run', startDate: '2026-08-14', endDate: '2026-08-15' }),
+      // Every sentence lands on day 1; day 2's slice comes back empty.
+      segment: vi.fn(async () => [1, 1, 1]),
+      day: vi.fn(async (_slice, _date, dayNumber: number) => ({ items: [{ name: `day ${dayNumber}` }] })),
+    };
+
+    const generated = await generateTripDraft('Coast run Aug 14-15. Drive up. Stop for lunch.', generate);
+
+    if (generated.needsStartDate) throw new Error('expected a dated draft');
+    // The model is asked for day 1 only; day 2's empty slice never reaches it.
+    expect(generate.day).toHaveBeenCalledTimes(1);
+    expect(generate.day).toHaveBeenCalledWith(expect.any(String), '2026-08-14', 1, 2, true);
+    expect(generated.draft.days[1].items).toEqual([]);
   });
 
   it('fails loud when an undated outline claims more days than the cap', async () => {
@@ -487,13 +508,16 @@ describe('smartImportTrip', () => {
         '2026-08-15': { items: [{ name: 'McWay Falls overlook' }] },
       },
     );
-    const trip = await smartImportTrip('Big Sur on Aug 14-15', {
+    // One sentence per day so segmentation leaves neither slice empty.
+    generate.segment = vi.fn(async () => [1, 2]);
+    const document = 'Bixby Creek Bridge Aug 14. McWay Falls Aug 15.';
+    const trip = await smartImportTrip(document, {
       generate,
       makeId: counterIds(),
       now: '2026-06-13T00:00:00.000Z',
     });
 
-    expect(generate.outline).toHaveBeenCalledWith('Big Sur on Aug 14-15');
+    expect(generate.outline).toHaveBeenCalledWith(document);
     expect(trip).not.toBeNull();
     if (!trip) return;
     expect(trip.title).toBe('Big Sur Weekend');
@@ -536,7 +560,9 @@ describe('smartImportTrip', () => {
       { title: 'Trip', startDate: '2026-08-14', endDate: '2026-08-15' },
       {},
     );
-    await smartImportTrip('Trip Aug 14-15', { generate, makeId: counterIds() });
+    // One sentence per day so both per-day calls fire (no empty slice is skipped).
+    generate.segment = vi.fn(async () => [1, 2]);
+    await smartImportTrip('Day one Aug 14. Day two Aug 15.', { generate, makeId: counterIds() });
 
     // The text arg is now each day's slice; what matters is that only day one is told
     // to gather the trip-wide content folded into its slice.
@@ -576,9 +602,11 @@ describe('smartImportTrip', () => {
       2: { items: [{ name: 'Fish' }] },
       3: { items: [{ name: 'Hike out' }] },
     });
+    // One sentence per day so each per-day call fires with a non-empty slice.
+    generate.segment = vi.fn(async () => [1, 2, 3]);
     const promptStartDate = vi.fn().mockResolvedValue('2026-09-04');
 
-    const trip = await smartImportTrip('day 1 hike, day 2 fish, day 3 out', {
+    const trip = await smartImportTrip('Day 1 hike. Day 2 fish. Day 3 out.', {
       generate,
       promptStartDate,
       makeId: counterIds(),

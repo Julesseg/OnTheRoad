@@ -219,16 +219,21 @@ calendar dates, the flow asks for a start date inline before saving (never
 placeholder dates, which the calendar-anchored [Day](#day) reconciliation would
 punish). Content with no explicit day — packing lists, budgets, "book the
 ferry" reminders — is never dropped: the model places it on the most plausible
-day (a booking reminder lands on the day it concerns; trip-wide content like a
-packing list defaults to day 1) as Note [Items](#item), with a packing list
-becoming a checklist. To stay within the on-device model's small (~4k-token)
+day (something that *happens* on a day lands on that day; trip-wide content like a
+packing list, a budget, or any pre-trip errand done *before leaving* — "reserve the
+lodge for the last night", "book the Saturday ferry before we go" — defaults to day
+1, even when it names a day) as Note [Items](#item), with a packing list becoming a
+checklist. To stay within the on-device model's small (~4k-token)
 context window — which the whole trip in one call overruns — generation runs in
 passes: first the trip header (title + date span), then a segmentation pass that
 assigns each sentence of the plan to a day (trip-wide content to day 1), then one
 extraction call per day over only that day's slice. Segmenting first is what keeps
 days from duplicating or bleeding into one another: each sentence lands in exactly
 one day, so nothing is dropped and nothing is repeated, and each extraction call
-stays small. A too-long or unusable document **fails loud and saves nothing**. Runs on-device only, with no cloud fallback; without
+stays small. A day the segmentation leaves with no sentences is kept empty, never
+sent to the model — a small model asked to extract a day from blank text invents a
+plausible generic one rather than answering "nothing", so an empty slice skips
+extraction entirely. A too-long or unusable document **fails loud and saves nothing**. Runs on-device only, with no cloud fallback; without
 Apple Intelligence the entry point explains itself instead of working and
 offers the [Schema Prompt](#schema-prompt) as the manual way through (see
 [ADR-0006](docs/adr/0006-smart-import-on-device-only.md)). Locations are
