@@ -142,6 +142,41 @@ export function stripUrls(text: string): string {
     .replace(/[ \t]+$/gm, '');
 }
 
+/**
+ * Split a Planning Document into the units segmentation assigns to days. Breaks on
+ * line boundaries and on sentence/clause separators (`.!?;` and a spaced em/en dash),
+ * so "Saturday is the big one: …" stays one unit while "Friday …", "Saturday …" and
+ * "Sunday …" land as separate units. Deliberately granular: over-splitting is safe —
+ * same-day fragments are rejoined into one slice by {@link assembleDaySlices} — while
+ * under-splitting would trap two days' content in one indivisible unit.
+ */
+export function splitSentences(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .flatMap((line) => line.split(/(?<=[.!?;])\s+|\s+[—–]\s+/))
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * Reassemble per-day slices from a sentence list and the day each sentence was assigned
+ * to (1..dayCount, or anything else — 0, out of range, missing — meaning trip-wide).
+ * Trip-wide sentences fold into day one. Every sentence lands in exactly one slice, so
+ * nothing is dropped and nothing is duplicated across days: the structural guarantee the
+ * segment-then-extract flow rests on (each per-day extraction then sees only its slice).
+ */
+export function assembleDaySlices(sentences: string[], assignment: number[], dayCount: number): string[] {
+  const a = Array.isArray(assignment) ? assignment : [];
+  const buckets: string[][] = Array.from({ length: Math.max(dayCount, 1) }, () => []);
+  sentences.forEach((sentence, i) => {
+    const day = a[i];
+    const idx =
+      typeof day === 'number' && Number.isInteger(day) && day >= 1 && day <= dayCount ? day - 1 : 0;
+    buckets[idx].push(sentence);
+  });
+  return buckets.map((b) => b.join(' '));
+}
+
 export interface PostProcessDeps {
   /** Id factory for the trip, days, items, and checklist entries. Defaults to newId. */
   makeId?: () => string;
@@ -252,12 +287,18 @@ interface NativeGenerateModule {
   /** Guided generation for the trip header only: returns `{title,startDate,endDate}` JSON. */
   generateOutline(text: string): Promise<string>;
   /**
-   * Guided generation for ONE day's items: returns `{items:[…]}` JSON.
-   * `dayNumber`/`totalDays` (both 1-based, e.g. day 3 of 3) let the model match
-   * how the plan labels the day — "Day 3", a weekday, or "March 12" — rather than
-   * relying on the ISO `date` alone. When `includeUnscheduled` is true (day one)
-   * the model also folds in trip-wide content that has no specific day. Splitting
-   * per day keeps each call small enough to fit the on-device context window.
+   * Guided generation for day segmentation: given the plan's sentences numbered 1..K
+   * and the day count, returns a JSON array of K integers — the day (1..N) each
+   * sentence belongs to, or 0 for trip-wide. One small call partitions the plan so
+   * each per-day extraction sees only its own text.
+   */
+  segmentDays(text: string, dayCount: number): Promise<string>;
+  /**
+   * Guided generation for ONE day's items: returns `{items:[…]}` JSON. The `text`
+   * passed is already this day's slice (see segmentDays), so the model only extracts —
+   * it never has to attribute content across days. `dayNumber`/`totalDays` (both
+   * 1-based) label the day; when `includeUnscheduled` is true (day one) the model
+   * gathers the trip-wide to-dos folded into this slice as a checklist.
    */
   generateDay(
     text: string,
@@ -269,15 +310,17 @@ interface NativeGenerateModule {
 }
 
 /**
- * The two-phase on-device draft generator (issue #97). The native module is
- * loaded by name and absent off a real device, so this throws there — call sites
- * gate on the availability probe first. Injectable as a whole so the orchestration
- * is unit-testable from JS without a device.
+ * The on-device draft generator (issue #97). The native module is loaded by name and
+ * absent off a real device, so this throws there — call sites gate on the availability
+ * probe first. Injectable as a whole so the orchestration is unit-testable from JS
+ * without a device.
  */
 export interface DraftGenerator {
   /** Trip header: title + inclusive start/end dates. */
   outline(text: string): Promise<unknown>;
-  /** One day's items; `dayNumber`/`totalDays` are 1-based; `includeUnscheduled` true only for day one. */
+  /** Day each numbered sentence belongs to (1..dayCount, or 0/other for trip-wide). */
+  segment(text: string, dayCount: number): Promise<number[]>;
+  /** One day's items from its slice; `dayNumber`/`totalDays` are 1-based; `includeUnscheduled` true only for day one. */
   day(
     text: string,
     date: string,
@@ -292,9 +335,25 @@ function nativeGenerator(): DraftGenerator {
   if (!native) throw new Error('Smart Import is not available on this device.');
   return {
     outline: async (text) => JSON.parse(await native.generateOutline(text)),
+    segment: async (text, dayCount) => JSON.parse(await native.segmentDays(text, dayCount)),
     day: async (text, date, dayNumber, totalDays, includeUnscheduled) =>
       JSON.parse(await native.generateDay(text, date, dayNumber, totalDays, includeUnscheduled)),
   };
+}
+
+/**
+ * Partition the plan into one text slice per day via a single segmentation call, so
+ * each per-day extraction sees only its own content — the cross-day duplication and
+ * bleed of re-reading the whole document for every day can't happen. A one-day trip
+ * needs no split. Trip-wide sentences fold into day one (see assembleDaySlices).
+ */
+async function segmentIntoSlices(text: string, gen: DraftGenerator, dayCount: number): Promise<string[]> {
+  if (dayCount <= 1) return [text];
+  const sentences = splitSentences(text);
+  if (sentences.length === 0) return Array.from({ length: dayCount }, () => '');
+  const numbered = sentences.map((s, i) => `${i + 1}. ${s}`).join('\n');
+  const assignment = await gen.segment(numbered, dayCount);
+  return assembleDaySlices(sentences, assignment, dayCount);
 }
 
 /**
@@ -322,10 +381,12 @@ async function generateDayItems(
 }
 
 /**
- * Assemble a draft trip by running the model day-by-day. First the header, then —
- * for each day — that day's items in a fresh, small model call (the whole trip in
- * one call overruns the ~4k-token window). The unscheduled-content rule (packing
- * lists, budgets → day one) is preserved by flagging only the first day.
+ * Assemble a draft trip by running the model in stages. First the header, then one
+ * segmentation call that partitions the plan into a text slice per day (so no single
+ * call has to hold the whole trip — the ~4k-token window — and, crucially, no day
+ * re-reads another day's content), then for each day a small extraction call over
+ * that day's slice alone. Trip-wide content (packing lists, budgets) folds into day
+ * one's slice, where the day-one extraction gathers it as a checklist.
  *
  * The header decides the shape: a *dated* outline drives one call per calendar date
  * in its span; an *undated* one drives one call per relative day — no date to key on,
@@ -347,9 +408,10 @@ export async function generateTripDraft(text: string, gen: DraftGenerator): Prom
   if (dated.success && documentStatesCalendarDate(text)) {
     const outline = dated.data;
     const dates = eachDateInclusive(outline.startDate, outline.endDate);
+    const slices = await segmentIntoSlices(text, gen, dates.length);
     const days = [];
     for (let i = 0; i < dates.length; i++) {
-      const { items } = await generateDayItems(text, gen, dates[i], i + 1, dates.length);
+      const { items } = await generateDayItems(slices[i], gen, dates[i], i + 1, dates.length);
       days.push({ date: dates[i], items });
     }
     return {
@@ -382,10 +444,11 @@ export async function generateTripDraft(text: string, gen: DraftGenerator): Prom
   if (dayCount > MAX_TRIP_DAYS) {
     throw new Error(`This plan spans more than ${MAX_TRIP_DAYS} days — too long to import.`);
   }
+  const slices = await segmentIntoSlices(text, gen, dayCount);
   const days = [];
   for (let i = 0; i < dayCount; i++) {
     // No calendar date yet, so the per-day call leans on dayNumber/totalDays.
-    const { items } = await generateDayItems(text, gen, '', i + 1, dayCount);
+    const { items } = await generateDayItems(slices[i], gen, '', i + 1, dayCount);
     days.push({ items });
   }
   return { needsStartDate: true, draft: { title, days } };

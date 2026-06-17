@@ -14,6 +14,8 @@ import {
   generateTripDraft,
   smartImportTrip,
   stripUrls,
+  splitSentences,
+  assembleDaySlices,
   type DraftGenerator,
 } from './smart-import';
 import { TripSchema } from './schema';
@@ -284,6 +286,7 @@ describe('generateTripDraft', () => {
         startDate: '2026-08-14',
         endDate: '2026-08-15',
       }),
+      segment: vi.fn(async () => []),
       day: vi.fn(async (_t, date: string) => ({ items: [{ name: `item ${date}` }] })),
     };
     const generated = await generateTripDraft('Big Sur Aug 14-15', generate);
@@ -299,6 +302,7 @@ describe('generateTripDraft', () => {
     // span (CONTEXT.md#smart-import) — the draft must not carry invented dates.
     const generate: DraftGenerator = {
       outline: vi.fn().mockResolvedValue({ title: 'Camping trip', dayCount: 3 }),
+      segment: vi.fn(async () => [1, 2, 3]),
       day: vi.fn(async (_t, _date, dayNumber: number) => ({ items: [{ name: `day ${dayNumber}` }] })),
     };
     const generated = await generateTripDraft('day 1 hike, day 2 fish, day 3 home', generate);
@@ -317,9 +321,33 @@ describe('generateTripDraft', () => {
     expect(generate.day).toHaveBeenNthCalledWith(3, expect.any(String), '', 3, 3, false);
   });
 
+  it('segments the plan so each day extracts only its own slice, never the whole plan', async () => {
+    // The core of segment-then-extract: a sentence assigned to day 2 reaches the day-2
+    // call and no other, so a day can neither duplicate nor bleed another day's content.
+    const slicesByDay: Record<number, string> = {};
+    const generate: DraftGenerator = {
+      outline: vi.fn().mockResolvedValue({ title: 'Maine', startDate: '2026-09-18', endDate: '2026-09-19' }),
+      // Drive up -> day 1, Hike the falls -> day 2, Pack layers -> trip-wide (day 1).
+      segment: vi.fn(async () => [1, 2, 0]),
+      day: vi.fn(async (slice: string, _date, dayNumber: number) => {
+        slicesByDay[dayNumber] = slice;
+        return { items: [{ name: `from day ${dayNumber}` }] };
+      }),
+    };
+
+    await generateTripDraft('Drive up. Hike the falls. Pack layers.', generate);
+
+    expect(generate.segment).toHaveBeenCalledTimes(1);
+    // Day one carries its own sentence plus the trip-wide one; day two only its own.
+    expect(slicesByDay[1]).toBe('Drive up. Pack layers.');
+    expect(slicesByDay[2]).toBe('Hike the falls.');
+    expect(slicesByDay[2]).not.toContain('Drive up');
+  });
+
   it('fails loud when an undated outline claims more days than the cap', async () => {
     const generate: DraftGenerator = {
       outline: vi.fn().mockResolvedValue({ title: 'Forever', dayCount: 365 }),
+      segment: vi.fn(async () => []),
       day: vi.fn(async () => ({ items: [] })),
     };
     await expect(generateTripDraft('plan', generate)).rejects.toThrow(/too long/i);
@@ -337,6 +365,7 @@ describe('generateTripDraft', () => {
         startDate: '2026-08-14',
         endDate: '2026-08-16',
       }),
+      segment: vi.fn(async () => [1, 2, 3]),
       day: vi.fn(async (_t, _date, dayNumber: number) => ({ items: [{ name: `day ${dayNumber}` }] })),
     };
     const generated = await generateTripDraft('Day 1 land. Day 2 golden circle. Day 3 home.', generate);
@@ -381,6 +410,39 @@ describe('stripUrls', () => {
   });
 });
 
+describe('splitSentences', () => {
+  it('breaks prose into per-sentence units, keeping a colon-led day together', () => {
+    expect(
+      splitSentences('Friday we drive up. Saturday is the big one: ferry then hike. Sunday we head home.'),
+    ).toEqual(['Friday we drive up.', 'Saturday is the big one: ferry then hike.', 'Sunday we head home.']);
+  });
+
+  it('splits on line breaks and a spaced em dash', () => {
+    expect(splitSentences('teamLab Planets\nNarisawa — book ahead')).toEqual([
+      'teamLab Planets',
+      'Narisawa',
+      'book ahead',
+    ]);
+  });
+});
+
+describe('assembleDaySlices', () => {
+  const sentences = ['Drive up.', 'Hike the falls.', 'Pack layers.'];
+
+  it('routes each sentence to its day, folding trip-wide content into day one', () => {
+    // sentence 1 -> day 1, sentence 2 -> day 2, sentence 3 -> trip-wide (0).
+    expect(assembleDaySlices(sentences, [1, 2, 0], 2)).toEqual(['Drive up. Pack layers.', 'Hike the falls.']);
+  });
+
+  it('drops nothing and duplicates nothing when the assignment is short or out of range', () => {
+    // Missing/invalid assignments fall back to day one; no sentence is lost or repeated.
+    const slices = assembleDaySlices(sentences, [9], 2);
+    expect(slices).toEqual(['Drive up. Hike the falls. Pack layers.', '']);
+    const all = slices.join(' ');
+    for (const s of sentences) expect(all).toContain(s);
+  });
+});
+
 describe('documentStatesCalendarDate', () => {
   it('detects month+day, ISO, and numeric dates', () => {
     expect(documentStatesCalendarDate('Barcelona March 10 to March 12')).toBe(true);
@@ -407,6 +469,9 @@ describe('smartImportTrip', () => {
   ): DraftGenerator {
     return {
       outline: vi.fn().mockResolvedValue(outline),
+      // The fake keys items by date, so the slice text is irrelevant here; an empty
+      // assignment folds every sentence into day one, leaving later slices empty.
+      segment: vi.fn(async () => []),
       day: vi.fn(
         async (_text: string, date: string, _dayNumber: number, _totalDays: number) =>
           itemsByDate[date] ?? { items: [] },
@@ -447,6 +512,10 @@ describe('smartImportTrip', () => {
         seen.push(t);
         return { title: 'Tokyo', startDate: '2026-08-14', endDate: '2026-08-14' };
       }),
+      segment: vi.fn(async (t: string) => {
+        seen.push(t);
+        return [];
+      }),
       day: vi.fn(async (t: string) => {
         seen.push(t);
         return { items: [{ name: 'teamLab Planets' }] };
@@ -469,8 +538,10 @@ describe('smartImportTrip', () => {
     );
     await smartImportTrip('Trip Aug 14-15', { generate, makeId: counterIds() });
 
-    expect(generate.day).toHaveBeenNthCalledWith(1, 'Trip Aug 14-15', '2026-08-14', 1, 2, true);
-    expect(generate.day).toHaveBeenNthCalledWith(2, 'Trip Aug 14-15', '2026-08-15', 2, 2, false);
+    // The text arg is now each day's slice; what matters is that only day one is told
+    // to gather the trip-wide content folded into its slice.
+    expect(generate.day).toHaveBeenNthCalledWith(1, expect.any(String), '2026-08-14', 1, 2, true);
+    expect(generate.day).toHaveBeenNthCalledWith(2, expect.any(String), '2026-08-15', 2, 2, false);
   });
 
   it('degrades a malformed per-day result to no items instead of failing', async () => {
@@ -494,6 +565,7 @@ describe('smartImportTrip', () => {
   function undatedGenerator(title: string, itemsByDay: Record<number, unknown>): DraftGenerator {
     return {
       outline: vi.fn().mockResolvedValue({ title, dayCount: Object.keys(itemsByDay).length }),
+      segment: vi.fn(async () => []),
       day: vi.fn(async (_text: string, _date: string, dayNumber: number) => itemsByDay[dayNumber] ?? { items: [] }),
     };
   }

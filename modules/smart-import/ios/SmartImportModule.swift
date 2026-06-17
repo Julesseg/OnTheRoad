@@ -38,9 +38,23 @@ public class SmartImportModule: Module {
       throw SmartImportError.unsupported
     }
 
-    // Pass 2 — one day's items: `{items:[…]}` JSON. `dayNumber`/`totalDays` (both
-    // 1-based) let the model match how the plan labels the day; `includeUnscheduled`
-    // (day one only) folds in trip-wide content that has no specific day.
+    // Pass 2 — segmentation: given the plan's sentences numbered 1..K and the day
+    // count, return a JSON array of K integers, the day (1..N) each sentence belongs
+    // to (0 for trip-wide). One call partitions the plan so each per-day extraction
+    // sees only its own text — the cure for cross-day duplication and bleed.
+    AsyncFunction("segmentDays") { (text: String, dayCount: Int) async throws -> String in
+      #if canImport(FoundationModels)
+      if #available(iOS 26.0, *) {
+        return try await segmentDaysJSON(from: text, dayCount: dayCount)
+      }
+      #endif
+      throw SmartImportError.unsupported
+    }
+
+    // Pass 3 — one day's items: `{items:[…]}` JSON. `text` is already this day's
+    // slice (see segmentDays), so the model only extracts; `dayNumber`/`totalDays`
+    // (both 1-based) label the day; `includeUnscheduled` (day one only) gathers the
+    // trip-wide to-dos folded into the slice as a checklist.
     AsyncFunction("generateDay") { (text: String, date: String, dayNumber: Int, totalDays: Int, includeUnscheduled: Bool) async throws -> String in
       #if canImport(FoundationModels)
       if #available(iOS 26.0, *) {
@@ -124,6 +138,39 @@ private func generateOutlineJSON(from document: String) async throws -> String {
   return String(decoding: data, as: UTF8.self)
 }
 
+// Pass 2: segment the plan. The input is the plan's sentences numbered 1..K; the
+// output is one day number per sentence (1..N, or 0 for trip-wide). Keeping this a
+// pure routing decision — not extraction — lets the small model assign each sentence
+// once, after which every per-day call sees only its own slice, so nothing duplicates
+// across days and nothing is dropped (JS reassembles the slices deterministically).
+@available(iOS 26.0, *)
+private func segmentDaysJSON(from numberedSentences: String, dayCount: Int) async throws -> String {
+  let instructions = """
+  You are given a numbered list of sentences from a trip plan that spans \(dayCount) \
+  days. For EACH sentence, decide which day it belongs to and output that day's number \
+  (1 to \(dayCount)). Output 0 only when a sentence is trip-wide and belongs to no single \
+  day — a packing list, a budget, a general pre-trip errand.
+
+  Use the plan's own day cues: a sentence under "Day 2", a weekday, or a date goes to \
+  that day. A booking or reminder that names a day belongs to that day — "book the \
+  Saturday crossing" goes to whichever day is Saturday, not day 1. Assign every \
+  sentence to exactly one day; output one integer per sentence, in the same order, and \
+  nothing else.
+  """
+
+  let session = LanguageModelSession(instructions: instructions)
+  let prompt = "Sentences:\n\(numberedSentences)"
+  let result: Segmentation
+  do {
+    result = try await session.respond(to: prompt, generating: Segmentation.self).content
+  } catch {
+    throw mapGenerationError(error)
+  }
+
+  let data = try JSONSerialization.data(withJSONObject: result.dayForSentence)
+  return String(decoding: data, as: UTF8.self)
+}
+
 // Pass 2: the items for one calendar date. A capped response budget is belt-and-
 // suspenders — per-day output is small, but a pathological day can't run away
 // and overrun the window.
@@ -135,36 +182,17 @@ private func generateDayJSON(
   totalDays: Int,
   includeUnscheduled: Bool
 ) async throws -> String {
-  // The date is empty for a dateless plan (the user picks a start later); the
-  // model then leans on the day number alone to find this day in the text.
-  let whichDay = date.isEmpty
-    ? """
-    Which day: this is day \(dayNumber) of \(totalDays). The plan may label this day \
-    as "Day \(dayNumber)" or a weekday — treat any label that points to this day as \
-    the same day.
-    """
-    : """
-    Which day: this is day \(dayNumber) of \(totalDays), the calendar date \(date). The \
-    plan may label this day as "Day \(dayNumber)", a weekday, or a date (for example a \
-    month and day) — treat any of those that point to this day as the same day.
-    """
-
   var instructions = """
-  You extract the items happening on ONE day of a trip from a free-text plan.
+  You extract every item from ONE day's portion of a trip plan.
 
-  Capture EVERY item the plan lists for this day — each activity, meal, place, \
-  check-in, and reminder it mentions, even short ones. Do not skip or merge items. \
-  Then, for each item, fill in detail ONLY from what the text actually says: never \
-  invent or guess a time, place, name, or activity that is not written. Capturing a \
-  stated item with a missing field is right; adding a plausible-sounding field is wrong.
-
-  Include ONLY items that belong to this day. The plan describes other days too — \
-  never copy an item that belongs to a different day (one written under another \
-  weekday, date, or "Day N" heading); a separate call handles each of those days. \
-  Listing the same outing on two days is a mistake.
-
-  \(whichDay) Return the items under that heading. Only return an empty list if the \
-  plan truly lists nothing for this day.
+  The text below is the part of the plan for a single day (day \(dayNumber) of \
+  \(totalDays)) — it has already been separated out for you, so you do not have to \
+  decide which day anything belongs to. Capture EVERY item it mentions — each activity, \
+  meal, place, check-in, and reminder, even short ones. Do not skip or merge items. For \
+  each item, fill in detail ONLY from what the text actually says: never invent or guess \
+  a time, place, name, or activity that is not written. Capturing a stated item with a \
+  missing field is right; adding a plausible-sounding field is wrong. Return an empty \
+  list only if the text truly describes nothing to do.
 
   Rules:
   - time: include a time ONLY when the plan states a clock time for that item, \
@@ -180,30 +208,23 @@ private func generateDayJSON(
   - location/address: include only a place or address the plan actually names, as \
   address TEXT ONLY — never latitude/longitude. Never invent or complete an address. \
   Omit it when the plan names no place.
-  - Packing and to-do lists become a checklist only when there is more than one item.
-  - A reminder, booking, or to-do written elsewhere in the plan (these often sit up \
-  front, like "book the ferry" or "reserve the clambake") belongs on THIS day ONLY \
-  when it names this day — its weekday, its date, or an outing that happens this day \
-  (e.g. "book the Saturday crossing" goes on the day that IS Saturday; "reserve the \
-  Sunday clambake" goes on the day that IS Sunday). Capture it here as a note item. \
-  If you cannot tell which day a reminder concerns, do NOT put it here — leave it for \
-  day one. Never place the same reminder on more than one day.
+  - A reminder or booking ("book the ferry", "reserve the clambake") is a note item — \
+  capture it like anything else in the text.
+  - Packing and to-do lists become a checklist (one entry per line) only when there is \
+  more than one item.
   """
   if includeUnscheduled {
     instructions += """
 
-    - This is day one, so you MUST also capture every pre-trip and trip-wide to-do the \
-    plan mentions that is not tied to a specific later day — packing items, a budget, \
-    general errands and bookings ("oil change before we go", "pack the cooler", "book \
-    the rental car"). Gather these into a SINGLE note item with a checklist, one entry \
-    per to-do. Never drop them, and never scatter them onto later days. A reminder that \
-    clearly names a specific later day is the exception — leave that one to its day.
+    - This day's text also carries the trip's general pre-trip to-dos (packing items, a \
+    budget, errands like "oil change before we go" or "pack the cooler"). Gather those \
+    general to-dos into a SINGLE note item with a checklist, one entry each, rather than \
+    many separate notes. Capture them all — drop none.
     """
   }
 
   let session = LanguageModelSession(instructions: instructions)
-  let dayRef = date.isEmpty ? "day \(dayNumber) of \(totalDays)" : "day \(dayNumber) of \(totalDays) (\(date))"
-  let prompt = "Extract the items for \(dayRef).\n\nTrip plan:\n\(document)"
+  let prompt = "Here is the plan for this day:\n\(document)"
   let options = GenerationOptions(maximumResponseTokens: 2000)
   let day: DayItems
   do {
@@ -251,6 +272,13 @@ struct TripOutline {
   let endDate: String
   @Guide(description: "How many days the plan spans, at least 1 (a 'Day 1 / Day 2 / Day 3' plan spans 3). Used when hasDates is false.")
   let dayCount: Int
+}
+
+@available(iOS 26.0, *)
+@Generable
+struct Segmentation {
+  @Guide(description: "One day number per input sentence, in the same order: 1 to N for the day that sentence belongs to, or 0 if it is trip-wide and belongs to no single day")
+  let dayForSentence: [Int]
 }
 
 @available(iOS 26.0, *)

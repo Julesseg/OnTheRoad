@@ -223,9 +223,12 @@ day (a booking reminder lands on the day it concerns; trip-wide content like a
 packing list defaults to day 1) as Note [Items](#item), with a packing list
 becoming a checklist. To stay within the on-device model's small (~4k-token)
 context window — which the whole trip in one call overruns — generation runs in
-passes: first the trip header (title + date span), then one call per calendar
-date for that day's items. A too-long or unusable document **fails
-loud and saves nothing**. Runs on-device only, with no cloud fallback; without
+passes: first the trip header (title + date span), then a segmentation pass that
+assigns each sentence of the plan to a day (trip-wide content to day 1), then one
+extraction call per day over only that day's slice. Segmenting first is what keeps
+days from duplicating or bleeding into one another: each sentence lands in exactly
+one day, so nothing is dropped and nothing is repeated, and each extraction call
+stays small. A too-long or unusable document **fails loud and saves nothing**. Runs on-device only, with no cloud fallback; without
 Apple Intelligence the entry point explains itself instead of working and
 offers the [Schema Prompt](#schema-prompt) as the manual way through (see
 [ADR-0006](docs/adr/0006-smart-import-on-device-only.md)). Locations are
