@@ -23,7 +23,8 @@ export function mapsTargetForItem(item: Item): MapsTarget | null {
 
 /**
  * The floating info card shown when a trip pin is tapped (CONTEXT.md#pin). It is
- * liquid glass to match the rest of the app and shows the **same information as
+ * liquid glass tinted with the same warm wash (`backgroundGlass`) as the sheets
+ * floating over the map, and shows the **same information as
  * the item's row in the itinerary panel** — category symbol + label, checklist
  * progress, name, the address/time/notes lines, and the ticking checklist — with
  * a Directions pill in the top-right corner that opens the preferred maps app.
@@ -50,6 +51,7 @@ export function PinInfoCard({
   return (
     <GlassView
       glassEffectStyle="regular"
+      tintColor={c.backgroundGlass}
       style={styles.card}
       accessibilityLabel="Pin info card"
     >
