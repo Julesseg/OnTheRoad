@@ -57,14 +57,31 @@ cached in the store's `loadedTrips`.
 A single calendar **date** within a trip. Holds an ordered list of `items`.
 Days are generated and kept in sync by
 `reconcileDays` (`lib/trip-days.ts`): on create it builds one empty day for
-every date from `startDate` through `endDate` inclusive, and when a trip's dates
-change it is **calendar-anchored** — in-range days are kept intact, newly
-in-range dates are added as empty days, and out-of-range days are dropped (it
-also reports any dropped day that still holds items so the edit flow can warn
-before discarding, since items are never auto-moved). A day is identified by its
-own `id`, not by its date.
+every date from `startDate` through `endDate` inclusive. When a trip's dates
+change, reconciliation follows the chosen date-edit mode
+([Shift / Adjust](#shift--adjust)): items are always carried over, never
+dropped. A day is identified by its own `id`, not by its date.
 
 Prefer **Day** over "leg" or "stage".
+
+### Shift / Adjust
+
+The two modes for changing an existing trip's dates, chosen on a dedicated date
+screen *before* the new dates are entered. **Shift the trip** moves the whole
+itinerary by a fixed offset: the traveller picks only a new start date, the
+duration is preserved, and every [Day](#day) keeps its items and ordinal
+position (Day 1 stays Day 1) — only its date changes, so nothing ever falls
+out. **Adjust dates** redefines the span: the traveller picks start and end
+freely; a Day whose date still falls in the new span keeps its items in place,
+while items on dates that now fall outside are carried to the nearest surviving
+edge — items before the new start append to the **first** Day, items after the
+new end append to the **last** Day, in date order and after that day's own
+items. Both modes are **lossless** — a date change never deletes an
+[Item](#item). The chosen mode and dates are staged on the Edit Trip screen and
+persisted with the rest of the edit on Save.
+
+Prefer **Shift** / **Adjust** for the two date-edit modes; this replaces the
+earlier calendar-anchored "drop out-of-range days and warn" behaviour.
 
 ### Item
 
