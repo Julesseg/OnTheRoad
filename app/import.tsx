@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
@@ -74,12 +74,8 @@ export default function ImportSheet() {
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>Import Trip</Stack.Title>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.body,
-          { paddingTop: NAV_BAR_HEIGHT, paddingBottom: insets.bottom + 24 },
-        ]}
+      <View
+        style={[styles.body, { paddingTop: NAV_BAR_HEIGHT, paddingBottom: insets.bottom + 24 }]}
       >
         {/* Primary: restore an On the Road trip file. */}
         <View style={styles.section}>
@@ -109,7 +105,7 @@ export default function ImportSheet() {
           </Step>
           <GlassButton label="Copy Prompt" accent={c.accent} onAccent={c.onAccent} onPress={onCopyPrompt} />
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -166,11 +162,10 @@ function GlassButton({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // The ScrollView must claim the sheet's height itself; without flex:1 it
-  // collapses to zero inside the flex column and clips all its content (the
-  // body renders blank on device — react-native-web hides this in tests).
-  scroll: { flex: 1 },
-  body: { paddingHorizontal: 24, gap: 24 },
+  // flex:1 so the body claims the sheet's height (the proven pattern in
+  // archived.tsx / the old smart-import compose body). The two short sections
+  // fit a full-height sheet, so no ScrollView is needed.
+  body: { flex: 1, paddingHorizontal: 24, gap: 24 },
   section: { gap: 12 },
   heading: { fontSize: 20, fontWeight: '700' },
   detail: { fontSize: 15, lineHeight: 21 },
