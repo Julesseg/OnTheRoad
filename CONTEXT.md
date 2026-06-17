@@ -245,7 +245,8 @@ through Import's strict validation, not a lenient draft path.
 There is no on-device generation: an earlier on-device-model route (Apple
 Intelligence Foundation Models) was dropped because the small model could not
 structure real planning documents reliably, leaving the Schema Prompt as the
-single AI path (see [ADR-0006](docs/adr/0006-smart-import-on-device-only.md)).
+single AI path (see
+[ADR-0012](docs/adr/0012-drop-on-device-smart-import-for-schema-prompt.md)).
 
 Prefer **Schema Prompt** over "export schema", "LLM template", or "AI import".
 
