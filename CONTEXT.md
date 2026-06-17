@@ -229,7 +229,10 @@ loud and saves nothing**. Runs on-device only, with no cloud fallback; without
 Apple Intelligence the entry point explains itself instead of working and
 offers the [Schema Prompt](#schema-prompt) as the manual way through (see
 [ADR-0006](docs/adr/0006-smart-import-on-device-only.md)). Locations are
-captured as address text only, never coordinates.
+captured as address text; coordinates are resolved best-effort via Photon
+immediately after the trip is saved (fire-and-forget, same auto-pick-first-result
+pattern as the picker fallback — items that fail to resolve stay address-only
+and are not retried).
 
 User-facing label: **Import Planning Document**. Prefer **Smart Import** over
 "AI import" or "text import"; prefer [Import](#import--export) for the exact
