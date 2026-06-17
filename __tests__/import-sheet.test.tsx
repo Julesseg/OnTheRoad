@@ -40,6 +40,7 @@ vi.mock('expo-glass-effect', () => ({
   isLiquidGlassAvailable: () => false,
   GlassView: () => null,
 }));
+vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
 
 const storeMock = vi.hoisted(() => ({ importTrip: vi.fn(), setDisplayedTrip: vi.fn() }));
 vi.mock('@/lib/store', () => ({
@@ -118,7 +119,7 @@ describe('ImportSheet — Schema Prompt round trip', () => {
     await renderSheet();
 
     expect(screen.getByText(/copy the prompt/i)).toBeInTheDocument();
-    expect(screen.getByText(/paste it into chatgpt, claude, or any ai/i)).toBeInTheDocument();
+    expect(screen.getByText(/paste it into your favorite ai chat/i)).toBeInTheDocument();
     expect(screen.getByText(/save the json it produces/i)).toBeInTheDocument();
   });
 

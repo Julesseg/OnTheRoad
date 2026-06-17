@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Clipboard from 'expo-clipboard';
 import { GlassView } from 'expo-glass-effect';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
@@ -83,7 +84,7 @@ export default function ImportSheet() {
           <Text style={[styles.detail, { color: c.textSubtle }]}>
             Choose a trip <Text style={styles.mono}>.json</Text> file to add it to your trips.
           </Text>
-          <GlassButton label="Choose File" accent={c.accent} onAccent={c.onAccent} onPress={onPickFile} />
+          <GlassButton label="Choose File" icon="folder" accent={c.accent} onPress={onPickFile} />
         </View>
 
         <View style={[styles.divider, { backgroundColor: c.separator }]} />
@@ -98,12 +99,17 @@ export default function ImportSheet() {
             Copy the prompt.
           </Step>
           <Step n={2} color={c.text} accent={c.accent}>
-            Paste it into ChatGPT, Claude, or any AI together with your trip plan.
+            Paste it into your favorite AI chat with your trip plan.
           </Step>
           <Step n={3} color={c.text} accent={c.accent}>
             Save the JSON it produces and import it here.
           </Step>
-          <GlassButton label="Copy Prompt" accent={c.accent} onAccent={c.onAccent} onPress={onCopyPrompt} />
+          <GlassButton
+            label="Copy Prompt"
+            icon="doc.on.doc"
+            accent={c.accent}
+            onPress={onCopyPrompt}
+          />
         </View>
       </View>
     </View>
@@ -129,18 +135,20 @@ function Step({
   );
 }
 
-// Liquid-glass pill button: sized to its content, the glass material fills behind
-// via an absolute GlassView rounding its own corners (clipping it would cut off
-// the edge highlights that give Liquid Glass its look).
+// Liquid-glass pill button: an icon + label over the clear Liquid Glass material.
+// The glass fills behind via an absolute GlassView that rounds its own corners
+// (clipping it with overflow:'hidden' would cut off the edge highlights that give
+// Liquid Glass its look). No tint — the material stays clear and the accent-colored
+// content reads on top, matching the map controls.
 function GlassButton({
   label,
+  icon,
   accent,
-  onAccent,
   onPress,
 }: {
   label: string;
+  icon: SymbolViewProps['name'];
   accent: string;
-  onAccent: string;
   onPress: () => void;
 }) {
   return (
@@ -152,32 +160,40 @@ function GlassButton({
       <GlassView
         glassEffectStyle="regular"
         isInteractive
-        tintColor={accent}
         style={[StyleSheet.absoluteFill, styles.glass]}
       />
-      <Text style={[styles.buttonLabel, { color: onAccent }]}>{label}</Text>
+      <View style={styles.buttonContent}>
+        <SymbolView
+          name={icon}
+          tintColor={accent}
+          resizeMode="scaleAspectFit"
+          style={styles.buttonIcon}
+        />
+        <Text style={[styles.buttonLabel, { color: accent }]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // flex:1 so the body claims the sheet's height (the proven pattern in
-  // archived.tsx / the old smart-import compose body). The two short sections
-  // fit a full-height sheet, so no ScrollView is needed.
-  body: { flex: 1, paddingHorizontal: 24, gap: 24 },
-  section: { gap: 12 },
-  heading: { fontSize: 20, fontWeight: '700' },
-  detail: { fontSize: 15, lineHeight: 21 },
+  // flex:1 so the body claims the sheet's height; the content is centered both
+  // ways. (Matches the proven RN-content pattern in archived.tsx / the old
+  // smart-import compose body.)
+  body: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
+  section: { alignSelf: 'stretch', alignItems: 'center', gap: 12 },
+  heading: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  detail: { fontSize: 15, lineHeight: 21, textAlign: 'center' },
   mono: { fontFamily: 'Menlo' },
-  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
-  step: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  // Generous breathing room between the two sections and the divider line.
+  divider: { height: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: 32 },
+  step: { flexDirection: 'row', justifyContent: 'center', gap: 6, alignSelf: 'stretch' },
   stepNumber: { fontSize: 15, fontWeight: '700', lineHeight: 21 },
-  stepText: { flex: 1, fontSize: 15, lineHeight: 21 },
+  stepText: { flexShrink: 1, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   button: {
     alignSelf: 'center',
-    minWidth: 160,
-    paddingHorizontal: 32,
+    minWidth: 180,
+    paddingHorizontal: 28,
     paddingVertical: 13,
     marginTop: 4,
     alignItems: 'center',
@@ -186,5 +202,7 @@ const styles = StyleSheet.create({
   // Full capsule: a radius >= half the button height rounds the glass completely so
   // the edge highlights wrap the corners instead of being clipped flat.
   glass: { borderRadius: 999 },
+  buttonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  buttonIcon: { width: 18, height: 18 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
 });
