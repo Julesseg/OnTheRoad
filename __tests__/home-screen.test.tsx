@@ -7,6 +7,9 @@ vi.mock('expo-router', () => ({
   useFocusEffect: vi.fn(),
 }));
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
+// The road-leg hook pulls in the native MKDirections wrapper and the on-device
+// cache file; stub it so the screen test stays free of native/filesystem deps.
+vi.mock('@/lib/use-road-legs', () => ({ useRoadLegs: () => ({}) }));
 vi.mock('@/lib/date-utils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/date-utils')>()),
   todayString: () => '2026-06-08',

@@ -4,6 +4,7 @@ import { act, render, screen, fireEvent } from '@testing-library/react';
 import type { Trip } from '@/lib/schema';
 import type { Viewport } from '@/lib/trip-route';
 import { TripMap, type TripMapHandle } from './trip-map';
+import { legCacheKey } from '@/lib/route-cache';
 import { EmberPalette } from '@/constants/theme';
 
 function makeTrip(items: Trip['days'][number]['items']): Trip {
@@ -44,7 +45,7 @@ describe('TripMap', () => {
     expect(map.getAttribute('data-marker-tint')).toBe(EmberPalette.coral);
   });
 
-  it('connects the markers with a coral polyline in itinerary order', () => {
+  it('connects the markers with a coral leg between each consecutive pair', () => {
     const trip = makeTrip([
       { category: 'location' as const, id: 'a', name: 'A', location: { lat: 37.8199, lng: -122.4783 } },
       { category: 'location' as const, id: 'b', name: 'B', location: { lat: 36.2704, lng: -121.8081 } },
@@ -52,10 +53,37 @@ describe('TripMap', () => {
     ]);
     render(<TripMap trip={trip} />);
     const map = screen.getByTestId('apple-maps-view');
-    expect(map.getAttribute('data-polyline')).toBe(
-      '37.8199,-122.4783;36.2704,-121.8081;35.6852,-121.1685',
+    // One polyline per leg, in itinerary order.
+    expect(map.getAttribute('data-polylines')).toBe(
+      '37.8199,-122.4783;36.2704,-121.8081|36.2704,-121.8081;35.6852,-121.1685',
     );
-    expect(map.getAttribute('data-polyline-color')).toBe(EmberPalette.coral);
+    expect(map.getAttribute('data-polyline-colors')).toBe(`${EmberPalette.coral};${EmberPalette.coral}`);
+  });
+
+  it('draws a leg along its road geometry when resolved, at full width', () => {
+    const a = { lat: 37.8199, lng: -122.4783 };
+    const b = { lat: 36.2704, lng: -121.8081 };
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'A', location: a },
+      { category: 'location' as const, id: 'b', name: 'B', location: b },
+    ]);
+    // Road geometry keyed by the leg's cache key bends through an extra point.
+    const roadLegs = { [legCacheKey(a, b)]: [a, { lat: 37, lng: -122 }, b] };
+    render(<TripMap trip={trip} roadLegs={roadLegs} />);
+    const map = screen.getByTestId('apple-maps-view');
+    expect(map.getAttribute('data-polyline')).toBe('37.8199,-122.4783;37,-122;36.2704,-121.8081');
+    expect(map.getAttribute('data-polyline-widths')).toBe('3');
+  });
+
+  it('draws an unrouted leg as a thinner approximate straight line', () => {
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 37.8199, lng: -122.4783 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 36.2704, lng: -121.8081 } },
+    ]);
+    render(<TripMap trip={trip} />);
+    const map = screen.getByTestId('apple-maps-view');
+    expect(map.getAttribute('data-polyline')).toBe('37.8199,-122.4783;36.2704,-121.8081');
+    expect(map.getAttribute('data-polyline-widths')).toBe('2');
   });
 
   it('dims pins outside the active date and keeps accent on the active day', () => {
