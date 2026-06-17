@@ -16,6 +16,7 @@ import {
   stripUrls,
   splitSentences,
   assembleDaySlices,
+  segmentByParagraphs,
   type DraftGenerator,
 } from './smart-import';
 import { TripSchema } from './schema';
@@ -365,6 +366,32 @@ describe('generateTripDraft', () => {
     expect(generated.draft.days[1].items).toEqual([]);
   });
 
+  it('prefers the deterministic paragraph split over the model for a structured plan', async () => {
+    // The plan opens each day with its own paragraph, so the unreliable model segmenter
+    // is bypassed entirely and each day still gets only its own content.
+    const document = [
+      'Coast run — Oct 2 to 3. Two of us.',
+      'Day 1 — Friday, Oct 2: Drive up the coast.',
+      'Day 2 — Saturday, Oct 3: Hike the headland.',
+    ].join('\n\n');
+    const slicesByDay: Record<number, string> = {};
+    const generate: DraftGenerator = {
+      outline: vi.fn().mockResolvedValue({ title: 'Coast run', startDate: '2026-10-02', endDate: '2026-10-03' }),
+      segment: vi.fn(async () => [1, 1, 1]),
+      day: vi.fn(async (slice: string, _date, dayNumber: number) => {
+        slicesByDay[dayNumber] = slice;
+        return { items: [{ name: `from day ${dayNumber}` }] };
+      }),
+    };
+
+    await generateTripDraft(document, generate);
+
+    expect(generate.segment).not.toHaveBeenCalled();
+    expect(slicesByDay[1]).toContain('Drive up the coast');
+    expect(slicesByDay[2]).toContain('Hike the headland');
+    expect(slicesByDay[2]).not.toContain('Drive up the coast');
+  });
+
   it('fails loud when an undated outline claims more days than the cap', async () => {
     const generate: DraftGenerator = {
       outline: vi.fn().mockResolvedValue({ title: 'Forever', dayCount: 365 }),
@@ -461,6 +488,63 @@ describe('assembleDaySlices', () => {
     expect(slices).toEqual(['Drive up. Hike the falls. Pack layers.', '']);
     const all = slices.join(' ');
     for (const s of sentences) expect(all).toContain(s);
+  });
+});
+
+describe('segmentByParagraphs', () => {
+  // A structured plan: lead paragraphs (overview, pre-trip), then one paragraph per
+  // day opening with a day header. This is exactly the shape the device run collapsed
+  // onto day one when the model did the segmenting.
+  const olympic = [
+    'Olympic Peninsula loop — 4 days. Driving the loop out of Seattle.',
+    'Before we go: reserve the lodge, grab the ferry reservation. Pack rain shells.',
+    'Day 1 — Friday, Oct 2: Catch the ferry. Lunch in Port Angeles. Hurricane Ridge.',
+    'Day 2 — Saturday, Oct 3: Lake Crescent kayak. Sol Duc Falls. Dinner in Forks.',
+    'Day 3 — Sunday, Oct 4: Rialto Beach. Hoh Rain Forest. Drive to Lake Quinault.',
+    'Day 4 — Monday, Oct 5: Breakfast at the lodge. Drive into Seattle.',
+  ].join('\n\n');
+
+  it('slices a day-per-paragraph plan by its own structure, folding lead content into day one', () => {
+    const slices = segmentByParagraphs(olympic, 4);
+    expect(slices).not.toBeNull();
+    if (!slices) return;
+    expect(slices).toHaveLength(4);
+    // Day one carries the overview and the pre-trip paragraph plus its own day.
+    expect(slices[0]).toContain('Driving the loop out of Seattle');
+    expect(slices[0]).toContain('Before we go');
+    expect(slices[0]).toContain('Catch the ferry');
+    // Each later day gets only its own paragraph — no bleed, nothing dumped on day one.
+    expect(slices[1]).toContain('Lake Crescent kayak');
+    expect(slices[1]).not.toContain('Catch the ferry');
+    expect(slices[2]).toContain('Rialto Beach');
+    expect(slices[3]).toContain('Drive into Seattle');
+  });
+
+  it('takes days in document order, ignoring muddled header labels', () => {
+    // Bare weekdays, a date, and a "Day 7-ish" — the labels disagree, but order wins.
+    const portugal = [
+      'Portugal road trip. Five of us in a van.',
+      'Saturday the 18th — land at Lisbon. Wander the Alfama.',
+      'Day 2: Belém in the morning. Drive to Sintra.',
+      'Mon Apr 20: the long drive south to the Algarve.',
+    ].join('\n\n');
+    const slices = segmentByParagraphs(portugal, 3);
+    expect(slices).not.toBeNull();
+    if (!slices) return;
+    expect(slices[0]).toContain('land at Lisbon');
+    expect(slices[1]).toContain('Belém');
+    expect(slices[2]).toContain('Algarve');
+  });
+
+  it('declines (returns null) when paragraphs do not line up with the day count', () => {
+    // Prose that runs every day together in one paragraph has one day-paragraph for a
+    // three-day trip — ambiguous, so the model decides instead of a wrong split.
+    const maine =
+      'Maine coast getaway\n\nWe are driving the coast. Book the ferry before we leave.\n\n' +
+      'Friday we drive up. Saturday the big ferry. Sunday the long drive home.';
+    expect(segmentByParagraphs(maine, 3)).toBeNull();
+    // A lead-only document (no day headers at all) also declines.
+    expect(segmentByParagraphs('Just some links.\n\nAnd a packing note.', 3)).toBeNull();
   });
 });
 

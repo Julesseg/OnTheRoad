@@ -224,10 +224,14 @@ private func generateDayJSON(
   if includeUnscheduled {
     instructions += """
 
-    - This day's text also carries the trip's general pre-trip to-dos (packing items, a \
-    budget, errands like "oil change before we go" or "pack the cooler"). Gather those \
-    general to-dos into a SINGLE note item with a checklist, one entry each, rather than \
-    many separate notes. Capture them all — drop none.
+    - This day's text also carries the trip's general, dateless to-dos: the packing list, \
+    the budget, and pre-trip errands ("oil change before we go", "pick up the parks pass", \
+    "reserve the lodge"). Gather ALL of these into ONE single note item whose checklist has \
+    one entry per to-do — each packing item, each errand, its own entry. Capture every one \
+    of them, but each ONLY ONCE: put them in that single checklist and do NOT also emit them \
+    as separate items. A packing item or errand is never its own activity and never a \
+    location — "rain shells" and "warm layers" are checklist entries, not places, so they \
+    must not get a location/address.
     """
   }
 

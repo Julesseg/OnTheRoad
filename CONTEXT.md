@@ -226,11 +226,18 @@ lodge for the last night", "book the Saturday ferry before we go" — defaults t
 checklist. To stay within the on-device model's small (~4k-token)
 context window — which the whole trip in one call overruns — generation runs in
 passes: first the trip header (title + date span), then a segmentation pass that
-assigns each sentence of the plan to a day (trip-wide content to day 1), then one
+slices the plan into one text block per day (trip-wide content to day 1), then one
 extraction call per day over only that day's slice. Segmenting first is what keeps
-days from duplicating or bleeding into one another: each sentence lands in exactly
-one day, so nothing is dropped and nothing is repeated, and each extraction call
-stays small. A day the segmentation leaves with no sentences is kept empty, never
+days from duplicating or bleeding into one another: each piece of the plan lands in
+exactly one day, so nothing is dropped and nothing is repeated, and each extraction
+call stays small. Segmentation prefers the plan's **own paragraph structure** — a
+structured plan opens each day with its own blank-line-separated paragraph ("Day 2 —
+…", "Mon Apr 20:", "Friday …"), taken in document order, with the lead paragraphs
+(title, "Before we go", packing) folded into day 1; this is exact and free. The
+on-device model segments only as a fallback, when the plan has no clean
+day-per-paragraph structure (days run together in prose) — it proved unreliable as
+the primary path, collapsing a whole multi-day plan onto day 1. A day the
+segmentation leaves with no content is kept empty, never
 sent to the model — a small model asked to extract a day from blank text invents a
 plausible generic one rather than answering "nothing", so an empty slice skips
 extraction entirely. A too-long or unusable document **fails loud and saves nothing**. Runs on-device only, with no cloud fallback; without

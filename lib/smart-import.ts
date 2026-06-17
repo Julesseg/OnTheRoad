@@ -177,6 +177,47 @@ export function assembleDaySlices(sentences: string[], assignment: number[], day
   return buckets.map((b) => b.join(' '));
 }
 
+// A day header sitting at the very start of a paragraph: an explicit "Day N", a
+// weekday, a month name, or a numeric date. These are how the structured plans open
+// each day's paragraph ("Day 2 — Saturday, Oct 3:", "Mon Apr 20:", "Friday Apr 24 —").
+const WEEKDAY =
+  '(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tues|tue|weds|wed|thurs|thur|thu|fri|sat|sun)';
+const DAY_HEADER_RE = new RegExp(
+  `^(?:day\\s+\\d+\\b|${WEEKDAY}\\b|(?:${MONTHS})\\b|\\d{1,2}\\/\\d{1,2}\\b)`,
+  'i',
+);
+
+/**
+ * Deterministically slice a plan by its own paragraph structure, the reliable signal
+ * the model segmentation throws away. Structured plans put each day in its own
+ * blank-line-separated paragraph that opens with a day header ("Day 2 — …", "Mon Apr
+ * 20:", "Friday …"); the lead paragraphs before the first header (title, "Before we
+ * go", packing) are trip-wide and fold into day one.
+ *
+ * Used only when the paragraphs line up one-to-one with `dayCount` — exactly as many
+ * day-opening paragraphs as days. That exact match is the confidence gate: a plan whose
+ * days run together in one paragraph (prose) or that has stray paragraphs won't match,
+ * and `null` hands the decision to the model. Days are taken in document order (an
+ * itinerary always lists them in order), so the headers' own numbers/labels — which
+ * real plans muddle ("Day 7-ish", a bare weekday) — never have to be trusted.
+ */
+export function segmentByParagraphs(text: string, dayCount: number): string[] | null {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  const dayParagraphs = paragraphs.filter((p) => DAY_HEADER_RE.test(p));
+  if (dayCount < 1 || dayParagraphs.length !== dayCount) return null;
+
+  const buckets: string[][] = Array.from({ length: dayCount }, () => []);
+  let current = -1; // before the first day header: trip-wide, folds into day one
+  for (const p of paragraphs) {
+    if (DAY_HEADER_RE.test(p)) current += 1;
+    buckets[current < 0 ? 0 : current].push(p);
+  }
+  return buckets.map((parts) => parts.join('\n\n'));
+}
+
 export interface PostProcessDeps {
   /** Id factory for the trip, days, items, and checklist entries. Defaults to newId. */
   makeId?: () => string;
@@ -342,13 +383,20 @@ function nativeGenerator(): DraftGenerator {
 }
 
 /**
- * Partition the plan into one text slice per day via a single segmentation call, so
- * each per-day extraction sees only its own content — the cross-day duplication and
- * bleed of re-reading the whole document for every day can't happen. A one-day trip
- * needs no split. Trip-wide sentences fold into day one (see assembleDaySlices).
+ * Partition the plan into one text slice per day, so each per-day extraction sees only
+ * its own content — the cross-day duplication and bleed of re-reading the whole document
+ * for every day can't happen. A one-day trip needs no split.
+ *
+ * Prefer the plan's own paragraph structure ({@link segmentByParagraphs}): it is exact
+ * and free, and a small model proved unreliable here — asked to assign ~25 sentences it
+ * collapsed every one onto day one. The model segmentation is the fallback for plans with
+ * no clean day-per-paragraph structure (days run together in prose). Either way, trip-wide
+ * content folds into day one.
  */
 async function segmentIntoSlices(text: string, gen: DraftGenerator, dayCount: number): Promise<string[]> {
   if (dayCount <= 1) return [text];
+  const byParagraph = segmentByParagraphs(text, dayCount);
+  if (byParagraph) return byParagraph;
   const sentences = splitSentences(text);
   if (sentences.length === 0) return Array.from({ length: dayCount }, () => '');
   const numbered = sentences.map((s, i) => `${i + 1}. ${s}`).join('\n');
