@@ -147,6 +147,21 @@ describe('draftToTrip', () => {
     expect(packing.checklist!.map((c) => c.checked)).toEqual([false, true]);
   });
 
+  it('omits an empty checklist the model emitted rather than persisting a bare []', () => {
+    // The on-device model often tacks a `checklist: []` onto ordinary items; an
+    // empty array is truthy, so it would otherwise be persisted as noise.
+    const draft = {
+      title: 'Coast run',
+      startDate: '2026-08-14',
+      endDate: '2026-08-14',
+      days: [{ date: '2026-08-14', items: [{ name: 'Drive north', category: 'activity', checklist: [] }] }],
+    };
+    const result = draftToTrip(draft, { makeId: counterIds(), now: '2026-06-13T00:00:00.000Z' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.trip.days[0].items[0].checklist).toBeUndefined();
+  });
+
   it('degrades a stray category or time on one item instead of rejecting the trip', () => {
     // Guided generation constrains the *type* of category/time, not the enum or
     // HH:mm format, so the model can still emit "lodging" or "9am". One bad field

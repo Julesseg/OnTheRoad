@@ -179,7 +179,9 @@ export function draftToTrip(raw: unknown, deps: PostProcessDeps = {}): SmartImpo
         ...(it.time ? { time: it.time } : {}),
         ...(it.location?.address ? { location: { address: it.location.address } } : {}),
         ...(it.notes ? { notes: it.notes } : {}),
-        ...(it.checklist
+        // Only a non-empty checklist: the on-device model often tacks an empty
+        // `checklist: []` onto ordinary items, which would otherwise persist as noise.
+        ...(it.checklist && it.checklist.length > 0
           ? { checklist: it.checklist.map((c) => ({ id: makeId(), label: c.label, checked: c.checked })) }
           : {}),
       })),
