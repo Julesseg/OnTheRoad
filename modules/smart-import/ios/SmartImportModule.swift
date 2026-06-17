@@ -158,14 +158,22 @@ private func generateDayJSON(
   invent or guess a time, place, name, or activity that is not written. Capturing a \
   stated item with a missing field is right; adding a plausible-sounding field is wrong.
 
+  Include ONLY items that belong to this day. The plan describes other days too — \
+  never copy an item that belongs to a different day (one written under another \
+  weekday, date, or "Day N" heading); a separate call handles each of those days. \
+  Listing the same outing on two days is a mistake.
+
   \(whichDay) Return the items under that heading. Only return an empty list if the \
   plan truly lists nothing for this day.
 
   Rules:
-  - time: whenever the plan gives a time for an item, include it — and convert it to \
-  24-hour "HH:mm". A 12-hour time becomes: 9:30am → "09:30", 8pm → "20:00", 11am → \
-  "11:00", 6pm → "18:00", noon → "12:00", midnight → "00:00". Omit time only when the \
-  plan gives none for that item; never guess or estimate one.
+  - time: include a time ONLY when the plan states a clock time for that item, \
+  converted to 24-hour "HH:mm" (9:30am → "09:30", 8pm → "20:00", 11am → "11:00", 6pm \
+  → "18:00", noon → "12:00", midnight → "00:00"). A midday time reads as afternoon: \
+  lunch or dinner "around 1" is "13:00", not "01:00". If the plan gives NO clock time \
+  for an item, you MUST omit the time field — never infer one from the order of \
+  events, the part of the day, or a meal, and never fall back to "00:00" or any other \
+  placeholder. Most items have no stated time; leaving time off is the common case.
   - category is one of: activity, location, stay, meal, note (stay for lodging, meal \
   for food, location for a place to see, activity for things to do, note for \
   reminders); default to activity when unsure.
@@ -174,18 +182,22 @@ private func generateDayJSON(
   Omit it when the plan names no place.
   - Packing and to-do lists become a checklist only when there is more than one item.
   - A reminder, booking, or to-do written elsewhere in the plan (these often sit up \
-  front, like "book the ferry" or "reserve the clambake") belongs on THIS day when the \
-  text makes clear it concerns this day — for example a booking for an outing that \
-  happens today. Capture it here as a note item, even though it is written outside this \
-  day's section.
+  front, like "book the ferry" or "reserve the clambake") belongs on THIS day ONLY \
+  when it names this day — its weekday, its date, or an outing that happens this day \
+  (e.g. "book the Saturday crossing" goes on the day that IS Saturday; "reserve the \
+  Sunday clambake" goes on the day that IS Sunday). Capture it here as a note item. \
+  If you cannot tell which day a reminder concerns, do NOT put it here — leave it for \
+  day one. Never place the same reminder on more than one day.
   """
   if includeUnscheduled {
     instructions += """
 
-    - Also include any trip-wide content that concerns no particular day (a packing \
-    list, a budget, a general "book the rental car") here, as note items or checklists. \
-    Leave a reminder that clearly concerns a specific day to that day instead; only \
-    content with no plausible single day belongs here.
+    - This is day one, so you MUST also capture every pre-trip and trip-wide to-do the \
+    plan mentions that is not tied to a specific later day — packing items, a budget, \
+    general errands and bookings ("oil change before we go", "pack the cooler", "book \
+    the rental car"). Gather these into a SINGLE note item with a checklist, one entry \
+    per to-do. Never drop them, and never scatter them onto later days. A reminder that \
+    clearly names a specific later day is the exception — leave that one to its day.
     """
   }
 
