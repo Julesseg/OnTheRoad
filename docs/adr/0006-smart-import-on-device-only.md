@@ -2,9 +2,11 @@
 
 ## Status
 
-accepted — governs the [Smart Import](../../CONTEXT.md#smart-import) feature;
-supersedes nothing (extends the local-first stance in
-[Local-first storage](../../CONTEXT.md#local-first-storage) to AI inference).
+superseded by [ADR-0012](0012-drop-on-device-smart-import-for-schema-prompt.md) —
+the on-device route recorded here was dropped because the small model could not
+structure real planning documents reliably; the Schema Prompt hand-off is now
+the sole AI path. The body below is kept as the historical record of why
+on-device was chosen first.
 
 ## Context
 

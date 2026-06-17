@@ -236,64 +236,43 @@ validates it against `TripSchema`, and assigns a **fresh id** so it never
 overwrites an existing trip; invalid files yield a human-readable error naming
 the offending field. **Export** serializes a trip to pretty-printed JSON in the
 cache directory for sharing (`lib/trip-io.ts`, `lib/storage.ts`). Import is the
-*exact restore* of an On the Road file — distinct from
-[Smart Import](#smart-import), which structures free text.
+*exact restore* of an On the Road file. It is also the landing point for the
+[Schema Prompt](#schema-prompt) round trip — the JSON an external LLM produces
+from a [Planning Document](#planning-document) re-enters here through the same
+`TripSchema` gate.
 
 ### Planning Document
 
-Any unstructured free-text description of a trip — pasted text or a shared
-`.txt` file — written anywhere (Notes, an email, a doc) in no particular
-format. The source material for a [Smart Import](#smart-import).
+Any unstructured free-text description of a trip — written anywhere (Notes, an
+email, a doc) in no particular format. The source material the user pastes into
+an external LLM together with the [Schema Prompt](#schema-prompt); the app never
+ingests it directly.
 
 Prefer **Planning Document** over "freeform document" (collides with the Apple
 Freeform app, which is not involved).
 
-### Smart Import
-
-AI-assisted trip creation: the on-device Apple Intelligence model structures a
-[Planning Document](#planning-document) into a schema-valid [Trip](#trip),
-which is **saved immediately** with a fresh id — corrections happen in the
-normal edit flows, there is no review screen. If the document carries no
-calendar dates, the flow asks for a start date inline before saving (never
-placeholder dates, which the calendar-anchored [Day](#day) reconciliation would
-punish). Content with no explicit day — packing lists, budgets, "book the
-ferry" reminders — is never dropped: the model places it on the most plausible
-day (a booking reminder lands on the day it concerns; trip-wide content like a
-packing list defaults to day 1) as Note [Items](#item), with a packing list
-becoming a checklist. To stay within the on-device model's small (~4k-token)
-context window — which the whole trip in one call overruns — generation runs in
-passes: first the trip header (title + date span), then one call per calendar
-date for that day's items. A too-long or unusable document **fails
-loud and saves nothing**. Runs on-device only, with no cloud fallback; without
-Apple Intelligence the entry point explains itself instead of working and
-offers the [Schema Prompt](#schema-prompt) as the manual way through (see
-[ADR-0006](docs/adr/0006-smart-import-on-device-only.md)). Locations are
-captured as address text; coordinates are resolved best-effort via Photon
-immediately after the trip is saved (fire-and-forget, same auto-pick-first-result
-pattern as the picker fallback — items that fail to resolve stay address-only
-and are not retried).
-
-User-facing label: **Import Planning Document**. Prefer **Smart Import** over
-"AI import" or "text import"; prefer [Import](#import--export) for the exact
-JSON restore.
-
 ### Schema Prompt
 
-A copyable, ready-to-paste prompt bundling the trip JSON schema and output
-instructions, offered when [Smart Import](#smart-import) is unavailable (no
-Apple Intelligence): the user pastes it — together with their
-[Planning Document](#planning-document) — into any LLM of their choice, and
-the LLM's JSON output comes back in through the ordinary
-[Import](#import--export). The app itself still makes no network call; the
-user carries the text across by hand. Built by `buildSchemaPrompt`
+The app's one AI-assisted on-ramp for structuring a
+[Planning Document](#planning-document) into a [Trip](#trip): a copyable,
+ready-to-paste prompt bundling the full persisted trip JSON schema and output
+instructions. The user copies it from the [Import](#import--export) sheet,
+pastes it — together with their Planning Document — into any LLM of their
+choice, and brings the LLM's JSON output back in through the same
+[Import](#import--export). The app makes **no network call** and runs no model
+itself; the user carries the text across by hand. Built by `buildSchemaPrompt`
 (`lib/schema-prompt.ts`), which embeds a worked example that itself passes the
-strict `TripSchema` gate. Whether Smart Import can run on-device is decided by
-the availability probe (`lib/smart-import-availability.ts`), a thin wrapper over
-the native Foundation Models check that degrades to "unsupported" — offering the
-Schema Prompt — wherever Apple Intelligence is absent (Simulator, older OS or
-hardware).
+strict `TripSchema` gate — the prompt describes the *full* persisted shape
+(uuids, ISO timestamps, `schemaVersion`) precisely because its output re-enters
+through Import's strict validation, not a lenient draft path.
 
-Prefer **Schema Prompt** over "export schema" or "LLM template".
+There is no on-device generation: an earlier on-device-model route (Apple
+Intelligence Foundation Models) was dropped because the small model could not
+structure real planning documents reliably, leaving the Schema Prompt as the
+single AI path (see
+[ADR-0012](docs/adr/0012-drop-on-device-smart-import-for-schema-prompt.md)).
+
+Prefer **Schema Prompt** over "export schema", "LLM template", or "AI import".
 
 ### Share Capture
 
@@ -301,7 +280,7 @@ A fourth way content enters the app: a single link or place shared **from the
 iOS system share sheet** (Google Maps, Apple Maps, Safari, …) becomes one
 [Item](#item) — not a whole trip. This is the line that separates it from the
 [Import](#import--export) family, which always produces a [Trip](#trip): Import
-and Smart Import structure a *trip*, Share Capture captures a single *item*. A
+structures a *trip*, Share Capture captures a single *item*. A
 native iOS **Share Extension** grabs the shared URL and/or text and hands it to
 the main app (it does no parsing itself; see
 [ADR-0008](docs/adr/0008-share-capture-thin-share-extension.md)); the app
