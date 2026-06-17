@@ -75,6 +75,7 @@ export default function ImportSheet() {
       <Stack.Title>Import Trip</Stack.Title>
 
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[
           styles.body,
           { paddingTop: NAV_BAR_HEIGHT, paddingBottom: insets.bottom + 24 },
@@ -165,6 +166,10 @@ function GlassButton({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  // The ScrollView must claim the sheet's height itself; without flex:1 it
+  // collapses to zero inside the flex column and clips all its content (the
+  // body renders blank on device — react-native-web hides this in tests).
+  scroll: { flex: 1 },
   body: { paddingHorizontal: 24, gap: 24 },
   section: { gap: 12 },
   heading: { fontSize: 20, fontWeight: '700' },
