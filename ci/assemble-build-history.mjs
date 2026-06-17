@@ -13,6 +13,7 @@
 //   COMMIT_SHA      full head SHA (only the first 7 chars are shown)
 //   IPA_PATH        path to the freshly-built ontheroad.ipa
 //   PAGES_BASE_URL  e.g. https://julesseg.github.io/OnTheRoad (no trailing slash)
+//   REPO_URL        e.g. https://github.com/julesseg/OnTheRoad (no trailing slash)
 //   RETENTION       how many PR slots to keep (default 5)
 
 import { promises as fs } from "node:fs";
@@ -33,6 +34,7 @@ const PR_TITLE = env("PR_TITLE");
 const SHORT_SHA = env("COMMIT_SHA").slice(0, 7);
 const IPA_PATH = env("IPA_PATH");
 const BASE = env("PAGES_BASE_URL").replace(/\/$/, "");
+const REPO_URL = env("REPO_URL", "https://github.com/julesseg/OnTheRoad").replace(/\/$/, "");
 const RETENTION = Number(env("RETENTION", "5"));
 const NOW = new Date();
 
@@ -63,6 +65,7 @@ const ipaUrl = (pr) => `${slotUrl(pr)}/ontheroad.ipa`;
 const manifestUrl = (pr) => `${slotUrl(pr)}/manifest.plist`;
 const installLink = (pr) =>
   `itms-services://?action=download-manifest&amp;url=${manifestUrl(pr)}`;
+const prUrl = (pr) => `${REPO_URL}/pull/${pr}`;
 
 // A build's identity for the "have I installed this?" mark: PR number + commit,
 // so a fresh build of the same PR reads as new again even though the slot is reused.
@@ -174,6 +177,13 @@ const pageHead = (title) => `<!DOCTYPE html>
     .badge { display: inline-block; background: #007AFF; color: #fff; font-size: 0.7rem;
              font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
     .hint { color: #999; font-size: 0.8rem; margin-top: 32px; text-align: center; }
+    a.back { display: inline-block; color: #007AFF; text-decoration: none; font-size: 0.95rem;
+             font-weight: 600; margin-bottom: 24px; }
+    a.back:hover { text-decoration: underline; }
+    a.pr-link { color: #007AFF; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    a.pr-link:hover { text-decoration: underline; }
+    .slot-pr { margin-top: 18px; }
+    .build .pr-link { margin-left: 14px; }
     .new-badge { display: none; background: #FF3B30; color: #fff; font-size: 0.7rem; font-weight: 700;
                  padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle; cursor: pointer; }
     .seen-tag { display: none; color: #34C759; font-size: 0.78rem; font-weight: 600; margin-left: 8px; cursor: pointer; }
@@ -193,10 +203,12 @@ const pageHead = (title) => `<!DOCTYPE html>
 <body>`;
 
 const slotPage = (slot, isLatest) => `${pageHead(slot.title)}
+  <a class="back" href="${BASE}/">← All builds</a>
   <main data-build-id="${buildId(slot)}">
     <h1>${escapeHtml(slot.title)}${isLatest ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="time-pill" data-time="${slot.time}"></span><span class="seen-tag">✓ installed</span></h1>
     <p class="sub">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}</p>
     <a class="btn" href="${installLink(slot.pr)}">Install</a>
+    <p class="slot-pr"><a class="pr-link" href="${prUrl(slot.pr)}">View PR #${slot.pr} on GitHub →</a></p>
     <p class="hint">Open this page in Safari on your iPhone, then tap Install.</p>
   </main>
 ${ENHANCE_SCRIPT}
@@ -214,6 +226,7 @@ ${slots
       <div class="title">${escapeHtml(slot.title)}${i === 0 ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="time-pill" data-time="${slot.time}"></span><span class="seen-tag">✓ installed</span></div>
       <div class="meta">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}</div>
       <a class="btn" href="${installLink(slot.pr)}">Install</a>
+      <a class="pr-link" href="${prUrl(slot.pr)}">View PR #${slot.pr} →</a>
     </li>`,
   )
   .join("\n")}
