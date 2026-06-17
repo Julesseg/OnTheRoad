@@ -121,6 +121,27 @@ export function documentStatesCalendarDate(text: string): boolean {
   return CALENDAR_DATE_PATTERNS.some((re) => re.test(text));
 }
 
+/**
+ * Strip bare URLs from a Planning Document before on-device generation. Two payoffs,
+ * one cause: Apple's Foundation Models safety guardrail frequently rejects link-heavy
+ * text outright ("Detected content likely to be unsafe"), and the model captures
+ * address *text* only (ADR-0006) so it drops every URL regardless — the links are pure
+ * liability. Removing them leaves the structured output unchanged while keeping a pasted
+ * link dump importable on-device. Strips `http(s)://` and bare `www.` links, then tidies
+ * the separator a removed link leaves stranded — a dangling "— " at a line end, or a
+ * link sitting between two dashes — so place names and reminders still read cleanly.
+ */
+export function stripUrls(text: string): string {
+  return text
+    .replace(/\b(?:https?:\/\/|www\.)\S+/gi, '')
+    // A link removed from between two dashes ("Narisawa —  — note") collapses to one.
+    .replace(/([—–-])\s+\1/g, '$1')
+    // A link removed from a line's end leaves a trailing dash ("Toyosu — ") — drop it.
+    .replace(/[ \t]*[—–-][ \t]*$/gm, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+$/gm, '');
+}
+
 export interface PostProcessDeps {
   /** Id factory for the trip, days, items, and checklist entries. Defaults to newId. */
   makeId?: () => string;
@@ -393,7 +414,9 @@ export interface SmartImportDeps extends PostProcessDeps {
  */
 export async function smartImportTrip(text: string, deps: SmartImportDeps = {}): Promise<Trip | null> {
   const generate = deps.generate ?? nativeGenerator();
-  const generated = await generateTripDraft(text, generate);
+  // Sanitize before the model sees it: bare URLs trip Apple's safety guardrail and
+  // are dropped by the address-text-only capture anyway (see stripUrls).
+  const generated = await generateTripDraft(stripUrls(text), generate);
 
   let draft: DraftTrip;
   if (generated.needsStartDate) {

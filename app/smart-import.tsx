@@ -97,33 +97,6 @@ export default function SmartImportSheet() {
     };
   }, []);
 
-  // Structure the pasted Planning Document on-device, then save and open the
-  // trip immediately — no review screen (PR #94 decision 2). A failure (too-long
-  // document, malformed output) alerts and saves nothing.
-  const onImport = useCallback(async () => {
-    const document = text.trim();
-    if (!document || busy) return;
-    setBusy(true);
-    try {
-      // A document with no calendar dates pauses here for the inline start-date
-      // prompt; a null result means the user cancelled it — nothing to save.
-      const trip = await smartImportTrip(document, { promptStartDate });
-      if (!trip) {
-        setBusy(false);
-        return;
-      }
-      await addTrip(trip);
-      setDisplayedTrip(trip.id);
-      router.dismissAll();
-    } catch (e) {
-      Alert.alert(
-        'Couldn’t import',
-        e instanceof Error ? e.message : 'Smart Import couldn’t structure this document.',
-      );
-      setBusy(false);
-    }
-  }, [text, busy, addTrip, setDisplayedTrip, promptStartDate]);
-
   const copySchemaPrompt = useCallback(async () => {
     // setStringAsync resolves false on a failed write and can reject outright;
     // either way the escape hatch must tell the user rather than fail silently
@@ -146,6 +119,40 @@ export default function SmartImportSheet() {
       );
     }
   }, []);
+
+  // Structure the pasted Planning Document on-device, then save and open the
+  // trip immediately — no review screen (PR #94 decision 2). A failure (too-long
+  // document, malformed output, or Apple Intelligence flagging the content as
+  // unsafe) alerts and saves nothing, and always offers the off-device Schema
+  // Prompt as the way through — the on-device guardrail can't be disabled, so a
+  // link-heavy plan that trips it still has a path.
+  const onImport = useCallback(async () => {
+    const document = text.trim();
+    if (!document || busy) return;
+    setBusy(true);
+    try {
+      // A document with no calendar dates pauses here for the inline start-date
+      // prompt; a null result means the user cancelled it — nothing to save.
+      const trip = await smartImportTrip(document, { promptStartDate });
+      if (!trip) {
+        setBusy(false);
+        return;
+      }
+      await addTrip(trip);
+      setDisplayedTrip(trip.id);
+      router.dismissAll();
+    } catch (e) {
+      Alert.alert(
+        'Couldn’t import',
+        e instanceof Error ? e.message : 'Smart Import couldn’t structure this document.',
+        [
+          { text: 'Copy Schema Prompt', onPress: copySchemaPrompt },
+          { text: 'OK', style: 'cancel' },
+        ],
+      );
+      setBusy(false);
+    }
+  }, [text, busy, addTrip, setDisplayedTrip, promptStartDate, copySchemaPrompt]);
 
   useEffect(() => {
     if (availability.available) return;

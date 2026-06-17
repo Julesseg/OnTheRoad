@@ -13,6 +13,7 @@ import {
   eachDateInclusive,
   generateTripDraft,
   smartImportTrip,
+  stripUrls,
   type DraftGenerator,
 } from './smart-import';
 import { TripSchema } from './schema';
@@ -340,6 +341,31 @@ describe('generateTripDraft', () => {
   });
 });
 
+describe('stripUrls', () => {
+  // Apple's on-device guardrail rejects link-heavy text outright, and the model
+  // captures address text only (so it drops URLs anyway) — strip them before
+  // generation, tidying the separator a removed link leaves behind.
+  it('removes a trailing link and the dash stranded before it', () => {
+    expect(stripUrls('teamLab Planets, Toyosu — https://maps.app.goo.gl/teamLabPlanets')).toBe(
+      'teamLab Planets, Toyosu',
+    );
+  });
+
+  it('collapses a link sitting between two dashes, keeping both sides', () => {
+    expect(stripUrls('Narisawa — https://www.narisawa-yoshihiro.com — need a reservation')).toBe(
+      'Narisawa — need a reservation',
+    );
+  });
+
+  it('strips bare www. links too', () => {
+    expect(stripUrls('JR Pass info — www.japan-guide.com/e/e2018.html')).toBe('JR Pass info');
+  });
+
+  it('leaves link-free text untouched', () => {
+    expect(stripUrls('Day 1 hike, Day 2 fish')).toBe('Day 1 hike, Day 2 fish');
+  });
+});
+
 describe('documentStatesCalendarDate', () => {
   it('detects month+day, ISO, and numeric dates', () => {
     expect(documentStatesCalendarDate('Barcelona March 10 to March 12')).toBe(true);
@@ -395,6 +421,30 @@ describe('smartImportTrip', () => {
     expect(trip.days[0].items.map((i) => i.name)).toEqual(['Bixby Creek Bridge']);
     expect(trip.days[1].items.map((i) => i.name)).toEqual(['McWay Falls overlook']);
     expect(TripSchema.safeParse(trip).success).toBe(true);
+  });
+
+  it('strips URLs from the document before the model ever sees it', async () => {
+    // Apple's guardrail rejects link dumps; the document is sanitized first so a
+    // pasted set of map links still imports (the model drops URLs regardless).
+    const seen: string[] = [];
+    const generate: DraftGenerator = {
+      outline: vi.fn(async (t: string) => {
+        seen.push(t);
+        return { title: 'Tokyo', startDate: '2026-08-14', endDate: '2026-08-14' };
+      }),
+      day: vi.fn(async (t: string) => {
+        seen.push(t);
+        return { items: [{ name: 'teamLab Planets' }] };
+      }),
+    };
+
+    await smartImportTrip('teamLab Planets — https://maps.app.goo.gl/x — go on Aug 14', {
+      generate,
+      makeId: counterIds(),
+    });
+
+    expect(seen.length).toBeGreaterThan(0);
+    for (const t of seen) expect(t).not.toMatch(/https?:\/\/|www\./);
   });
 
   it('flags only day one for unscheduled trip-wide content', async () => {

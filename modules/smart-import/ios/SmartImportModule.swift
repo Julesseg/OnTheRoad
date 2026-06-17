@@ -58,11 +58,36 @@ public class SmartImportModule: Module {
   }
 }
 
-enum SmartImportError: Error {
+enum SmartImportError: Error, LocalizedError {
   case unsupported
+  // Apple's Foundation Models safety guardrail rejected the document. Link-heavy
+  // text (a dump of map URLs) is a common false positive; the guardrail can't be
+  // disabled, so we translate its opaque "Detected content likely to be unsafe"
+  // into a message that points the user at the off-device Schema Prompt instead.
+  case unsafeContent
+
+  var errorDescription: String? {
+    switch self {
+    case .unsupported:
+      return "Smart Import isn’t available on this device."
+    case .unsafeContent:
+      return "Apple Intelligence flagged this plan as unsafe to structure on-device. Try the Schema Prompt to run it through another AI instead."
+    }
+  }
 }
 
 #if canImport(FoundationModels)
+// Translate Apple's guardrail rejection into our own domain error; pass anything
+// else (a too-long context, a decode failure) through unchanged to fail loud.
+@available(iOS 26.0, *)
+private func mapGenerationError(_ error: Error) -> Error {
+  if let generationError = error as? LanguageModelSession.GenerationError,
+     case .guardrailViolation = generationError {
+    return SmartImportError.unsafeContent
+  }
+  return error
+}
+
 // Pass 1: just the trip header. Tiny output, so it never strains the window.
 @available(iOS 26.0, *)
 private func generateOutlineJSON(from document: String) async throws -> String {
@@ -82,7 +107,12 @@ private func generateOutlineJSON(from document: String) async throws -> String {
   """
 
   let session = LanguageModelSession(instructions: instructions)
-  let outline = try await session.respond(to: document, generating: TripOutline.self).content
+  let outline: TripOutline
+  do {
+    outline = try await session.respond(to: document, generating: TripOutline.self).content
+  } catch {
+    throw mapGenerationError(error)
+  }
 
   // Two header shapes (see lib/smart-import.ts): a dated outline carries the real
   // span; an undated one reports only a day count, the signal that the plan had no
@@ -163,7 +193,12 @@ private func generateDayJSON(
   let dayRef = date.isEmpty ? "day \(dayNumber) of \(totalDays)" : "day \(dayNumber) of \(totalDays) (\(date))"
   let prompt = "Extract the items for \(dayRef).\n\nTrip plan:\n\(document)"
   let options = GenerationOptions(maximumResponseTokens: 2000)
-  let day = try await session.respond(to: prompt, generating: DayItems.self, options: options).content
+  let day: DayItems
+  do {
+    day = try await session.respond(to: prompt, generating: DayItems.self, options: options).content
+  } catch {
+    throw mapGenerationError(error)
+  }
 
   // Serialize to the shape lib/smart-import.ts expects — notably address is
   // nested under `location`, not a flat field.
