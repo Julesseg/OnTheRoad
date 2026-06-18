@@ -79,6 +79,12 @@ vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn(), shareAsync: vi.fn() 
 vi.mock('@/lib/storage', () => ({ exportTripAsFile: vi.fn() }));
 vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
 vi.mock('@/components/progressive-blur', () => ({ ProgressiveBlurView: () => null }));
+// GlassButton wraps native-only modules (expo-glass-effect / expo-symbols) that
+// can't resolve under jsdom; stub it as a labelled button for the empty state.
+vi.mock('@/components/glass-button', () => ({
+  GlassButton: ({ label, onPress }: { label: string; onPress?: () => void }) =>
+    React.createElement('button', { 'aria-label': label, onClick: onPress }, label),
+}));
 
 // The itinerary list is a SwiftUI host that can't mount under jsdom. Stub it as a
 // button that fires the caller's onDayPress, standing in for a Day-header tap.
