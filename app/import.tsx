@@ -3,7 +3,9 @@ import {
   View,
   Text,
   Pressable,
+  TextInput,
   Animated,
+  Keyboard,
   StyleSheet,
   Alert,
   useWindowDimensions,
@@ -21,13 +23,14 @@ import { useTripStore } from '@/lib/store';
 
 /**
  * Import Trip (ADR-0012) — the single import surface, presented as a 100%-detent
- * sheet. Two stacked sections: on top, the JSON Import (pick a trip `.json` file,
- * validated through the store's `importTrip` against the strict `TripSchema`
- * gate — fresh id, human-readable error on invalid files). Below it, the Schema
- * Prompt round trip: copy a ready-to-paste prompt, take it to any external LLM
- * along with a free-text trip plan, and bring the JSON it returns back in through
- * the same file picker. The app makes no network call; the user carries the text
- * across by hand.
+ * sheet. Two stacked sections: on top, the JSON Import — either pick a trip
+ * `.json` file or paste the JSON directly, both validated through the store
+ * against the strict `TripSchema` gate (fresh id, human-readable error on invalid
+ * input). Pasting covers the case where an AI returns the trip as chat text rather
+ * than a downloadable file. Below it, the Schema Prompt round trip: copy a
+ * ready-to-paste prompt, take it to any external LLM with a free-text trip plan,
+ * and bring the result back in here. The app makes no network call; the user
+ * carries the text across by hand.
  */
 // Clears the transparent native nav bar so body content doesn't render under the
 // title (matches the trips/settings sheets).
@@ -39,12 +42,34 @@ export default function ImportSheet() {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { importTrip, setDisplayedTrip } = useTripStore();
+  const { importTrip, importTripText, setDisplayedTrip } = useTripStore();
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The paste path: a text area for JSON an AI returned as chat text. Toggled on
+  // from the primary section; `busy` guards against a double-submit while the
+  // import runs.
+  const [pasting, setPasting] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [busy, setBusy] = useState(false);
+  // Track keyboard height directly (not KeyboardAvoidingView): inside a formSheet
+  // the avoider under-pads, so the Import button hides behind the keyboard. The
+  // willShow/willHide frame height is measured to the screen bottom, so padding
+  // the body by it lifts the button to just above the keyboard.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => () => {
     if (copiedTimer.current) clearTimeout(copiedTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, []);
 
   // The JSON Import (exact restore, fresh id — see CONTEXT.md): pick a .json file,
@@ -67,6 +92,29 @@ export default function ImportSheet() {
     }
   }, [importTrip, setDisplayedTrip]);
 
+  // Import pasted JSON through the same TripSchema gate as a file. A malformed
+  // paste surfaces the field-level error and keeps the text so it can be fixed.
+  const onProcessPaste = useCallback(async () => {
+    const raw = pasteText.trim();
+    if (!raw || busy) return;
+    setBusy(true);
+    try {
+      const trip = await importTripText(raw);
+      setDisplayedTrip(trip.id);
+      router.dismissAll();
+    } catch (e) {
+      Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
+      setBusy(false);
+    }
+  }, [pasteText, busy, importTripText, setDisplayedTrip]);
+
+  const closePaste = useCallback(() => {
+    Keyboard.dismiss();
+    setPasting(false);
+    setPasteText('');
+    setBusy(false);
+  }, []);
+
   const onCopyPrompt = useCallback(async () => {
     // setStringAsync resolves false on a failed write and can reject outright.
     // On success the button itself confirms (morphs to a checkmark) — no popup;
@@ -86,6 +134,57 @@ export default function ImportSheet() {
     }
   }, []);
 
+  // Paste view: a full-height compose area replacing the options while the user
+  // pastes and processes the JSON. The bottom padding follows the keyboard so the
+  // Import button rises above it.
+  if (pasting) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+        <Stack.Title>Import Trip</Stack.Title>
+        <View
+          style={[
+            styles.pasteBody,
+            {
+              paddingTop: NAV_BAR_HEIGHT,
+              paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 16,
+            },
+          ]}
+        >
+          <Text style={[styles.detail, { color: c.textSubtle }]}>
+            Paste the trip JSON your AI produced.
+          </Text>
+          <TextInput
+            multiline
+            editable={!busy}
+            value={pasteText}
+            onChangeText={setPasteText}
+            placeholder="Paste your trip JSON…"
+            placeholderTextColor={c.textSubtle}
+            style={[
+              styles.input,
+              { color: c.text, borderColor: c.separator, backgroundColor: c.surface },
+            ]}
+          />
+          <GlassButton
+            label="Import"
+            icon="square.and.arrow.down"
+            accent={c.accent}
+            disabled={busy || pasteText.trim().length === 0}
+            onPress={onProcessPaste}
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={closePaste}
+            style={({ pressed }) => [styles.cancel, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.cancelLabel, { color: c.textSubtle }]}>Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
@@ -94,13 +193,22 @@ export default function ImportSheet() {
       <View
         style={[styles.body, { paddingTop: NAV_BAR_HEIGHT, paddingBottom: insets.bottom + 24 }]}
       >
-        {/* Primary: restore an On the Road trip file. */}
+        {/* Primary: add a trip from a file or pasted JSON. */}
         <View style={styles.section}>
-          <Text style={[styles.heading, { color: c.text }]}>Import a trip file</Text>
+          <Text style={[styles.heading, { color: c.text }]}>Import a trip</Text>
           <Text style={[styles.detail, { color: c.textSubtle }]}>
-            Choose a trip <Text style={styles.mono}>.json</Text> file to add it to your trips.
+            Open the <Text style={styles.mono}>.json</Text> file your AI produced, or paste its
+            JSON directly.
           </Text>
-          <GlassButton label="Choose File" icon="folder" accent={c.accent} onPress={onPickFile} />
+          <View style={styles.buttonRow}>
+            <GlassButton label="Choose File" icon="folder" accent={c.accent} onPress={onPickFile} />
+            <GlassButton
+              label="Paste JSON"
+              icon="doc.on.clipboard"
+              accent={c.accent}
+              onPress={() => setPasting(true)}
+            />
+          </View>
         </View>
 
         <View style={[styles.divider, { backgroundColor: c.separator }]} />
@@ -166,11 +274,13 @@ function GlassButton({
   icon,
   accent,
   onPress,
+  disabled = false,
 }: {
   label: string;
   icon: SymbolViewProps['name'];
   accent: string;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   const [scale] = useState(() => new Animated.Value(1));
   const mounted = useRef(false);
@@ -193,8 +303,12 @@ function GlassButton({
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, { opacity: pressed ? 0.85 : 1 }]}
+      style={({ pressed }) => [
+        styles.button,
+        { opacity: disabled ? 0.4 : pressed ? 0.85 : 1 },
+      ]}
     >
       <GlassView
         glassEffectStyle="regular"
@@ -220,6 +334,8 @@ const styles = StyleSheet.create({
   // ways. (Matches the proven RN-content pattern in archived.tsx / the old
   // smart-import compose body.)
   body: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
+  // Paste compose view: a full-height column whose text area grows to fill.
+  pasteBody: { flex: 1, paddingHorizontal: 24, gap: 14 },
   section: { alignSelf: 'stretch', alignItems: 'center', gap: 12 },
   heading: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   detail: { fontSize: 15, lineHeight: 21, textAlign: 'center' },
@@ -232,10 +348,20 @@ const styles = StyleSheet.create({
   step: { flexDirection: 'row', alignSelf: 'stretch', gap: 6, alignItems: 'flex-start' },
   stepNumber: { fontSize: 15, fontWeight: '700', lineHeight: 21 },
   stepText: { flex: 1, fontSize: 15, lineHeight: 21 },
+  // The two import affordances sit side by side, wrapping on a narrow screen.
+  buttonRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
+  input: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    lineHeight: 21,
+    textAlignVertical: 'top',
+  },
   button: {
     alignSelf: 'center',
-    minWidth: 180,
-    paddingHorizontal: 28,
+    paddingHorizontal: 22,
     paddingVertical: 13,
     marginTop: 4,
     alignItems: 'center',
@@ -247,4 +373,6 @@ const styles = StyleSheet.create({
   buttonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonIcon: { width: 18, height: 18 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
+  cancel: { alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 24 },
+  cancelLabel: { fontSize: 16, fontWeight: '500' },
 });

@@ -133,6 +133,19 @@ export async function importTripFromFile(uri: string): Promise<Trip> {
 }
 
 /**
+ * Validate raw JSON text (as pasted by the user) against the schema and return a
+ * Trip with a fresh id (never overwriting an existing trip). Throws an Error with
+ * a user-facing message if the text isn't a valid trip. Does not save. The
+ * paste-equivalent of {@link importTripFromFile} for when an AI returns the trip
+ * as chat text rather than a downloadable file.
+ */
+export function importTripFromText(raw: string): Trip {
+  const result = importTripFromJson(raw, newId());
+  if (!result.ok) throw new Error(result.error);
+  return result.trip;
+}
+
+/**
  * Write a trip's JSON to a shareable file in the cache directory and return its
  * uri (suitable for `expo-sharing`). Throws if the trip is not on disk.
  */
