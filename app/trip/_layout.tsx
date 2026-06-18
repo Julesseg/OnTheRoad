@@ -6,6 +6,7 @@ export default function TripLayout() {
       <Stack.Screen name="new" options={{ presentation: 'modal' }} />
       <Stack.Screen name="[id]/item" options={{ presentation: 'modal' }} />
       <Stack.Screen name="[id]/edit" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="[id]/dates" options={{ presentation: 'modal' }} />
       {/* The Location Picker is map-centered (ADR-0012): a full-screen map with the
           search sheet over it. fullScreenModal (not a plain push) so the map is
           edge-to-edge instead of inset within the editor's own modal frame; the
