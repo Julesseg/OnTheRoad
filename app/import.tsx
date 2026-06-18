@@ -4,6 +4,7 @@ import {
   Text,
   Pressable,
   Animated,
+  ActivityIndicator,
   StyleSheet,
   Alert,
   useWindowDimensions,
@@ -42,6 +43,9 @@ export default function ImportSheet() {
   const { width } = useWindowDimensions();
   const { importTrip, setDisplayedTrip } = useTripStore();
   const [copied, setCopied] = useState(false);
+  // Blocks the sheet while the import resolves its addresses to coordinates through
+  // Photon (importTrip → geocodeTripLocations), which waits on the network.
+  const [resolving, setResolving] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
@@ -60,11 +64,16 @@ export default function ImportSheet() {
       if (res.canceled) return;
       const uri = res.assets?.[0]?.uri;
       if (!uri) return;
+      // The file is read, validated, then its addresses geocoded — the slow part —
+      // so the overlay goes up only once there's a real file to resolve.
+      setResolving(true);
       const trip = await importTrip(uri);
       setDisplayedTrip(trip.id);
       router.dismissAll();
     } catch (e) {
       Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
+    } finally {
+      setResolving(false);
     }
   }, [importTrip, setDisplayedTrip]);
 
@@ -142,6 +151,17 @@ export default function ImportSheet() {
           />
         </View>
       </View>
+
+      {/* Blocking import overlay: the geocode step waits on the network, so the
+          sheet is covered (taps absorbed) until the trip's pins are resolved. */}
+      {resolving ? (
+        <View style={styles.resolvingOverlay}>
+          <View style={[styles.resolvingCard, { backgroundColor: c.surface }]}>
+            <ActivityIndicator color={c.accent} />
+            <Text style={[styles.resolvingText, { color: c.text }]}>Resolving locations…</Text>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -258,4 +278,24 @@ const styles = StyleSheet.create({
   buttonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonIcon: { width: 18, height: 18 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
+
+  resolvingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  resolvingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+  },
+  resolvingText: { fontSize: 15, fontWeight: '500' },
 });
