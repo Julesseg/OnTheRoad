@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, useColorScheme } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { Host, Form, Section, Text, DatePicker, Button } from '@expo/ui/swift-ui';
+import { Host, Form, Section, Text, DatePicker, Picker } from '@expo/ui/swift-ui';
 import {
   background,
   datePickerStyle,
   font,
   foregroundStyle,
   listRowBackground,
+  pickerStyle,
   scrollContentBackground,
+  tag,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -22,6 +24,7 @@ import {
 import { formatDayLabel } from '@/lib/date-utils';
 import type { DateEditMode } from '@/lib/trip-days';
 import { useDateEditStore } from '@/lib/date-edit-store';
+import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 
 function SectionHeader({ children }: { children: string }) {
@@ -31,21 +34,24 @@ function SectionHeader({ children }: { children: string }) {
 }
 
 /**
- * The dedicated date-edit screen for an existing trip (ADR-0013). It opens on
- * the Shift / Adjust choice, then reveals the matching picker(s); confirming
+ * The dedicated date-edit screen for an existing trip (ADR-0013). A segmented
+ * control picks Shift vs Adjust, then the matching picker(s) appear; confirming
  * *stages* the new span + mode back onto Edit Trip (it does not persist), so a
- * date change can never delete an Item.
+ * date change can never delete an Item. Adjust confirms with a heads-up alert
+ * when it would relocate items off out-of-window days.
  */
 export default function TripDatesScreen() {
-  const { startDate: initialStart, endDate: initialEnd } = useLocalSearchParams<{
-    startDate: string;
-    endDate: string;
-  }>();
+  const {
+    id,
+    startDate: initialStart,
+    endDate: initialEnd,
+  } = useLocalSearchParams<{ id: string; startDate: string; endDate: string }>();
   const confirm = useDateEditStore((s) => s.confirm);
+  const trip = useTripStore((s) => s.loadedTrips[id]);
   const colorScheme = useColorScheme();
   const c = useThemeColors();
 
-  const [mode, setMode] = useState<DateEditMode | null>(null);
+  const [mode, setMode] = useState<DateEditMode>('shift');
   // Shift locks the duration: only the start moves, the end follows by the offset.
   const duration = daysBetween(initialStart, initialEnd);
   const [shiftStart, setShiftStart] = useState(initialStart);
@@ -53,13 +59,42 @@ export default function TripDatesScreen() {
   // Adjust lets both ends move freely (start <= end).
   const [span, setSpan] = useState({ startDate: initialStart, endDate: initialEnd });
 
-  function onConfirm() {
-    if (mode === 'shift') {
-      confirm({ startDate: shiftStart, endDate: shiftEnd, mode: 'shift' });
-    } else if (mode === 'adjust') {
-      confirm({ startDate: span.startDate, endDate: span.endDate, mode: 'adjust' });
-    }
+  // How many items sit on days that Adjust would push out of the window — they
+  // are relocated to the nearest edge, never dropped, but the user is warned.
+  const itemsToMove = useMemo(() => {
+    if (!trip) return 0;
+    return trip.days
+      .filter((d) => d.date < span.startDate || d.date > span.endDate)
+      .reduce((n, d) => n + d.items.length, 0);
+  }, [trip, span.startDate, span.endDate]);
+
+  function stageShift() {
+    confirm({ startDate: shiftStart, endDate: shiftEnd, mode: 'shift' });
     router.back();
+  }
+
+  function stageAdjust() {
+    confirm({ startDate: span.startDate, endDate: span.endDate, mode: 'adjust' });
+    router.back();
+  }
+
+  function onDone() {
+    if (mode === 'shift') {
+      stageShift();
+      return;
+    }
+    if (itemsToMove > 0) {
+      Alert.alert(
+        'Move items to fit?',
+        'Some days fall outside the new dates. Their plans are kept, not deleted — anything before the new start moves to the end of the first day, and anything after the new end moves to the end of the last day.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Adjust dates', onPress: stageAdjust },
+        ],
+      );
+      return;
+    }
+    stageAdjust();
   }
 
   function changeAdjust(endpoint: 'start' | 'end', d: Date) {
@@ -84,8 +119,7 @@ export default function TripDatesScreen() {
           accessibilityLabel="Done"
           variant="prominent"
           tintColor={c.accent}
-          disabled={mode === null}
-          onPress={onConfirm}
+          onPress={onDone}
         >
           Done
         </Stack.Toolbar.Button>
@@ -103,26 +137,22 @@ export default function TripDatesScreen() {
               <Text modifiers={[font({ size: 13 }), foregroundStyle(c.textSubtle)]}>
                 {mode === 'shift'
                   ? 'Move the whole trip — every day keeps its plans, only the dates change.'
-                  : mode === 'adjust'
-                    ? 'Redefine the span — plans on days that fall outside move to the nearest day, never lost.'
-                    : 'Shift moves the whole trip by an offset; Adjust redefines the span. Both keep every plan.'}
+                  : 'Redefine the span — plans on days that fall outside move to the nearest day, never lost.'}
               </Text>
             }
             modifiers={[listRowBackground(c.surface)]}
           >
-            <Button
-              label="Shift the trip"
-              systemImage={mode === 'shift' ? 'checkmark.circle.fill' : 'circle'}
-              onPress={() => setMode('shift')}
-            />
-            <Button
-              label="Adjust dates"
-              systemImage={mode === 'adjust' ? 'checkmark.circle.fill' : 'circle'}
-              onPress={() => setMode('adjust')}
-            />
+            <Picker
+              selection={mode}
+              onSelectionChange={(v) => setMode(v as DateEditMode)}
+              modifiers={[pickerStyle('segmented')]}
+            >
+              <Text modifiers={[tag('shift')]}>Shift the trip</Text>
+              <Text modifiers={[tag('adjust')]}>Adjust dates</Text>
+            </Picker>
           </Section>
 
-          {mode === 'shift' && (
+          {mode === 'shift' ? (
             <Section
               header={<SectionHeader>New start date</SectionHeader>}
               modifiers={[listRowBackground(c.surface)]}
@@ -136,9 +166,7 @@ export default function TripDatesScreen() {
               />
               <Text modifiers={[foregroundStyle(c.textSubtle)]}>{`Ends ${formatDayLabel(shiftEnd)}`}</Text>
             </Section>
-          )}
-
-          {mode === 'adjust' && (
+          ) : (
             <Section
               header={<SectionHeader>New dates</SectionHeader>}
               modifiers={[listRowBackground(c.surface)]}
