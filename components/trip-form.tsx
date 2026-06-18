@@ -16,12 +16,15 @@ import {
   useNativeState,
 } from '@expo/ui/swift-ui';
 import {
+  aspectRatio,
   background,
+  clipped,
   datePickerStyle,
   font,
   frame,
   foregroundStyle,
   listRowBackground,
+  resizable,
   scrollContentBackground,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
@@ -219,7 +222,20 @@ export function TripForm({
           >
             {coverPreviewUri ? (
               <>
-                <Image uiImage={coverPreviewUri} modifiers={[frame({ height: 160 })]} />
+                {/* Without resizable() the SwiftUI Image renders at the photo's
+                    native pixel size, so a fixed frame just clips a tiny center
+                    crop (looks heavily zoomed). resizable + aspectRatio fill
+                    scales it to fill the 160pt-tall row, then clipped() trims
+                    the overflow. */}
+                <Image
+                  uiImage={coverPreviewUri}
+                  modifiers={[
+                    resizable(),
+                    aspectRatio({ contentMode: 'fill' }),
+                    frame({ height: 160 }),
+                    clipped(),
+                  ]}
+                />
                 <Button label="Change" systemImage="photo" onPress={pickCover} />
                 <Button
                   label="Remove"

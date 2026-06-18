@@ -18,6 +18,8 @@ import {
   font,
   foregroundStyle,
   frame,
+  aspectRatio,
+  resizable,
   clipShape,
   background,
   padding,
@@ -118,7 +120,12 @@ export default function TripsSheet() {
           {wallpaperUri ? (
             <Image
               uiImage={wallpaperUri}
-              modifiers={[frame({ width: 56, height: 56 }), clipShape('roundedRectangle', 12)]}
+              modifiers={[
+                resizable(),
+                aspectRatio({ contentMode: 'fill' }),
+                frame({ width: 56, height: 56 }),
+                clipShape('roundedRectangle', 12),
+              ]}
             />
           ) : (
             <Image
