@@ -59,6 +59,10 @@ export default function RootLayout() {
             name="days"
             options={{
               presentation: 'formSheet',
+              // Header is shown from mount so the screen's declarative
+              // <Stack.Header> only styles it — toggling header visibility in a
+              // formSheet remounts the screen (RN screens warning).
+              headerShown: true,
               // XS peek, medium, full — opening at medium, or XS while a pin's
               // info card is showing (see lib/sheet-detents).
               sheetAllowedDetents: [...SHEET_DETENTS],
@@ -79,6 +83,7 @@ export default function RootLayout() {
             name="trips"
             options={{
               presentation: 'formSheet',
+              headerShown: true,
               sheetGrabberVisible: true,
               sheetAllowedDetents: [1.0],
             }}
@@ -87,6 +92,7 @@ export default function RootLayout() {
             name="settings"
             options={{
               presentation: 'formSheet',
+              headerShown: true,
               sheetGrabberVisible: true,
               sheetAllowedDetents: [1.0],
             }}
@@ -95,6 +101,7 @@ export default function RootLayout() {
             name="import"
             options={{
               presentation: 'formSheet',
+              headerShown: true,
               sheetGrabberVisible: true,
               sheetAllowedDetents: [1.0],
             }}
@@ -103,6 +110,7 @@ export default function RootLayout() {
             name="import-paste"
             options={{
               presentation: 'formSheet',
+              headerShown: true,
               sheetGrabberVisible: true,
               sheetAllowedDetents: [1.0],
             }}

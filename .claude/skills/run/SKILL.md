@@ -18,7 +18,7 @@ npx expo start &
 # Boot the simulator if needed, then launch the installed dev client
 xcrun simctl boot "iPhone 17 Pro" 2>/dev/null || true
 open -a Simulator
-xcrun simctl launch booted com.anonymous.on-the-road
+xcrun simctl launch booted com.julesseguin.ontheroad
 ```
 
 The dev client connects to Metro automatically.
@@ -38,8 +38,8 @@ This compiles the Xcode workspace, installs onto the simulator, starts Metro, an
 - JS/TS changes: Fast Refresh picks them up while Metro runs.
 - **Native SwiftUI (`@expo/ui`) changes are NOT reflected by Fast Refresh.** Terminate and relaunch:
   ```bash
-  xcrun simctl terminate booted com.anonymous.on-the-road
-  xcrun simctl launch booted com.anonymous.on-the-road
+  xcrun simctl terminate booted com.julesseguin.ontheroad
+  xcrun simctl launch booted com.julesseguin.ontheroad
   ```
 - Screenshot for visual verification:
   ```bash
@@ -50,7 +50,8 @@ This compiles the Xcode workspace, installs onto the simulator, starts Metro, an
 
 - "No development build installed" / app missing on simulator → run the full build.
 - Metro port conflict → `npx expo start --port 8082` (the dev client will prompt), or kill the stale process on 8081.
-- Stale native state → `xcrun simctl uninstall booted com.anonymous.on-the-road`, then full build.
+- "Port 8081 is running this app in another window" / "Skipping dev server" → Metro is already up from another session. Either reuse it (just `xcrun simctl launch`), or take it over with `lsof -ti:8081 | xargs kill -9` then `npx expo start`.
+- Stale native state → `xcrun simctl uninstall booted com.julesseguin.ontheroad`, then full build.
 
 ## Physical device (only when explicitly requested)
 
@@ -74,7 +75,7 @@ Do not use this path unless the user asks to run on their physical iPhone.
 
    # Make sure Metro is running, then launch on device
    npx expo start &
-   xcrun devicectl device process launch --device <UDID> com.anonymous.on-the-road
+   xcrun devicectl device process launch --device <UDID> com.julesseguin.ontheroad
    ```
 4. Code signing: open `ios/ontheroad.xcworkspace` in Xcode the first time to set the development team if signing fails.
 5. On-device relaunches must be done by the user (unlock + tap), per the same Fast-Refresh caveat for native `@expo/ui` changes.

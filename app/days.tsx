@@ -139,6 +139,11 @@ export default function DaysSheet() {
   if (!initialized) {
     return (
       <View style={styles.center}>
+        {/* Render the header even while loading so its visibility stays constant
+            across every branch — toggling header visibility in a formSheet
+            remounts the screen (RN screens warning). */}
+        <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+        <Stack.Title>{''}</Stack.Title>
         <ActivityIndicator size="large" />
       </View>
     );
