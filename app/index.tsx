@@ -108,22 +108,24 @@ export default function HomeScreen() {
   // With no pins to frame (no trip, or a trip whose items carry no coordinates),
   // the route viewport collapses to the zoomed-out world view off the African
   // coast. Center on the traveller instead — zoomed to their surroundings, like a
-  // single-pin frame — once their position resolves. Only fetched while there's
-  // nothing to frame; a denied permission leaves the world view as before.
+  // single-pin frame — once their position resolves. Gated so the GPS read only
+  // happens when it's actually needed: permission already granted (reusing the one
+  // permission flow above rather than re-requesting), the trip has finished
+  // loading (coords are empty transiently during the async load), and there's
+  // genuinely nothing to frame. A denied permission leaves the world view as before.
   const [userFallback, setUserFallback] = useState<Coords | null>(null);
   const hasCoords = coords.length > 0;
+  const tripLoading = summary != null && trip == null;
   useEffect(() => {
-    if (hasCoords) return;
+    if (hasCoords || tripLoading || !showUserLocation) return;
     let cancelled = false;
-    void centerOnUser(Location).then((result) => {
-      if (!cancelled && result.kind === 'located') {
-        setUserFallback({ lat: result.coordinates.latitude, lng: result.coordinates.longitude });
-      }
+    void Location.getCurrentPositionAsync().then(({ coords: c }) => {
+      if (!cancelled) setUserFallback({ lat: c.latitude, lng: c.longitude });
     });
     return () => {
       cancelled = true;
     };
-  }, [hasCoords]);
+  }, [hasCoords, tripLoading, showUserLocation]);
 
   // Resolve the trip's legs to real-road geometry (cached on-device), drawn by
   // the map; off-day legs are still dimmed via activeDate (ADR-0009).

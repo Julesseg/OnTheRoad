@@ -139,14 +139,17 @@ describe('HomeScreen', () => {
 
   it('centers on the traveller when there is nothing to frame and location is granted', async () => {
     const Location = await import('expo-location');
+    type Perm = Awaited<ReturnType<typeof Location.getForegroundPermissionsAsync>>;
+    type Pos = Awaited<ReturnType<typeof Location.getCurrentPositionAsync>>;
     vi.spyOn(Location, 'getForegroundPermissionsAsync').mockResolvedValue({
       granted: true,
       canAskAgain: false,
-      status: 'granted' as never,
-    });
+      expires: 'never',
+      status: 'granted',
+    } as Perm);
     vi.spyOn(Location, 'getCurrentPositionAsync').mockResolvedValue({
       coords: { latitude: 48.85, longitude: 2.35 },
-    } as never);
+    } as Pos);
     storeWith({});
     const { default: HomeScreen } = await import('@/app/index');
     await act(async () => {
@@ -163,6 +166,29 @@ describe('HomeScreen', () => {
     const lng = Number(map.getAttribute('data-center')!.split(',')[1]);
     expect(lng).toBeCloseTo(2.35, 5);
     expect(Number(map.getAttribute('data-zoom'))).toBeGreaterThan(1);
+  });
+
+  it('leaves the world view and never reads GPS when location is denied', async () => {
+    const Location = await import('expo-location');
+    type Perm = Awaited<ReturnType<typeof Location.getForegroundPermissionsAsync>>;
+    vi.spyOn(Location, 'getForegroundPermissionsAsync').mockResolvedValue({
+      granted: false,
+      canAskAgain: false,
+      expires: 'never',
+      status: 'denied',
+    } as Perm);
+    const getPosition = vi.spyOn(Location, 'getCurrentPositionAsync');
+    storeWith({});
+    const { default: HomeScreen } = await import('@/app/index');
+    await act(async () => {
+      render(<HomeScreen />);
+    });
+
+    const map = screen.getByTestId('apple-maps-view');
+    // No located fallback: the camera stays at the world view (zoom 1) and the
+    // user's position is never requested.
+    expect(map.getAttribute('data-zoom')).toBe('1');
+    expect(getPosition).not.toHaveBeenCalled();
   });
 
   it('shows the info card for the selected pin', async () => {
