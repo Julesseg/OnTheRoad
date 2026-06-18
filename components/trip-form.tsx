@@ -153,20 +153,22 @@ export function TripForm({
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
       <Stack.Title>{heading}</Stack.Title>
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={c.accent} onPress={onCancel}>
-          Cancel
-        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          accessibilityLabel="Cancel"
+          icon="xmark"
+          tintColor={c.accent}
+          onPress={onCancel}
+        />
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={submitLabel}
+          icon="checkmark"
           variant="prominent"
           tintColor={c.accent}
           disabled={submitting}
           onPress={submit}
-        >
-          {submitLabel}
-        </Stack.Toolbar.Button>
+        />
       </Stack.Toolbar>
 
       {/* tint() seeds the SwiftUI accent for everything in the Host (buttons,
