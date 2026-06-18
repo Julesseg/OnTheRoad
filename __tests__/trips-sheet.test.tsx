@@ -258,6 +258,18 @@ describe('TripsSheet', () => {
     expect(pastTitles).toEqual(['Old Trip', 'Older Trip']);
   });
 
+  it('past trip rows expose Edit/Export/Delete but no Favorite action', async () => {
+    storeWith({ trips: allTrips });
+    await renderSheet();
+
+    const old = rowOf('Old Trip');
+    expect(within(old).queryByRole('button', { name: 'Favorite' })).not.toBeInTheDocument();
+    expect(within(old).queryByRole('button', { name: 'Unfavorite' })).not.toBeInTheDocument();
+    expect(within(old).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(within(old).getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(within(old).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+  });
+
   it('does not split active trips under an in-progress/upcoming divider', async () => {
     storeWith({ trips: allTrips });
     await renderSheet();

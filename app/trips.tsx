@@ -187,12 +187,16 @@ export default function TripsSheet() {
             onPress={() => onEdit(summary)}
             modifiers={[tint(c.accent)]}
           />
-          <Button
-            systemImage={isFavorite ? 'star.slash.fill' : 'star.fill'}
-            label={isFavorite ? 'Unfavorite' : 'Favorite'}
-            onPress={() => onToggleFavorite(summary)}
-            modifiers={[tint(FAVORITE_GOLD)]}
-          />
+          {/* Favoriting picks the default Displayed Trip — meaningless for a
+              finished trip, so the Past trips section drops the action. */}
+          {muted ? null : (
+            <Button
+              systemImage={isFavorite ? 'star.slash.fill' : 'star.fill'}
+              label={isFavorite ? 'Unfavorite' : 'Favorite'}
+              onPress={() => onToggleFavorite(summary)}
+              modifiers={[tint(FAVORITE_GOLD)]}
+            />
+          )}
         </SwipeActions.Actions>
         <SwipeActions.Actions edge="trailing" allowsFullSwipe={false}>
           {/* No role="destructive": a destructive swipe button plays SwiftUI's
