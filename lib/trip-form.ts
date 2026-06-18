@@ -37,6 +37,18 @@ export function parseLocalDate(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** Whole calendar days from `from` to `to` (negative if `to` precedes `from`). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseLocalDate(to).getTime() - parseLocalDate(from).getTime()) / 86_400_000);
+}
+
+/** The YYYY-MM-DD date `days` days after `date` (local calendar, no UTC drift). */
+export function addDays(date: string, days: number): string {
+  const d = parseLocalDate(date);
+  d.setDate(d.getDate() + days);
+  return formatLocalDate(d);
+}
+
 /**
  * Move one endpoint of a date range, dragging the other along so `start <= end`
  * always holds: pushing the start past the end pulls the end up to it, and

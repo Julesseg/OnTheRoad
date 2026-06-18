@@ -28,28 +28,65 @@ export function datesInRange(start: string, end: string): string[] {
   return dates;
 }
 
+/** The two lossless modes for re-dating an existing trip (see ADR-0013 and the
+ * Shift / Adjust glossary entry). A date edit never deletes an Item. */
+export type DateEditMode = 'shift' | 'adjust';
+
+const byDateAsc = (a: Day, b: Day) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+
+/**
+ * Re-date a trip's days to a new span without ever dropping an Item.
+ *
+ * **shift** — the caller has locked the duration (picking only a new start), so
+ * the nth day by date order takes the nth new date, keeping its id, items, and
+ * ordinal position (Day 1 stays Day 1). Bijective: nothing overflows or empties.
+ *
+ * **adjust** — a date-anchored reconcile. A date still in the window reuses its
+ * existing day (id + items); a newly in-window date becomes an empty day. Items
+ * on days that now fall outside are carried to the nearest surviving edge —
+ * before the new start onto the first day, after the new end onto the last day,
+ * in ascending-date order and after that edge day's own items.
+ *
+ * Defaults to **adjust** (the date-anchored behaviour trip creation relies on).
+ */
 export function reconcileDays(
   existingDays: Day[],
   startDate: string,
   endDate: string,
+  mode: DateEditMode = 'adjust',
   makeId: () => string = newId,
-): { days: Day[]; droppedDaysWithItems: Day[] } {
-  // First existing day for each date wins, so an in-range date reuses its day
-  // (id, items) rather than minting a fresh empty one.
+): Day[] {
+  const allDates = datesInRange(startDate, endDate);
+
+  if (mode === 'shift') {
+    const sorted = [...existingDays].sort(byDateAsc);
+    return allDates.map((date, i) =>
+      sorted[i] ? { ...sorted[i], date } : { id: makeId(), date, items: [] },
+    );
+  }
+
+  // First existing day for each in-window date wins, so an in-window date reuses
+  // its day (id, items) rather than minting a fresh empty one. Reused days are
+  // cloned (items copied) so edge overflow never mutates the input.
   const byDate = new Map<string, Day>();
   for (const d of existingDays) {
     if (!byDate.has(d.date)) byDate.set(d.date, d);
   }
-  const allDates = datesInRange(startDate, endDate);
-  const inRange = new Set(allDates);
-  const days = allDates.map(
-    (date) => byDate.get(date) ?? { id: makeId(), date, items: [] },
-  );
-  // Days whose date no longer falls in range are dropped; flag any that still
-  // hold items so the caller can warn before discarding them (items are never
-  // auto-moved).
-  const droppedDaysWithItems = existingDays.filter(
-    (d) => !inRange.has(d.date) && d.items.length > 0,
-  );
-  return { days, droppedDaysWithItems };
+  const days = allDates.map((date) => {
+    const existing = byDate.get(date);
+    return existing
+      ? { ...existing, items: [...existing.items] }
+      : { id: makeId(), date, items: [] };
+  });
+
+  // Items on days that fell out of the window are carried to the nearest edge,
+  // in ascending date order, after that edge day's own items — never dropped.
+  const before = existingDays.filter((d) => d.date < startDate).sort(byDateAsc);
+  const after = existingDays.filter((d) => d.date > endDate).sort(byDateAsc);
+  const beforeItems = before.flatMap((d) => d.items);
+  const afterItems = after.flatMap((d) => d.items);
+  if (beforeItems.length > 0) days[0].items.push(...beforeItems);
+  if (afterItems.length > 0) days[days.length - 1].items.push(...afterItems);
+
+  return days;
 }
