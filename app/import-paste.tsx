@@ -75,7 +75,9 @@ export default function ImportPasteSheet() {
         <Stack.Toolbar.Button
           icon="checkmark"
           accessibilityLabel="Import"
-          tintColor={canImport ? c.accent : c.textSubtle}
+          variant="prominent"
+          tintColor={c.accent}
+          disabled={!canImport}
           onPress={onImport}
         />
       </Stack.Toolbar>
