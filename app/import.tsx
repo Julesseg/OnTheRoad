@@ -185,8 +185,7 @@ function Step({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   // flex:1 so the body claims the sheet's height; the content is centered both
-  // ways. (Matches the proven RN-content pattern in archived.tsx / the old
-  // smart-import compose body.)
+  // ways. (Matches the proven RN-content pattern of the other formSheet bodies.)
   body: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
   section: { alignSelf: 'stretch', alignItems: 'center', gap: 12 },
   heading: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
