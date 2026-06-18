@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importTripFromJson, serializeTrip } from './trip-io';
+import { importTripFromJson, normalizePastedJson, serializeTrip } from './trip-io';
 
 const FRESH_ID = '019fffff-ffff-7fff-8fff-ffffffffffff';
 
@@ -112,5 +112,60 @@ describe('importTripFromJson — id handling', () => {
       expect(res.trip.days[0].id).toBe(VALID_TRIP.days[0].id);
       expect(res.trip.days[0].items[0].id).toBe(VALID_TRIP.days[0].items[0].id);
     }
+  });
+});
+
+describe('normalizePastedJson', () => {
+  // A trip text value that legitimately contains a typographic apostrophe — the
+  // exact character iOS Smart Punctuation also emits, so the normalizer must keep
+  // it while only folding the structural double quotes.
+  const TRIP_WITH_APOSTROPHE = {
+    ...VALID_TRIP,
+    schemaVersion: 3,
+    days: [
+      {
+        id: '01900000-0000-7000-8000-0000000000a1',
+        date: '2026-07-01',
+        items: [
+          {
+            id: '01900000-0000-7000-8000-0000000000b1',
+            name: 'Locker',
+            category: 'note',
+            notes: 'Jusqu’à 15h',
+          },
+        ],
+      },
+    ],
+  };
+
+  it('leaves clean JSON untouched', () => {
+    const clean = JSON.stringify(VALID_TRIP);
+    expect(normalizePastedJson(clean)).toBe(clean);
+  });
+
+  it('folds iOS smart double quotes back so the blob parses again', () => {
+    const clean = JSON.stringify(TRIP_WITH_APOSTROPHE);
+    // iOS rewrites the straight delimiter quotes to typographic “ ”.
+    const smart = clean.replace(/"/g, (() => {
+      let open = false;
+      return () => ((open = !open) ? '“' : '”');
+    })());
+    expect(() => JSON.parse(smart)).toThrow();
+
+    const res = importTripFromJson(normalizePastedJson(smart), FRESH_ID);
+    expect(res.ok).toBe(true);
+    // The apostrophe inside the string value survives — only delimiters changed.
+    if (res.ok) expect(res.trip.days[0].items[0].notes).toBe('Jusqu’à 15h');
+  });
+
+  it('strips a surrounding Markdown code fence', () => {
+    const clean = JSON.stringify(VALID_TRIP);
+    expect(normalizePastedJson('```json\n' + clean + '\n```')).toBe(clean);
+    expect(normalizePastedJson('```\n' + clean + '\n```')).toBe(clean);
+  });
+
+  it('trims surrounding whitespace', () => {
+    const clean = JSON.stringify(VALID_TRIP);
+    expect(normalizePastedJson('  \n' + clean + '\n  ')).toBe(clean);
   });
 });

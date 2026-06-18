@@ -93,6 +93,13 @@ export default function ImportPasteSheet() {
           multiline
           autoFocus
           editable={!busy}
+          // JSON is case- and quote-sensitive: keep iOS from "helpfully" rewriting
+          // the pasted text. Smart Punctuation can still fold the delimiter quotes
+          // to typographic “ ”, so the import path also normalizes (see trip-io).
+          autoCorrect={false}
+          autoCapitalize="none"
+          spellCheck={false}
+          smartInsertDelete={false}
           value={text}
           onChangeText={setText}
           placeholder="Paste your trip JSON…"
