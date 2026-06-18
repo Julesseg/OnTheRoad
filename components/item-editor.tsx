@@ -364,15 +364,22 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
       </Stack.Title>
       {onCancel ? (
         <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={c.accent} onPress={onCancel}>
-            Cancel
-          </Stack.Toolbar.Button>
+          <Stack.Toolbar.Button
+            accessibilityLabel="Cancel"
+            icon="xmark"
+            tintColor={c.accent}
+            onPress={onCancel}
+          />
         </Stack.Toolbar>
       ) : null}
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button accessibilityLabel="Save" variant="prominent" tintColor={c.accent} onPress={submit}>
-          Save
-        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          accessibilityLabel="Save"
+          icon="checkmark"
+          variant="prominent"
+          tintColor={c.accent}
+          onPress={submit}
+        />
       </Stack.Toolbar>
 
       {/* tint() seeds the SwiftUI accent for everything in the Host — SwiftUI

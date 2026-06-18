@@ -171,20 +171,22 @@ export function LocationSearchSheet() {
           pick (search). Select: commits the current selection (a result/address or a
           dropped pin) — armed whenever there's something committable. */}
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={accent} onPress={onCancel}>
-          Cancel
-        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          accessibilityLabel="Cancel"
+          icon="xmark"
+          tintColor={accent}
+          onPress={onCancel}
+        />
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel="Select"
+          icon="checkmark"
           variant="prominent"
           tintColor={accent}
           disabled={!canSelect}
           onPress={onSelect}
-        >
-          Select
-        </Stack.Toolbar.Button>
+        />
       </Stack.Toolbar>
 
       {/* Search field + pin toggle as bottom-toolbar elements (search mode only). */}
