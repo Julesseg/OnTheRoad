@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('expo-router', () => ({
   router: { push: vi.fn(), dismissAll: vi.fn() },
@@ -135,6 +135,34 @@ describe('HomeScreen', () => {
 
     expect(map.getAttribute('data-center')).toBe(centerAfterLoad);
     expect(map.getAttribute('data-zoom')).not.toBe('');
+  });
+
+  it('centers on the traveller when there is nothing to frame and location is granted', async () => {
+    const Location = await import('expo-location');
+    vi.spyOn(Location, 'getForegroundPermissionsAsync').mockResolvedValue({
+      granted: true,
+      canAskAgain: false,
+      status: 'granted' as never,
+    });
+    vi.spyOn(Location, 'getCurrentPositionAsync').mockResolvedValue({
+      coords: { latitude: 48.85, longitude: 2.35 },
+    } as never);
+    storeWith({});
+    const { default: HomeScreen } = await import('@/app/index');
+    await act(async () => {
+      render(<HomeScreen />);
+    });
+
+    const map = screen.getByTestId('apple-maps-view');
+    // Once the user's position resolves the camera moves off the world-view 0,0 to
+    // the traveller, zoomed in from the fully-zoomed-out default.
+    await waitFor(() => {
+      expect(map.getAttribute('data-center')).not.toBe('0,0');
+      expect(map.getAttribute('data-center')).not.toBe('');
+    });
+    const lng = Number(map.getAttribute('data-center')!.split(',')[1]);
+    expect(lng).toBeCloseTo(2.35, 5);
+    expect(Number(map.getAttribute('data-zoom'))).toBeGreaterThan(1);
   });
 
   it('shows the info card for the selected pin', async () => {
