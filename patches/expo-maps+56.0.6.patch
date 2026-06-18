@@ -61,18 +61,36 @@ index 3b718c6..b5de32d 100644
  
  protocol AppleMapsViewProtocol: View {
 diff --git a/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift b/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
-index 7be247b..1fd1439 100644
+index 7be247b..a329684 100644
 --- a/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
 +++ b/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
-@@ -320,6 +320,20 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
+@@ -263,7 +263,15 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
+           "bearing": context.camera.heading
+         ])
+       }
+-      .mapFeatureSelectionAccessory(props.properties.selectionEnabled ? .automatic : nil)
++      // Make points of interest selectable so a tap fires onChange (and our
++      // onPoiClick), but WITHOUT a mapFeatureSelectionAccessory — that accessory
++      // presents MapKit's place card, which on a sheet-based UI hijacks and
++      // dismisses the app's own sheet. mapFeatureSelectionDisabled enables
++      // selection silently: when selectionEnabled is off nothing is selectable,
++      // when on only POIs are. (See patches/expo-maps+56.0.6.patch.)
++      .mapFeatureSelectionDisabled { feature in
++        !props.properties.selectionEnabled || feature.kind != .pointOfInterest
++      }
+       .mapStyle(properties.mapType.toMapStyle(properties))
+       .lookAroundViewer(
+         isPresented: $state.lookAroundPresented,
+@@ -320,6 +328,21 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
        ])
        return
      }
 +
 +    // The selected item matches none of our own content, so it's a native map
 +    // point-of-interest (a "landmark"). Surface its name and coordinate to JS so
-+    // the app can offer it as a pickable result, then clear the selection so
-+    // MapKit's own place-card accessory doesn't linger over the app's UI.
++    // the app can offer it as a pickable result, then clear the selection: there
++    // is no accessory to dismiss, but resetting it lets a second tap on the same
++    // POI fire onChange again (and drops any lingering selection highlight).
 +    let coordinate = item.placemark.coordinate
 +    props.onPoiClick([
 +      "name": item.name as Any,
