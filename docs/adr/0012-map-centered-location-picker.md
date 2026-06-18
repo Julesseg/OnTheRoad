@@ -115,12 +115,14 @@ the mode**:
   selection, so changing `sheetInitialDetentIndex` re-applies the detent through
   UIKit's `animateChanges:` (animated) instead of snapping. This retires the
   "no controlled detent setter" constraint cited in Context for this screen.
-- **Controls by mode.** Pin mode (0.1) shows **Cancel** (back to 0.5, leaving pin
-  mode) and **Select** (commit the dropped pin's coordinates and dismiss the
-  picker). Search mode (0.5) shows the `Stack.SearchBar` + a **pin button** to its
-  right (no selected/active tint); a result row is committed by *tapping it*. The
-  empty-state shows a top **Cancel** that aborts the whole pick; once results are
-  on screen the top buttons hide so the whole list stays tappable.
+- **Controls.** **Cancel** and **Select** are always in the top bar. Select commits
+  the current selection — a chosen result/address *or* a dropped pin — and dismisses
+  the picker; it's armed whenever there's something committable. Cancel leaves pin
+  mode (back to 0.5) when in pin mode, otherwise aborts the whole pick. Tapping a
+  result row only *selects* it (the map flies to its pin for preview); the commit
+  stays the explicit Select so the choice is confirmed, never auto-dismissed.
+  Search mode (0.5) additionally shows the `Stack.SearchBar` + a **pin button** to
+  its right (no selected/active tint).
 - The sheet is **titleless and transparent** (`contentStyle` clear +
   `backgroundGlass`/`surfaceGlass` wash) so it reads as liquid glass over the map,
   and the full-screen map page **slides up from the bottom** rather than appearing

@@ -45,11 +45,10 @@ export function LocationSearchSheet() {
   const dispatch = usePickerStore((s) => s.dispatch);
 
   const rowList = rows(state);
-  const canSelectPin = committedLocation(state) != null;
+  // Select commits whatever is currently chosen — a search result/address or a
+  // dropped pin — so it's armed whenever there's a committable location.
+  const canSelect = committedLocation(state) != null;
   const pinMode = state.mode === 'pin';
-  // While results are on screen the user is actively picking from them; the
-  // top-bar buttons step aside so the whole list stays tappable.
-  const showActionButtons = pinMode || rowList.length === 0;
 
   // The query text is the single source for the async work: a coordinate needs no
   // network, a URL is resolved, anything else is a live Photon search.
@@ -127,14 +126,16 @@ export function LocationSearchSheet() {
     router.back();
   }
 
-  // Leave pin mode without committing: drop back to the search detent. The detent
-  // animation follows from the mode change (the setOptions effect above).
-  function onCancelPin() {
-    dispatch({ type: 'cancelPinMode' });
+  // Cancel: in pin mode it just leaves pin mode (back to the search detent, animated
+  // by the mode change); in search mode it aborts the whole pick.
+  function onCancel() {
+    if (pinMode) dispatch({ type: 'cancelPinMode' });
+    else onAbort();
   }
 
-  // Commit the dropped pin's coordinates back to the editor and dismiss the picker.
-  function onSelectPin() {
+  // Commit the current selection — a chosen result/address or a dropped pin — back to
+  // the editor and dismiss the picker.
+  function onSelect() {
     usePickerStore.getState().confirm();
     router.back();
   }
@@ -144,12 +145,10 @@ export function LocationSearchSheet() {
     dispatch({ type: 'enterPinMode' });
   }
 
-  // Tapping a result is the commit in search mode — select it and hand its location
-  // straight back to the editor, dismissing the picker.
+  // Tapping a result only selects it — the map flies to its pin for preview. The
+  // commit stays an explicit Select so the user confirms the choice.
   function onPickRow(key: SelectionKey) {
     dispatch({ type: 'selectRow', key });
-    usePickerStore.getState().confirm();
-    router.back();
   }
 
   return (
@@ -165,33 +164,25 @@ export function LocationSearchSheet() {
         />
       )}
 
-      {/* Top-bar controls. In pin mode: Cancel (back to search) + Select (commit the
-          dropped pin). In search mode they only show when there are no results to
-          act on — an empty-state Cancel to abort the whole pick. */}
-      {showActionButtons ? (
-        <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button
-            accessibilityLabel="Cancel"
-            tintColor={accent}
-            onPress={pinMode ? onCancelPin : onAbort}
-          >
-            Cancel
-          </Stack.Toolbar.Button>
-        </Stack.Toolbar>
-      ) : null}
-      {showActionButtons && pinMode ? (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            accessibilityLabel="Select"
-            variant="prominent"
-            tintColor={accent}
-            disabled={!canSelectPin}
-            onPress={onSelectPin}
-          >
-            Select
-          </Stack.Toolbar.Button>
-        </Stack.Toolbar>
-      ) : null}
+      {/* Top-bar controls, always present. Cancel: leaves pin mode (pin) or aborts the
+          pick (search). Select: commits the current selection (a result/address or a
+          dropped pin) — armed whenever there's something committable. */}
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button accessibilityLabel="Cancel" tintColor={accent} onPress={onCancel}>
+          Cancel
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Select"
+          variant="prominent"
+          tintColor={accent}
+          disabled={!canSelect}
+          onPress={onSelect}
+        >
+          Select
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
 
       {/* Search field + pin toggle as bottom-toolbar elements (search mode only). */}
       {pinMode ? null : (

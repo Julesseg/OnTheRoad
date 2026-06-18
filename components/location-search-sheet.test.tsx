@@ -140,7 +140,7 @@ afterEach(() => {
 });
 
 describe('LocationSearchSheet', () => {
-  it('commits a typed street address to the editor when its result row is tapped', async () => {
+  it('tapping a result only selects it; Select commits the choice', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', photonFetchReturning([ADDRESS_FEATURE]));
     const onConfirm = vi.fn();
@@ -154,28 +154,31 @@ describe('LocationSearchSheet', () => {
     expect(screen.getByText('123 Main Street')).toBeInTheDocument();
     expect(screen.getByText('Springfield')).toBeInTheDocument();
 
-    // Tapping the result row is the commit in search mode.
+    // Tapping the row selects it but must NOT dismiss the picker.
     fireEvent.click(screen.getByText('123 Main Street'));
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(back).not.toHaveBeenCalled();
+
+    // Select is the explicit commit.
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
     expect(onConfirm).toHaveBeenCalledWith({ address: '123 Main Street', lat: 37.77, lng: -122.42 });
     expect(back).toHaveBeenCalled();
   });
 
-  it('hides the abort Cancel once results are on screen so the list stays tappable', async () => {
+  it('Cancel and Select stay visible while results are on screen', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
     usePickerStore.getState().begin(() => {});
     render(<LocationSearchSheet />);
 
-    // Empty state: a Cancel is available to abort the whole pick.
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-
     type('pike');
     await flushDebounce();
     expect(screen.getByText('Pike Place Market')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select' })).toBeInTheDocument();
   });
 
-  it('empty-state Cancel aborts the pick without confirming', () => {
+  it('Cancel aborts the pick without confirming', () => {
     const onConfirm = vi.fn();
     usePickerStore.getState().begin(onConfirm);
     render(<LocationSearchSheet />);
@@ -183,6 +186,19 @@ describe('LocationSearchSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onConfirm).not.toHaveBeenCalled();
     expect(back).toHaveBeenCalled();
+  });
+
+  it('Select is disabled until a result is chosen, then arms on auto-select', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
+    usePickerStore.getState().begin(() => {});
+    render(<LocationSearchSheet />);
+
+    expect(screen.getByRole('button', { name: 'Select' })).toBeDisabled();
+
+    type('pike');
+    await flushDebounce();
+    expect(screen.getByRole('button', { name: 'Select' })).not.toBeDisabled();
   });
 
   it('the pin button enters pin mode, hiding the result list', async () => {
