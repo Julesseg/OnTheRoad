@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { AppearanceMode, Item, MapsApp, Trip, TripSummary } from './schema';
 import { loadState, saveState, loadTrip, saveTrip, deleteTrip, importTripFromFile } from './storage';
 import { getInstalledMapsApps, reconcilePreferredMapsApp } from './maps';
+import { geocodeTripLocations } from './geocode-import';
 import { applyAppearance } from './appearance';
 import {
   upsertItemInTrip,
@@ -181,8 +182,12 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
   async importTrip(uri: string) {
     const trip = await importTripFromFile(uri);
-    await get().addTrip(trip);
-    return trip;
+    // Imported trips (Schema Prompt JSON, ADR-0012) carry addresses but no
+    // coordinates, so they'd land with no pins. Resolve address-only items
+    // through Photon before saving; failures stay address-only (geocode-import).
+    const enriched = await geocodeTripLocations(trip);
+    await get().addTrip(enriched);
+    return enriched;
   },
 
   async loadTripById(id: string) {
