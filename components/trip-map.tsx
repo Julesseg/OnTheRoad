@@ -60,6 +60,10 @@ export const TripMap = forwardRef<
     droppedPin?: Coords | null;
     // A tap on empty map, reported as coordinates so the picker can drop a pin.
     onMapPress?: (coords: Coords) => void;
+    // A native map POI ("landmark") was tapped. Providing this enables MapKit's
+    // feature selection so POI taps are reported; the picker turns them into a
+    // result. iOS 18+ only (the underlying selection event is unavailable below).
+    onPoiSelect?: (poi: { name: string | null; coords: Coords }) => void;
   }
 >(
   function TripMap(
@@ -75,6 +79,7 @@ export const TripMap = forwardRef<
       resultPins,
       droppedPin,
       onMapPress,
+      onPoiSelect,
     },
     ref,
   ) {
@@ -164,9 +169,12 @@ export const TripMap = forwardRef<
         cameraPosition={initialViewport}
         markers={markers}
         polylines={polylines}
-        // The map is a view onto the trip, not a place browser: tapping a non-trip
-        // POI must not open MapKit's place card. POI labels stay visible as context.
-        properties={{ selectionEnabled: false, isMyLocationEnabled: !!showUserLocation }}
+        // The map is a view onto the trip, not a place browser, so MapKit's place
+        // card stays off by default. The Location Picker is the exception: passing
+        // onPoiSelect turns on feature selection so tapping a POI ("landmark") is
+        // reported — the patched native module clears the selection immediately so
+        // the card never lingers (see patches/expo-maps+56.0.6.patch).
+        properties={{ selectionEnabled: !!onPoiSelect, isMyLocationEnabled: !!showUserLocation }}
         // The custom themed center-on-user button replaces the native one, which
         // can't be tinted — hide it so the two aren't redundant.
         uiSettings={{ myLocationButtonEnabled: false }}
@@ -176,6 +184,12 @@ export const TripMap = forwardRef<
           const { latitude, longitude } = e.coordinates;
           if (typeof latitude === 'number' && typeof longitude === 'number') {
             onMapPress?.({ lat: latitude, lng: longitude });
+          }
+        }}
+        onPoiClick={(e) => {
+          const { latitude, longitude } = e.coordinates;
+          if (typeof latitude === 'number' && typeof longitude === 'number') {
+            onPoiSelect?.({ name: e.name ?? null, coords: { lat: latitude, lng: longitude } });
           }
         }}
       />

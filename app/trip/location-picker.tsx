@@ -91,6 +91,11 @@ export default function LocationPickerScreen() {
             usePickerStore.getState().dispatch({ type: 'dropPin', coords });
           }
         }}
+        onPoiSelect={(poi) => {
+          // Tapping a landmark adds it as the top result and selects it, ready to
+          // commit with Select (or drops the pin there while in pin mode).
+          usePickerStore.getState().dispatch({ type: 'poiSelected', name: poi.name, coords: poi.coords });
+        }}
       />
     </View>
   );

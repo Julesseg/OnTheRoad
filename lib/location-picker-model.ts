@@ -51,7 +51,8 @@ export type PickerEvent =
   | { type: 'selectRow'; key: SelectionKey }
   | { type: 'enterPinMode' }
   | { type: 'dropPin'; coords: Coords }
-  | { type: 'cancelPinMode' };
+  | { type: 'cancelPinMode' }
+  | { type: 'poiSelected'; name: string | null; coords: Coords };
 
 const URL_RE = /^https?:\/\//i;
 
@@ -148,6 +149,36 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
       if (state.mode === 'search') return state;
       if (!state.saved) return { ...state, mode: 'search', droppedPin: null };
       return { ...state, ...state.saved, mode: 'search', droppedPin: null, saved: null };
+    }
+    case 'poiSelected': {
+      // In pin mode a tapped POI behaves like any map tap — it drops the pin
+      // there (the native POI tap is the only signal we get, since onMapClick
+      // doesn't fire over a POI).
+      if (state.mode === 'pin') return { ...state, droppedPin: event.coords };
+      // In search mode the POI becomes the sole result, auto-selected, so Select
+      // is armed and the camera flies to it — the same shape as a search hit. The
+      // query is cleared so the debounced search can't clobber it (and any
+      // in-flight request is aborted by its effect cleanup).
+      if (event.name) {
+        const result: PhotonResult = { title: event.name, coords: event.coords };
+        return {
+          ...state,
+          query: '',
+          results: [result],
+          synthesized: null,
+          resolving: false,
+          selected: { kind: 'result', index: 0 },
+        };
+      }
+      // A nameless POI carries only a point — commit it coords-only via synthesized.
+      return {
+        ...state,
+        query: '',
+        results: [],
+        synthesized: synthesizedFromCoords(event.coords),
+        resolving: false,
+        selected: { kind: 'result', index: 0 },
+      };
     }
   }
 }

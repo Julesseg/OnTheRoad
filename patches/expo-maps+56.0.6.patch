@@ -1,0 +1,133 @@
+diff --git a/node_modules/expo-maps/build/apple/AppleMaps.types.d.ts b/node_modules/expo-maps/build/apple/AppleMaps.types.d.ts
+index 542c6da..59388d8 100644
+--- a/node_modules/expo-maps/build/apple/AppleMaps.types.d.ts
++++ b/node_modules/expo-maps/build/apple/AppleMaps.types.d.ts
+@@ -456,6 +456,15 @@ export type AppleMapsViewProps = {
+      * Also runs once on initial mount with the starting viewport.
+      */
+     onCameraMove?: (event: CameraMoveEvent) => void;
++    /**
++     * Lambda invoked when a native map point-of-interest (a "landmark") is
++     * selected. Only fires when `properties.selectionEnabled` is true.
++     * @platform ios 18.0+
++     */
++    onPoiClick?: (event: {
++        name?: string;
++        coordinates: Coordinates;
++    }) => void;
+ };
+ /**
+  * @platform ios
+diff --git a/node_modules/expo-maps/build/apple/AppleMapsView.js b/node_modules/expo-maps/build/apple/AppleMapsView.js
+index 3b793bc..aff95d6 100644
+--- a/node_modules/expo-maps/build/apple/AppleMapsView.js
++++ b/node_modules/expo-maps/build/apple/AppleMapsView.js
+@@ -16,7 +16,7 @@ function useNativeEvent(userHandler) {
+ /**
+  * @platform ios
+  */
+-export const AppleMapsView = React.forwardRef(({ onMapClick, onMarkerClick, onAnnotationClick, onCameraMove, onPolylineClick, onCircleClick, onPolygonClick, annotations, polylines, circles, polygons, ...props }, ref) => {
++export const AppleMapsView = React.forwardRef(({ onMapClick, onMarkerClick, onAnnotationClick, onCameraMove, onPolylineClick, onCircleClick, onPolygonClick, onPoiClick, annotations, polylines, circles, polygons, ...props }, ref) => {
+     const nativeRef = React.useRef(null);
+     React.useImperativeHandle(ref, () => ({
+         setCameraPosition(config) {
+@@ -39,6 +39,7 @@ export const AppleMapsView = React.forwardRef(({ onMapClick, onMarkerClick, onAn
+     const onNativePolylineClick = useNativeEvent(onPolylineClick);
+     const onNativePolygonClick = useNativeEvent(onPolygonClick);
+     const onNativeCircleClick = useNativeEvent(onCircleClick);
++    const onNativePoiClick = useNativeEvent(onPoiClick);
+     const parsedPolylines = polylines?.map((polyline) => ({
+         ...polyline,
+         color: processColor(polyline.color) ?? undefined,
+@@ -61,6 +62,6 @@ export const AppleMapsView = React.forwardRef(({ onMapClick, onMarkerClick, onAn
+     if (!NativeView) {
+         return null;
+     }
+-    return (_jsx(NativeView, { ...props, ref: nativeRef, polylines: parsedPolylines, polygons: parsedPolygons, circles: parsedCircles, annotations: parsedAnnotations, onMapClick: onNativeMapClick, onMarkerClick: onNativeMarkerClick, onAnnotationClick: onNativeAnnotationClick, onCameraMove: onNativeCameraMove, onPolylineClick: onNativePolylineClick, onPolygonClick: onNativePolygonClick, onCircleClick: onNativeCircleClick }));
++    return (_jsx(NativeView, { ...props, ref: nativeRef, polylines: parsedPolylines, polygons: parsedPolygons, circles: parsedCircles, annotations: parsedAnnotations, onMapClick: onNativeMapClick, onMarkerClick: onNativeMarkerClick, onAnnotationClick: onNativeAnnotationClick, onCameraMove: onNativeCameraMove, onPolylineClick: onNativePolylineClick, onPolygonClick: onNativePolygonClick, onCircleClick: onNativeCircleClick, onPoiClick: onNativePoiClick }));
+ });
+ //# sourceMappingURL=AppleMapsView.js.map
+\ No newline at end of file
+diff --git a/node_modules/expo-maps/ios/AppleMapsView.swift b/node_modules/expo-maps/ios/AppleMapsView.swift
+index 3b718c6..b5de32d 100644
+--- a/node_modules/expo-maps/ios/AppleMapsView.swift
++++ b/node_modules/expo-maps/ios/AppleMapsView.swift
+@@ -21,6 +21,7 @@ class AppleMapsViewProps: ExpoSwiftUI.ViewProps {
+   let onPolygonClick = EventDispatcher()
+   let onCircleClick = EventDispatcher()
+   let onCameraMove = EventDispatcher()
++  let onPoiClick = EventDispatcher()
+ }
+ 
+ protocol AppleMapsViewProtocol: View {
+diff --git a/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift b/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
+index 7be247b..1fd1439 100644
+--- a/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
++++ b/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
+@@ -320,6 +320,20 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
+       ])
+       return
+     }
++
++    // The selected item matches none of our own content, so it's a native map
++    // point-of-interest (a "landmark"). Surface its name and coordinate to JS so
++    // the app can offer it as a pickable result, then clear the selection so
++    // MapKit's own place-card accessory doesn't linger over the app's UI.
++    let coordinate = item.placemark.coordinate
++    props.onPoiClick([
++      "name": item.name as Any,
++      "coordinates": [
++        "latitude": coordinate.latitude,
++        "longitude": coordinate.longitude
++      ]
++    ])
++    state.selection = nil
+   }
+ 
+   private func polyline(at tap: CLLocationCoordinate2D) -> ExpoAppleMapPolyline? {
+diff --git a/node_modules/expo-maps/src/apple/AppleMaps.types.ts b/node_modules/expo-maps/src/apple/AppleMaps.types.ts
+index b10df3b..7fdf0da 100644
+--- a/node_modules/expo-maps/src/apple/AppleMaps.types.ts
++++ b/node_modules/expo-maps/src/apple/AppleMaps.types.ts
+@@ -533,6 +533,13 @@ export type AppleMapsViewProps = {
+    * Also runs once on initial mount with the starting viewport.
+    */
+   onCameraMove?: (event: CameraMoveEvent) => void;
++
++  /**
++   * Lambda invoked when a native map point-of-interest (a "landmark") is
++   * selected. Only fires when `properties.selectionEnabled` is true.
++   * @platform ios 18.0+
++   */
++  onPoiClick?: (event: { name?: string; coordinates: Coordinates }) => void;
+ };
+ 
+ /**
+diff --git a/node_modules/expo-maps/src/apple/AppleMapsView.tsx b/node_modules/expo-maps/src/apple/AppleMapsView.tsx
+index c0ee8bf..a273ee2 100644
+--- a/node_modules/expo-maps/src/apple/AppleMapsView.tsx
++++ b/node_modules/expo-maps/src/apple/AppleMapsView.tsx
+@@ -34,6 +34,7 @@ export const AppleMapsView = React.forwardRef<AppleMapsViewType, AppleMapsViewPr
+       onPolylineClick,
+       onCircleClick,
+       onPolygonClick,
++      onPoiClick,
+       annotations,
+       polylines,
+       circles,
+@@ -65,6 +66,7 @@ export const AppleMapsView = React.forwardRef<AppleMapsViewType, AppleMapsViewPr
+     const onNativePolylineClick = useNativeEvent(onPolylineClick);
+     const onNativePolygonClick = useNativeEvent(onPolygonClick);
+     const onNativeCircleClick = useNativeEvent(onCircleClick);
++    const onNativePoiClick = useNativeEvent(onPoiClick);
+ 
+     const parsedPolylines = polylines?.map((polyline) => ({
+       ...polyline,
+@@ -108,6 +110,7 @@ export const AppleMapsView = React.forwardRef<AppleMapsViewType, AppleMapsViewPr
+         onPolylineClick={onNativePolylineClick}
+         onPolygonClick={onNativePolygonClick}
+         onCircleClick={onNativeCircleClick}
++        onPoiClick={onNativePoiClick}
+       />
+     );
+   }
