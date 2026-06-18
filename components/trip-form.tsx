@@ -182,23 +182,20 @@ export function TripForm({
       >
         <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
           <Section
-            header={<SectionHeader>What should we call it?</SectionHeader>}
-            footer={<FieldError message={errors.title?.message} />}
+            footer={
+              <>
+                <FieldError message={errors.title?.message} />
+                <FieldError message={errors.endDate?.message} />
+              </>
+            }
             modifiers={[listRowBackground(c.surface)]}
           >
             <TextField
               text={titleState}
-              placeholder="e.g. Pacific Coast Highway"
+              placeholder="Title"
               autoFocus={autoFocusTitle}
               onTextChange={(t) => setValue('title', t)}
             />
-          </Section>
-
-          <Section
-            header={<SectionHeader>When are you going?</SectionHeader>}
-            footer={<FieldError message={errors.endDate?.message} />}
-            modifiers={[listRowBackground(c.surface)]}
-          >
             <DatePicker
               title="Start"
               selection={parseLocalDate(startDate)}

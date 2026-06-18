@@ -153,7 +153,7 @@ describe('TripForm', () => {
 
   it('submits a trimmed title and the chosen dates with no cover', async () => {
     const { onSubmit } = renderForm();
-    fireEvent.change(screen.getByPlaceholderText(/Pacific Coast Highway/), {
+    fireEvent.change(screen.getByPlaceholderText('Title'), {
       target: { value: '  Coast Run  ' },
     });
 
