@@ -80,7 +80,9 @@ export const SCHEMA_PROMPT_EXAMPLE_JSON = serializeTrip(EXAMPLE_TRIP);
  * network. The output is deterministic so it can be diffed and tested.
  */
 export function buildSchemaPrompt(): string {
-  return `You convert a free-text trip plan into a single JSON file for the "On the Road" travel app. Read the trip description at the bottom and output ONE JSON object that matches the schema below. Output JSON only — no Markdown fences, no commentary before or after.
+  return `You convert a free-text trip plan into a single JSON file for the "On the Road" travel app. Read the trip description at the bottom and produce ONE JSON object that matches the schema below.
+
+Deliver the result as a downloadable file named "trip.json" so the user can save it to their device and import it into the app. If you can generate files, create the .json file for download; if you cannot, output the raw JSON instead so the user can save it into a .json file by hand. Either way the file must contain JSON only — no Markdown fences, no commentary, nothing before or after the JSON object.
 
 SCHEMA (every field name and type must match exactly):
 

@@ -120,7 +120,7 @@ describe('ImportSheet — Schema Prompt round trip', () => {
 
     expect(screen.getByText(/copy the prompt/i)).toBeInTheDocument();
     expect(screen.getByText(/paste it into your favorite ai chat/i)).toBeInTheDocument();
-    expect(screen.getByText(/save the json it produces/i)).toBeInTheDocument();
+    expect(screen.getByText(/download the file it produces/i)).toBeInTheDocument();
   });
 
   it('copies the Schema Prompt and confirms inline with a checkmark, no popup', async () => {

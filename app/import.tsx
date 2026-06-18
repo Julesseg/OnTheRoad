@@ -121,7 +121,7 @@ export default function ImportSheet() {
               Paste it into your favorite AI chat with your trip plan.
             </Step>
             <Step n={3} color={c.text} accent={c.accent}>
-              Save the JSON it produces and import it here.
+              Download the file it produces and import it here.
             </Step>
           </View>
           <GlassButton
