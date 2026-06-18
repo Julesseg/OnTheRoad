@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,12 +16,15 @@ import {
   useNativeState,
 } from '@expo/ui/swift-ui';
 import {
+  aspectRatio,
   background,
+  clipped,
   datePickerStyle,
   font,
   frame,
   foregroundStyle,
   listRowBackground,
+  resizable,
   scrollContentBackground,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
@@ -33,6 +36,7 @@ import {
   parseLocalDate,
   clampRange,
 } from '@/lib/trip-form';
+import { formatDateRange } from '@/lib/date-utils';
 import { useThemeColors } from '@/constants/theme';
 
 /** The trip's cover photo as the form currently holds it. `existing` is an
@@ -60,6 +64,11 @@ export interface TripFormProps {
   initialWallpaperUri?: string;
   /** Focus the title field on mount so the keyboard opens immediately (create). */
   autoFocusTitle?: boolean;
+  /** Edit path: when set, the inline date pickers become a single "Trip dates"
+   * row showing the current span. Tapping it opens the Shift / Adjust date
+   * screen; the staged span flows back in via `initialStartDate`/`initialEndDate`
+   * so a date change never deletes an Item (ADR-0013). Absent → inline pickers. */
+  onEditDates?: (current: { startDate: string; endDate: string }) => void;
   submitting?: boolean;
   onSubmit: (result: TripFormResult) => void;
   onCancel: () => void;
@@ -86,6 +95,7 @@ export function TripForm({
   initialEndDate,
   initialWallpaperUri,
   autoFocusTitle = false,
+  onEditDates,
   submitting = false,
   onSubmit,
   onCancel,
@@ -117,6 +127,15 @@ export function TripForm({
 
   const startDate = useWatch({ control, name: 'startDate' });
   const endDate = useWatch({ control, name: 'endDate' });
+
+  // Edit path only: the date screen stages the new span by updating the
+  // initial-date props, so mirror them into the form's values when they change
+  // (create manages its own dates through the inline pickers below).
+  useEffect(() => {
+    if (!onEditDates) return;
+    if (initialStartDate) setValue('startDate', initialStartDate);
+    if (initialEndDate) setValue('endDate', initialEndDate);
+  }, [initialStartDate, initialEndDate, onEditDates, setValue]);
 
   // Each calendar drives one endpoint; moving it past the other drags that other
   // one along so the range stays valid (start <= end).
@@ -196,20 +215,32 @@ export function TripForm({
               autoFocus={autoFocusTitle}
               onTextChange={(t) => setValue('title', t)}
             />
-            <DatePicker
-              title="Start"
-              selection={parseLocalDate(startDate)}
-              displayedComponents={['date']}
-              onDateChange={(d) => changeDate('start', d)}
-              modifiers={[datePickerStyle('compact')]}
-            />
-            <DatePicker
-              title="End"
-              selection={parseLocalDate(endDate)}
-              displayedComponents={['date']}
-              onDateChange={(d) => changeDate('end', d)}
-              modifiers={[datePickerStyle('compact')]}
-            />
+            {onEditDates ? (
+              // Edit path: a single "Trip dates" row opens the Shift / Adjust
+              // screen; the inline pickers are reserved for trip creation.
+              <Button
+                label={`Trip dates · ${formatDateRange(startDate, endDate)}`}
+                systemImage="calendar"
+                onPress={() => onEditDates({ startDate, endDate })}
+              />
+            ) : (
+              <>
+                <DatePicker
+                  title="Start"
+                  selection={parseLocalDate(startDate)}
+                  displayedComponents={['date']}
+                  onDateChange={(d) => changeDate('start', d)}
+                  modifiers={[datePickerStyle('compact')]}
+                />
+                <DatePicker
+                  title="End"
+                  selection={parseLocalDate(endDate)}
+                  displayedComponents={['date']}
+                  onDateChange={(d) => changeDate('end', d)}
+                  modifiers={[datePickerStyle('compact')]}
+                />
+              </>
+            )}
           </Section>
 
           <Section
@@ -218,7 +249,20 @@ export function TripForm({
           >
             {coverPreviewUri ? (
               <>
-                <Image uiImage={coverPreviewUri} modifiers={[frame({ height: 160 })]} />
+                {/* Without resizable() the SwiftUI Image renders at the photo's
+                    native pixel size, so a fixed frame just clips a tiny center
+                    crop (looks heavily zoomed). resizable + aspectRatio fill
+                    scales it to fill the 160pt-tall row, then clipped() trims
+                    the overflow. */}
+                <Image
+                  uiImage={coverPreviewUri}
+                  modifiers={[
+                    resizable(),
+                    aspectRatio({ contentMode: 'fill' }),
+                    frame({ height: 160 }),
+                    clipped(),
+                  ]}
+                />
                 <Button label="Change" systemImage="photo" onPress={pickCover} />
                 <Button
                   label="Remove"

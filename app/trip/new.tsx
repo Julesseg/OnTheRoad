@@ -28,7 +28,7 @@ export default function NewTripScreen() {
         startDate,
         endDate,
         wallpaperUri,
-        days: reconcileDays([], startDate, endDate).days,
+        days: reconcileDays([], startDate, endDate),
         createdAt: now,
         updatedAt: now,
       };

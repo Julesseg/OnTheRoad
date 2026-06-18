@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tripFormSchema, clampRange } from './trip-form';
+import { tripFormSchema, clampRange, addDays, daysBetween } from './trip-form';
 
 describe('tripFormSchema', () => {
   it('rejects a blank title with a friendly message', () => {
@@ -65,5 +65,22 @@ describe('clampRange', () => {
       startDate: '2026-07-01',
       endDate: '2026-07-05',
     });
+  });
+});
+
+describe('date offsets (Shift mode)', () => {
+  it('counts whole calendar days between two dates, including across a month', () => {
+    expect(daysBetween('2026-07-01', '2026-07-03')).toBe(2);
+    expect(daysBetween('2026-06-28', '2026-07-03')).toBe(5);
+  });
+
+  it('preserves a span when shifting a start by the offset', () => {
+    const duration = daysBetween('2026-07-01', '2026-07-03'); // 2-day span
+    // Shift the trip a week later: the computed end keeps the same duration.
+    expect(addDays('2026-07-08', duration)).toBe('2026-07-10');
+  });
+
+  it('rolls across a month boundary', () => {
+    expect(addDays('2026-06-29', 4)).toBe('2026-07-03');
   });
 });
