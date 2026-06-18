@@ -201,23 +201,20 @@ export function TripForm({
       >
         <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
           <Section
-            header={<SectionHeader>What should we call it?</SectionHeader>}
-            footer={<FieldError message={errors.title?.message} />}
+            footer={
+              <>
+                <FieldError message={errors.title?.message} />
+                <FieldError message={errors.endDate?.message} />
+              </>
+            }
             modifiers={[listRowBackground(c.surface)]}
           >
             <TextField
               text={titleState}
-              placeholder="e.g. Pacific Coast Highway"
+              placeholder="Title"
               autoFocus={autoFocusTitle}
               onTextChange={(t) => setValue('title', t)}
             />
-          </Section>
-
-          <Section
-            header={<SectionHeader>When are you going?</SectionHeader>}
-            footer={<FieldError message={errors.endDate?.message} />}
-            modifiers={[listRowBackground(c.surface)]}
-          >
             {onEditDates ? (
               // Edit path: a single "Trip dates" row opens the Shift / Adjust
               // screen; the inline pickers are reserved for trip creation.
