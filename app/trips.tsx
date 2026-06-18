@@ -1,4 +1,5 @@
-import { View, Text as RNText, StyleSheet, Alert, useColorScheme } from 'react-native';
+import { useState } from 'react';
+import { View, Text as RNText, StyleSheet, Alert, ActivityIndicator, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -56,6 +57,9 @@ export default function TripsSheet() {
   const isDark = colorScheme === 'dark';
   const c = useThemeColors();
   const subtext = c.textSubtle;
+  // Blocks the screen while an import resolves its addresses to coordinates
+  // through Photon (importTrip → geocodeTripLocations), which waits on the network.
+  const [resolving, setResolving] = useState(false);
 
   // Flat, scannable list: in-progress trips first, then upcoming, each already
   // sorted by start date. Archived/past trips stay hidden.
@@ -91,11 +95,16 @@ export default function TripsSheet() {
       if (res.canceled) return;
       const uri = res.assets?.[0]?.uri;
       if (!uri) return;
+      // The file is read, validated, then its addresses geocoded — the slow part —
+      // so the spinner goes up only once there's a real file to resolve.
+      setResolving(true);
       const trip = await importTrip(uri);
       setDisplayedTrip(trip.id);
       router.dismissAll();
     } catch (e) {
       Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -292,6 +301,17 @@ export default function TripsSheet() {
       <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
         <ProgressiveBlurView intensity={20} layers={10} />
       </View>
+
+      {/* Blocking import overlay: the geocode step waits on the network, so the
+          screen is covered (taps absorbed) until the trip's pins are resolved. */}
+      {resolving ? (
+        <View style={styles.resolvingOverlay}>
+          <View style={[styles.resolvingCard, { backgroundColor: c.surface }]}>
+            <ActivityIndicator color={c.accent} />
+            <RNText style={[styles.resolvingText, { color: c.text }]}>Resolving locations…</RNText>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -303,4 +323,24 @@ const styles = StyleSheet.create({
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 16 },
+
+  resolvingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  resolvingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+  },
+  resolvingText: { fontSize: 15, fontWeight: '500' },
 });
