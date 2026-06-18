@@ -11,7 +11,7 @@ vi.mock('expo-router', async () => {
   Stack.Header = () => null;
   Stack.Title = ({ children }: { children?: React.ReactNode }) =>
     React.createElement('span', null, children);
-  return { Stack, router: { back: vi.fn(), dismissAll: vi.fn() } };
+  return { Stack, router: { push: vi.fn(), back: vi.fn(), dismissAll: vi.fn() } };
 });
 
 // Alert is a native surface; capture its calls so we can inspect titles/messages.
@@ -42,15 +42,10 @@ vi.mock('expo-glass-effect', () => ({
 }));
 vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
 
-const storeMock = vi.hoisted(() => ({
-  importTrip: vi.fn(),
-  importTripText: vi.fn(),
-  setDisplayedTrip: vi.fn(),
-}));
+const storeMock = vi.hoisted(() => ({ importTrip: vi.fn(), setDisplayedTrip: vi.fn() }));
 vi.mock('@/lib/store', () => ({
   useTripStore: () => ({
     importTrip: storeMock.importTrip,
-    importTripText: storeMock.importTripText,
     setDisplayedTrip: storeMock.setDisplayedTrip,
   }),
 }));
@@ -106,46 +101,12 @@ describe('ImportSheet — JSON file import', () => {
     expect(router.dismissAll).not.toHaveBeenCalled();
   });
 
-  it('pastes trip JSON, imports it through the store, opens the trip, and dismisses', async () => {
-    storeMock.importTripText.mockResolvedValue({ id: 'pasted-id' });
+  it('opens the paste sheet when Paste JSON is tapped', async () => {
     await renderSheet();
 
     fireEvent.click(screen.getByText('Paste JSON'));
-    fireEvent.change(screen.getByPlaceholderText(/paste/i), {
-      target: { value: '{"title":"Trip"}' },
-    });
-    fireEvent.click(screen.getByText('Import'));
 
-    await waitFor(() => expect(storeMock.setDisplayedTrip).toHaveBeenCalledWith('pasted-id'));
-    expect(storeMock.importTripText).toHaveBeenCalledWith('{"title":"Trip"}');
-    expect(router.dismissAll).toHaveBeenCalled();
-  });
-
-  it('surfaces the validation error verbatim when pasted JSON is invalid', async () => {
-    storeMock.importTripText.mockRejectedValue(new Error('File is not valid JSON.'));
-    await renderSheet();
-
-    fireEvent.click(screen.getByText('Paste JSON'));
-    fireEvent.change(screen.getByPlaceholderText(/paste/i), { target: { value: 'not json' } });
-    fireEvent.click(screen.getByText('Import'));
-
-    await waitFor(() =>
-      expect(alertMock).toHaveBeenCalledWith('Import failed', 'File is not valid JSON.'),
-    );
-    expect(storeMock.setDisplayedTrip).not.toHaveBeenCalled();
-    expect(router.dismissAll).not.toHaveBeenCalled();
-  });
-
-  it('can cancel the paste view and return to the import options', async () => {
-    await renderSheet();
-
-    fireEvent.click(screen.getByText('Paste JSON'));
-    expect(screen.getByPlaceholderText(/paste/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Cancel'));
-
-    expect(screen.getByText('Choose File')).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/paste/i)).not.toBeInTheDocument();
+    expect(router.push).toHaveBeenCalledWith('/import-paste');
   });
 
   it('does nothing when the file picker is cancelled', async () => {
