@@ -84,12 +84,11 @@ export default function LocationPickerScreen() {
         trip={trip}
         dimmed
         resultPins={resultPins(state)}
-        droppedPin={state.droppedPin}
+        droppedPin={state.pin}
         onMapPress={(coords) => {
-          // A map tap only drops a pin in pin mode; otherwise the map is read-only.
-          if (usePickerStore.getState().state.mode === 'pin') {
-            usePickerStore.getState().dispatch({ type: 'dropPin', coords });
-          }
+          // A map tap drops (or moves) the pin at any time — it leads the result
+          // list, auto-selected, until another row is chosen.
+          usePickerStore.getState().dispatch({ type: 'mapTapped', coords });
         }}
       />
     </View>

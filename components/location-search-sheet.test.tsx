@@ -201,30 +201,33 @@ describe('LocationSearchSheet', () => {
     expect(screen.getByRole('button', { name: 'Select' })).not.toBeDisabled();
   });
 
-  it('the pin button enters pin mode, hiding the result list', async () => {
+  it('has no pin-mode button; the search bar is always present', async () => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
     usePickerStore.getState().begin(() => {});
     render(<LocationSearchSheet />);
 
+    // The dedicated pin button is gone; the search field stays on screen.
+    expect(screen.queryByRole('button', { name: 'Drop a pin' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Search or paste a location')).toBeInTheDocument();
+
     type('pike');
     await flushDebounce();
+    // Results still show, with the search field still there.
     expect(screen.getByText('Pike Place Market')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Drop a pin' }));
-    expect(screen.queryByText('Pike Place Market')).not.toBeInTheDocument();
-    expect(usePickerStore.getState().state.mode).toBe('pin');
+    expect(screen.getByLabelText('Search or paste a location')).toBeInTheDocument();
   });
 
-  it('in pin mode Select is disabled until a pin is dropped, then commits its coords', () => {
+  it('a map tap leads the list with a coords pin that Select commits', () => {
     const onConfirm = vi.fn();
     usePickerStore.getState().begin(onConfirm);
     render(<LocationSearchSheet />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Drop a pin' }));
     expect(screen.getByRole('button', { name: 'Select' })).toBeDisabled();
 
-    act(() => usePickerStore.getState().dispatch({ type: 'dropPin', coords: { lat: 1.5, lng: 2.5 } }));
+    act(() => usePickerStore.getState().dispatch({ type: 'mapTapped', coords: { lat: 1.5, lng: 2.5 } }));
+    // The pin shows as a row labelled by its coordinates, and Select is armed.
+    expect(screen.getByText('1.5, 2.5')).toBeInTheDocument();
     const select = screen.getByRole('button', { name: 'Select' });
     expect(select).not.toBeDisabled();
 
@@ -233,28 +236,35 @@ describe('LocationSearchSheet', () => {
     expect(back).toHaveBeenCalled();
   });
 
-  it('in pin mode Cancel returns to search without aborting the pick', () => {
-    const onConfirm = vi.fn();
-    usePickerStore.getState().begin(onConfirm);
-    render(<LocationSearchSheet />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Drop a pin' }));
-    expect(usePickerStore.getState().state.mode).toBe('pin');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(usePickerStore.getState().state.mode).toBe('search');
-    expect(back).not.toHaveBeenCalled();
-    expect(onConfirm).not.toHaveBeenCalled();
-  });
-
-  it('a stable detent change drives the mode (drag in/out of pin mode)', () => {
+  it('selecting a search result removes the map-tapped pin row', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
     usePickerStore.getState().begin(() => {});
     render(<LocationSearchSheet />);
 
-    emitDetent(0); // dragged to the small detent
-    expect(usePickerStore.getState().state.mode).toBe('pin');
+    type('pike');
+    await flushDebounce();
+    act(() => usePickerStore.getState().dispatch({ type: 'mapTapped', coords: { lat: 1.5, lng: 2.5 } }));
+    expect(screen.getByText('1.5, 2.5')).toBeInTheDocument();
 
-    emitDetent(1); // dragged back up
-    expect(usePickerStore.getState().state.mode).toBe('search');
+    // Choosing another result drops the pin row.
+    fireEvent.click(screen.getByText('Pike Place Market'));
+    expect(screen.queryByText('1.5, 2.5')).not.toBeInTheDocument();
+  });
+
+  it('the peek detent surfaces the selected name as the title; the search detent clears it', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
+    usePickerStore.getState().begin(() => {});
+    render(<LocationSearchSheet />);
+
+    type('pike');
+    await flushDebounce();
+
+    emitDetent(0); // peek
+    expect(setOptions).toHaveBeenLastCalledWith({ title: 'Pike Place Market' });
+
+    emitDetent(1); // search
+    expect(setOptions).toHaveBeenLastCalledWith({ title: '' });
   });
 });

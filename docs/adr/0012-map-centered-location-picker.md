@@ -127,3 +127,28 @@ the mode**:
   `backgroundGlass`/`surfaceGlass` wash) so it reads as liquid glass over the map,
   and the full-screen map page **slides up from the bottom** rather than appearing
   abruptly.
+
+## Amendment — pin mode is retired; the map is tappable at any detent
+
+Coupling the mode to the detent (above) still made dropping a pin a *mode* you
+entered and left, with a dedicated pin button and a saved/restored search. In use
+that was more ceremony than the gesture deserves. We drop the mode entirely:
+
+- **Tapping the map drops a pin at any time**, at either detent. The tapped
+  coordinate becomes the **first row** of the result list, auto-selected — the
+  same coords-only commit a pasted coordinate produces, labelled by its
+  `lat, lng`. It **disappears the moment another row is selected** (or the query
+  changes), so a stale pin never sits behind a different choice. Re-tapping moves
+  it. There is no `mode`, no `droppedPin`/`saved` bookkeeping, and no
+  `enterPinMode`/`cancelPinMode`/`dropPin` events — just a `pin: Coords | null`
+  and a `{ kind: 'pin' }` selection.
+- **The dedicated pin button is gone**, so the `Stack.SearchBar` stretches the
+  full width of the bottom toolbar.
+- **The detents stay (`[0.1, 0.5]`) but only resize the sheet** — they no longer
+  drive any mode. At the **0.1 peek**, where the list scrolls out of view, the
+  sheet surfaces the **selected row's name as its title** so the current choice
+  stays visible; at 0.5 the title clears and the list shows it. `Cancel` now
+  always aborts the whole pick.
+- The `react-native-screens` detent-setter patch from the previous amendment is
+  no longer exercised (nothing drives `sheetInitialDetentIndex` at runtime); it is
+  left in place as it is harmless and other surfaces may rely on it.

@@ -56,7 +56,7 @@ export const TripMap = forwardRef<
     dimmed?: boolean;
     // Accent result pins drawn on top of the (greyed) trip — search candidates.
     resultPins?: Coords[];
-    // A single hand-dropped accent pin in the Location Picker's pin mode.
+    // A single accent pin dropped by tapping the map in the Location Picker.
     droppedPin?: Coords | null;
     // A tap on empty map, reported as coordinates so the picker can drop a pin.
     onMapPress?: (coords: Coords) => void;
