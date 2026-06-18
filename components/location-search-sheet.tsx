@@ -160,6 +160,9 @@ export function LocationSearchSheet() {
         <Stack.SearchBar
           placeholder="Search or paste a location"
           autoCapitalize="none"
+          // Keep the navigation bar (and its Cancel/Select buttons) on screen while
+          // the search field is active — by default the search controller hides it.
+          hideNavigationBar={false}
           onChangeText={(e) => dispatch({ type: 'queryChanged', text: e.nativeEvent.text })}
         />
       )}

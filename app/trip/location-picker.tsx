@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
 
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
 import { useTripStore } from '@/lib/store';
@@ -31,18 +31,32 @@ export default function LocationPickerScreen() {
 
   // Present the search sheet over the map on first focus; on regaining focus (the
   // sheet dismissed by X or Select) the pick is over — end the session and return
-  // to the item editor underneath. Mirrors the home screen's /days present.
+  // to the item editor underneath. Mirrors the home screen's /days present, except
+  // this screen is itself a fullScreenModal: UIKit can't present the search sheet
+  // while this modal is still sliding up (the two presentations collide and one
+  // loses its animation, so everything pops in abruptly). Wait for our own
+  // entrance transition to finish, then present the sheet so both ease in.
+  // native-stack emits transitionEnd, but it isn't in expo-router's base
+  // navigation event-map type; narrow addListener to just the signal we need.
+  const navigation = useNavigation() as unknown as {
+    addListener: (
+      type: 'transitionEnd',
+      cb: (e: { data: { closing: boolean } }) => void,
+    ) => () => void;
+  };
   const presented = useRef(false);
   useFocusEffect(
     useCallback(() => {
       if (!presented.current) {
         presented.current = true;
-        router.push('/trip/location-search');
-        return;
+        const unsub = navigation.addListener('transitionEnd', (e) => {
+          if (!e.data.closing) router.push('/trip/location-search');
+        });
+        return unsub;
       }
       usePickerStore.getState().end();
       router.back();
-    }, []),
+    }, [navigation]),
   );
 
   // Selection drives the camera: fly to the selected result/dropped pin, or frame
