@@ -2265,10 +2265,6 @@ PODS:
   - SDWebImageWebPCoder (0.14.6):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
-  - SmartImport (1.0.0):
-    - ExpoModulesCore
-  - SmartImportAvailability (1.0.0):
-    - ExpoModulesCore
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2385,8 +2381,6 @@ DEPENDENCIES:
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
-  - SmartImport (from `../modules/smart-import/ios`)
-  - SmartImportAvailability (from `../modules/smart-import-availability/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2625,10 +2619,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-screens"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
-  SmartImport:
-    :path: "../modules/smart-import/ios"
-  SmartImportAvailability:
-    :path: "../modules/smart-import-availability/ios"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -2752,8 +2742,6 @@ SPEC CHECKSUMS:
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
-  SmartImport: baebfd5a9210fe94f76afd6686ca01ec26a443dd
-  SmartImportAvailability: a2c66f35d6e2099f014363e8598bb34f0e1d13f5
   Yoga: 77dfa8673de2874e1855002ae59c68b8be9b007b
 
 PODFILE CHECKSUM: ee8bce405d7eeefac4f45b4ad7e900a20127c919

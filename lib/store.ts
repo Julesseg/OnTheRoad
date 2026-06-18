@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { AppearanceMode, Item, MapsApp, Trip, TripSummary } from './schema';
-import { loadState, saveState, loadTrip, saveTrip, deleteTrip, importTripFromFile } from './storage';
+import {
+  loadState,
+  saveState,
+  loadTrip,
+  saveTrip,
+  deleteTrip,
+  importTripFromFile,
+  importTripFromText,
+} from './storage';
 import { getInstalledMapsApps, reconcilePreferredMapsApp } from './maps';
 import { geocodeTripLocations } from './geocode-import';
 import { applyAppearance } from './appearance';
@@ -35,6 +43,7 @@ interface TripStore {
   addTrip: (trip: Trip) => Promise<void>;
   updateTrip: (trip: Trip) => void;
   importTrip: (uri: string) => Promise<Trip>;
+  importTripText: (raw: string) => Promise<Trip>;
   loadTripById: (id: string) => Promise<void>;
   removeTrip: (id: string) => Promise<void>;
   upsertItem: (tripId: string, dayId: string, item: Item) => void;
@@ -188,6 +197,12 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const enriched = await geocodeTripLocations(trip);
     await get().addTrip(enriched);
     return enriched;
+  },
+
+  async importTripText(raw: string) {
+    const trip = importTripFromText(raw);
+    await get().addTrip(trip);
+    return trip;
   },
 
   async loadTripById(id: string) {

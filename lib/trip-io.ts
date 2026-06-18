@@ -35,6 +35,31 @@ function formatIssues(error: z.ZodError, data: unknown): string {
 }
 
 /**
+ * Repair the two corruptions a human-pasted-from-chat JSON blob reliably picks
+ * up on iOS — neither of which a real `.json` file suffers, so this is applied
+ * only on the paste path:
+ *
+ *  - **Smart punctuation.** With iOS "Smart Punctuation" on (the default), the
+ *    keyboard rewrites the straight double quotes that delimit every JSON string
+ *    into typographic “ ” quotes, so `JSON.parse` rejects the whole blob as "not
+ *    valid JSON" even though the original was valid. Fold those back to `"`.
+ *    Single quotes / apostrophes are left untouched: they're legal inside JSON
+ *    strings and trip text legitimately uses ’ (e.g. "Jusqu’à 15h").
+ *  - **Markdown code fence.** An LLM that can't emit a downloadable file often
+ *    wraps the JSON in a ```json … ``` fence; strip one surrounding fence.
+ *
+ * Pure and idempotent: clean JSON passes through unchanged.
+ */
+export function normalizePastedJson(raw: string): string {
+  let s = raw.trim();
+  // Strip a single surrounding Markdown code fence, keeping the inner body.
+  const fenced = /^```[^\n]*\n([\s\S]*?)\n?```$/.exec(s);
+  if (fenced) s = fenced[1].trim();
+  // Fold typographic double quotes back to ASCII so JSON delimiters parse.
+  return s.replace(/[“”]/g, '"');
+}
+
+/**
  * Parse raw JSON text and validate it against the Trip schema. On success the
  * trip's `id` is replaced by `freshId` so importing never overwrites an
  * existing trip that happens to share the same id. On failure a human-readable

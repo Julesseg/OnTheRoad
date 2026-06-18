@@ -1,6 +1,6 @@
 import { File, Directory, Paths } from 'expo-file-system';
 import { AppState, AppStateSchema, Trip, TripSchema } from './schema';
-import { importTripFromJson, serializeTrip } from './trip-io';
+import { importTripFromJson, normalizePastedJson, serializeTrip } from './trip-io';
 import { migrateTripData } from './trip-migrate';
 import { wallpaperRelativePath } from './wallpaper';
 import { RouteCacheData, RouteCacheSchema } from './route-cache';
@@ -128,6 +128,21 @@ export async function importTripFromFile(uri: string): Promise<Trip> {
   if (!file.exists) throw new Error('File not found.');
   const raw = await file.text();
   const result = importTripFromJson(raw, newId());
+  if (!result.ok) throw new Error(result.error);
+  return result.trip;
+}
+
+/**
+ * Validate raw JSON text (as pasted by the user) against the schema and return a
+ * Trip with a fresh id (never overwriting an existing trip). Throws an Error with
+ * a user-facing message if the text isn't a valid trip. Does not save. The
+ * paste-equivalent of {@link importTripFromFile} for when an AI returns the trip
+ * as chat text rather than a downloadable file. The text is first run through
+ * {@link normalizePastedJson} to undo the iOS smart-quote / Markdown-fence
+ * mangling a chat-pasted blob picks up.
+ */
+export function importTripFromText(raw: string): Trip {
+  const result = importTripFromJson(normalizePastedJson(raw), newId());
   if (!result.ok) throw new Error(result.error);
   return result.trip;
 }

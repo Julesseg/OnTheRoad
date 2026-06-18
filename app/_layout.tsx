@@ -92,7 +92,15 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
-            name="smart-import"
+            name="import"
+            options={{
+              presentation: 'formSheet',
+              sheetGrabberVisible: true,
+              sheetAllowedDetents: [1.0],
+            }}
+          />
+          <Stack.Screen
+            name="import-paste"
             options={{
               presentation: 'formSheet',
               sheetGrabberVisible: true,

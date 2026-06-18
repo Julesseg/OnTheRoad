@@ -10,6 +10,7 @@ vi.mock('./storage', () => ({
   saveTrip: vi.fn(),
   deleteTrip: vi.fn(),
   importTripFromFile: vi.fn(),
+  importTripFromText: vi.fn(),
 }));
 vi.mock('./maps', () => ({
   getInstalledMapsApps: vi.fn().mockResolvedValue(['apple']),
@@ -202,6 +203,32 @@ describe('Appearance', () => {
     expect(storage.saveState).toHaveBeenCalledWith(
       expect.objectContaining({ appearance: 'dark' }),
     );
+  });
+});
+
+describe('importTripText', () => {
+  it('validates the pasted JSON, adds the trip, and returns it', async () => {
+    const trip = tripFixture();
+    vi.mocked(storage.importTripFromText).mockReturnValue(trip);
+
+    const returned = await useTripStore.getState().importTripText('{"pasted":true}');
+
+    expect(storage.importTripFromText).toHaveBeenCalledWith('{"pasted":true}');
+    expect(returned).toBe(trip);
+    // Added to the store the same way a file import is.
+    expect(useTripStore.getState().loadedTrips['trip-1']).toBe(trip);
+    expect(useTripStore.getState().trips.find((t) => t.id === 'trip-1')?.title).toBe('Coast');
+  });
+
+  it('propagates the validation error and adds nothing when the text is invalid', async () => {
+    vi.mocked(storage.importTripFromText).mockImplementation(() => {
+      throw new Error('File is not valid JSON.');
+    });
+
+    await expect(useTripStore.getState().importTripText('nonsense')).rejects.toThrow(
+      'File is not valid JSON.',
+    );
+    expect(useTripStore.getState().trips).toEqual([]);
   });
 });
 

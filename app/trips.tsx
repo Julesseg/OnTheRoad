@@ -1,8 +1,6 @@
-import { useState } from 'react';
-import { View, Text as RNText, StyleSheet, Alert, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, Text as RNText, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import * as DocumentPicker from 'expo-document-picker';
 import {
   Host,
   List,
@@ -50,16 +48,13 @@ const WHITE = '#ffffff';
 const NAV_BAR_HEIGHT = 64;
 
 export default function TripsSheet() {
-  const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip, importTrip } =
+  const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
     useTripStore();
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const c = useThemeColors();
   const subtext = c.textSubtle;
-  // Blocks the screen while an import resolves its addresses to coordinates
-  // through Photon (importTrip → geocodeTripLocations), which waits on the network.
-  const [resolving, setResolving] = useState(false);
 
   // Flat, scannable list: in-progress trips first, then upcoming, each already
   // sorted by start date. Archived/past trips stay hidden.
@@ -80,31 +75,6 @@ export default function TripsSheet() {
       }
     } catch {
       Alert.alert('Export failed', 'Could not export this trip.');
-    }
-  }
-
-  // The JSON Import (exact restore, fresh id — see CONTEXT.md): pick a .json
-  // file, validate through the store's importTrip, then open the new trip the
-  // same way as tapping a row. Field-level validation errors surface verbatim.
-  async function onImport() {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({
-        type: 'application/json',
-        copyToCacheDirectory: true,
-      });
-      if (res.canceled) return;
-      const uri = res.assets?.[0]?.uri;
-      if (!uri) return;
-      // The file is read, validated, then its addresses geocoded — the slow part —
-      // so the spinner goes up only once there's a real file to resolve.
-      setResolving(true);
-      const trip = await importTrip(uri);
-      setDisplayedTrip(trip.id);
-      router.dismissAll();
-    } catch (e) {
-      Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
-    } finally {
-      setResolving(false);
     }
   }
 
@@ -257,11 +227,11 @@ export default function TripsSheet() {
           <Stack.Toolbar.MenuAction icon="plus" onPress={() => router.push('/trip/new')}>
             New Trip
           </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction icon="square.and.arrow.down" onPress={onImport}>
+          <Stack.Toolbar.MenuAction
+            icon="square.and.arrow.down"
+            onPress={() => router.push('/import')}
+          >
             Import Trip
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction icon="wand.and.stars" onPress={() => router.push('/smart-import')}>
-            Import Planning Document
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
@@ -301,17 +271,6 @@ export default function TripsSheet() {
       <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
         <ProgressiveBlurView intensity={20} layers={10} />
       </View>
-
-      {/* Blocking import overlay: the geocode step waits on the network, so the
-          screen is covered (taps absorbed) until the trip's pins are resolved. */}
-      {resolving ? (
-        <View style={styles.resolvingOverlay}>
-          <View style={[styles.resolvingCard, { backgroundColor: c.surface }]}>
-            <ActivityIndicator color={c.accent} />
-            <RNText style={[styles.resolvingText, { color: c.text }]}>Resolving locations…</RNText>
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -323,24 +282,4 @@ const styles = StyleSheet.create({
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 16 },
-
-  resolvingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-  },
-  resolvingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-  },
-  resolvingText: { fontSize: 15, fontWeight: '500' },
 });
