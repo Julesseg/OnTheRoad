@@ -78,4 +78,40 @@ describe('searchPlaces', () => {
       },
     ]);
   });
+
+  it('surfaces a bare street address (no place name) titled by its street line', async () => {
+    // Photon returns street addresses with housenumber/street but no `name`;
+    // these must resolve, not be dropped, so a typed "123 Main St" finds coords.
+    const fetchMock = fetchReturning({
+      features: [
+        {
+          geometry: { coordinates: [-122.42, 37.77] },
+          properties: {
+            housenumber: '123',
+            street: 'Main Street',
+            city: 'Springfield',
+            state: 'Illinois',
+            country: 'United States',
+          },
+        },
+      ],
+    });
+
+    const results = await searchPlaces('123 Main Street', { fetchImpl: fetchMock });
+
+    expect(results).toEqual([
+      {
+        title: '123 Main Street',
+        coords: { lat: 37.77, lng: -122.42 },
+        address: 'Springfield, Illinois, United States',
+      },
+    ]);
+  });
+
+  it('drops a feature that has neither a name nor any address parts', async () => {
+    const fetchMock = fetchReturning({
+      features: [{ geometry: { coordinates: [1, 2] }, properties: {} }],
+    });
+    expect(await searchPlaces('void', { fetchImpl: fetchMock })).toEqual([]);
+  });
 });

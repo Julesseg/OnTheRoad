@@ -256,6 +256,44 @@ describe('TripMap', () => {
     expect(onDeselect).toHaveBeenCalled();
   });
 
+  it('greys the trip pins and legs when dimmed, as context behind a picker', () => {
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+      { category: 'location' as const, id: 'b', name: 'B', location: { lat: 42, lng: -110 } },
+    ]);
+    render(<TripMap trip={trip} dimmed />);
+    const map = screen.getByTestId('apple-maps-view');
+    expect(map.getAttribute('data-marker-tints')).toBe('#8E8E93;#8E8E93');
+    expect(map.getAttribute('data-polyline-colors')).toBe('#8E8E93');
+  });
+
+  it('draws result pins and a dropped pin in the accent, on top of the greyed trip', () => {
+    const trip = makeTrip([
+      { category: 'location' as const, id: 'a', name: 'A', location: { lat: 40, lng: -120 } },
+    ]);
+    render(
+      <TripMap
+        trip={trip}
+        dimmed
+        resultPins={[{ lat: 47.6, lng: -122.3 }]}
+        droppedPin={{ lat: 1, lng: 2 }}
+      />,
+    );
+    const map = screen.getByTestId('apple-maps-view');
+    // Greyed trip pin first, then the accent result and dropped pins layered over it.
+    expect(map.getAttribute('data-markers')).toBe('40,-120;47.6,-122.3;1,2');
+    expect(map.getAttribute('data-marker-tints')).toBe(
+      `#8E8E93;${EmberPalette.coral};${EmberPalette.coral}`,
+    );
+  });
+
+  it('reports a map tap’s coordinates via onMapPress for dropping a pin', () => {
+    const onMapPress = vi.fn();
+    render(<TripMap trip={null} onMapPress={onMapPress} />);
+    act(() => fireEvent.click(screen.getByTestId('apple-maps-view'), { clientX: 48.85, clientY: 2.35 }));
+    expect(onMapPress).toHaveBeenCalledWith({ lat: 48.85, lng: 2.35 });
+  });
+
   it('exposes recenter() that re-applies the current viewport', () => {
     const ref = React.createRef<TripMapHandle>();
     const trip = makeTrip([

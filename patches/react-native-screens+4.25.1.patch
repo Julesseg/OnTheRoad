@@ -1,0 +1,44 @@
+diff --git a/node_modules/react-native-screens/ios/RNSScreen.mm b/node_modules/react-native-screens/ios/RNSScreen.mm
+index 69d4d9a..eae93cb 100644
+--- a/node_modules/react-native-screens/ios/RNSScreen.mm
++++ b/node_modules/react-native-screens/ios/RNSScreen.mm
+@@ -1007,8 +1007,12 @@ - (void)updateFormSheetPresentationStyle
+   }
+ 
+   // Handle initial detent on the first update.
++  // on-the-road patch: condition widened from `> 0` to `>= 0` so index 0 also drives
++  // a selected-detent change. Combined with clearing _sheetHasInitialDetentSet when
++  // the prop changes (see updateProps), this lets JS animate the sheet to *any*
++  // detent imperatively — including the smallest one (index 0).
+   if (!_sheetHasInitialDetentSet) {
+-    if (_sheetInitialDetent > 0 && _sheetInitialDetent < _sheetAllowedDetents.count) {
++    if (_sheetInitialDetent >= 0 && _sheetInitialDetent < _sheetAllowedDetents.count) {
+ #if RNS_IPHONE_OS_VERSION_AVAILABLE(16_0)
+       if (@available(iOS 16.0, *)) {
+         UISheetPresentationControllerDetent *detent = sheet.detents[_sheetInitialDetent];
+@@ -1017,7 +1021,11 @@ - (void)updateFormSheetPresentationStyle
+ #endif // Check for iOS >= 16
+       {
+         if (_sheetInitialDetent < 2) {
+-          [self setSelectedDetentForSheet:sheet to:UISheetPresentationControllerDetentIdentifierLarge animate:YES];
++          [self setSelectedDetentForSheet:sheet
++                                       to:(_sheetInitialDetent == 0
++                                               ? UISheetPresentationControllerDetentIdentifierMedium
++                                               : UISheetPresentationControllerDetentIdentifierLarge)
++                                  animate:YES];
+         } else {
+           RCTLogError(
+               @"[RNScreens] sheetInitialDetent out of bounds, on iOS versions below 16 sheetAllowedDetents is ignored in favor of an array of two system-defined detents");
+@@ -1334,6 +1342,12 @@ - (void)updateProps:(react::Props::Shared const &)props oldProps:(react::Props::
+ 
+   if (newScreenProps.sheetInitialDetent != oldScreenProps.sheetInitialDetent) {
+     [self setSheetInitialDetent:newScreenProps.sheetInitialDetent];
++    // on-the-road patch: the initial detent is normally applied only once (guarded
++    // by _sheetHasInitialDetentSet). Clearing the flag when the prop changes lets us
++    // drive the sheet to a specific detent imperatively from JS — the re-apply in
++    // updateFormSheetPresentationStyle runs through setSelectedDetentForSheet with
++    // animate:YES, so the move is animated rather than a snap.
++    _sheetHasInitialDetentSet = NO;
+   }
+ 
+   if (newScreenProps.sheetLargestUndimmedDetent != oldScreenProps.sheetLargestUndimmedDetent) {

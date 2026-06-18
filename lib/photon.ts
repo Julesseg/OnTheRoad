@@ -27,22 +27,30 @@ export interface SearchPlacesOptions {
   fetchImpl?: typeof fetch;
 }
 
-function buildAddress(p: PhotonFeature['properties']): string | undefined {
-  if (!p) return undefined;
+// The address lines for a feature, most specific first: a street line
+// (housenumber + street) then city, state, country.
+function addressParts(p: NonNullable<PhotonFeature['properties']>): string[] {
   const streetLine = [p.housenumber, p.street].filter(Boolean).join(' ');
-  const parts = [streetLine, p.city, p.state, p.country].filter(Boolean);
-  return parts.length ? parts.join(', ') : undefined;
+  return [streetLine, p.city, p.state, p.country].filter(Boolean) as string[];
 }
 
 function normalize(feature: PhotonFeature): PhotonResult | null {
   const coords = feature.geometry?.coordinates;
-  const title = feature.properties?.name;
-  if (!coords || !title) return null;
+  if (!coords) return null;
+  const p = feature.properties ?? {};
+  const parts = addressParts(p);
+  // A named place (business/landmark) titles by its name with the full address
+  // beneath. A bare street address has no `name` — Photon returns these for
+  // "123 Main St" queries — so it titles by its street line with the locality
+  // (city, state, country) beneath, rather than being dropped for lacking a name.
+  const title = p.name ?? parts[0];
+  if (!title) return null;
+  const subtitle = (p.name ? parts : parts.slice(1)).join(', ');
   const [lng, lat] = coords;
   return {
     title,
     coords: { lat, lng },
-    address: buildAddress(feature.properties),
+    address: subtitle || undefined,
   };
 }
 
