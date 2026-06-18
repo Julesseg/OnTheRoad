@@ -22,6 +22,7 @@ import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { ItineraryPanel } from '@/components/itinerary-panel';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
+import { GlassButton } from '@/components/glass-button';
 import { tripHeaderModel } from '@/lib/trip-header';
 import {
   tripCountdownBadge,
@@ -144,11 +145,15 @@ export default function DaysSheet() {
   }
 
   // Empty state: a single Trips button (the gateway to Settings / Archived /
-  // Import) and a non-collapsing "On the Road" title — no star, back, or overflow.
+  // Import) and a non-collapsing "On the Road" title with New / Import Trip
+  // buttons right on the sheet — no star, back, or overflow. The bar matches the
+  // other sheets: transparent with an RN progressive-blur overlay (below), and an
+  // empty title so the native bar doesn't fall back to the "days" route name.
   if (model.mode === 'empty' || !summary) {
     return (
       <View style={styles.empty}>
-        <Stack.Header blurEffect="systemMaterial" />
+        <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+        <Stack.Title>{''}</Stack.Title>
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             icon="list.bullet"
@@ -159,8 +164,25 @@ export default function DaysSheet() {
         </Stack.Toolbar>
         <Text style={[styles.emptyTitle, { color: text }]}>On the Road</Text>
         <Text style={[styles.emptyHint, { color: subtext }]}>
-          Tap Trips to create or import a trip.
+          Start a new trip or import one you already have.
         </Text>
+        <View style={styles.emptyButtons}>
+          <GlassButton
+            label="New Trip"
+            icon="plus"
+            accent={c.accent}
+            onPress={() => router.push('/trip/new')}
+          />
+          <GlassButton
+            label="Import Trip"
+            icon="square.and.arrow.down"
+            accent={c.accent}
+            onPress={() => router.push('/import')}
+          />
+        </View>
+        <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
+          <ProgressiveBlurView intensity={20} layers={10} />
+        </View>
       </View>
     );
   }
@@ -319,4 +341,13 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyTitle: { fontSize: 34, fontWeight: '700' },
   emptyHint: { marginTop: 8, fontSize: 15, textAlign: 'center' },
+  // The two trip affordances sit side by side, wrapping on a narrow screen —
+  // mirrors the Import sheet's button row.
+  emptyButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 24,
+  },
 });

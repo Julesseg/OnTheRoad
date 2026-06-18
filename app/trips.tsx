@@ -30,6 +30,8 @@ import {
   shapes,
   animation,
   Animation,
+  grayscale,
+  opacity,
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useTripStore } from '@/lib/store';
@@ -57,9 +59,12 @@ export default function TripsSheet() {
   const subtext = c.textSubtle;
 
   // Flat, scannable list: in-progress trips first, then upcoming, each already
-  // sorted by start date. Archived/past trips stay hidden.
-  const { active } = partitionTrips(trips, today);
+  // sorted by start date. Past (archived) trips follow in their own greyed-out
+  // section, most recently ended first.
+  const { active, archived } = partitionTrips(trips, today);
   const visibleTrips = [...active.inProgress, ...active.upcoming];
+  const pastTrips = [...archived].sort((a, b) => b.endDate.localeCompare(a.endDate));
+  const hasTrips = visibleTrips.length > 0 || pastTrips.length > 0;
 
   async function onExport(summary: TripSummary) {
     try {
@@ -105,8 +110,9 @@ export default function TripsSheet() {
 
   // A trip row as a native SwiftUI list row with swipe actions: leading swipe
   // exposes Edit and the single persisted favorite toggle; trailing swipe exposes
-  // Export and Delete. Tapping the row opens the trip.
-  function renderRow(summary: TripSummary) {
+  // Export and Delete. Tapping the row opens the trip. `muted` desaturates and
+  // dims the row for the Past trips section so finished trips recede.
+  function renderRow(summary: TripSummary, muted = false) {
     const wallpaperUri = summary.wallpaperUri ? wallpaperDisplayUri(summary.wallpaperUri) : null;
     const badge = tripCountdownBadge(summary, today);
     const pill = countdownPillLabel(badge);
@@ -114,7 +120,13 @@ export default function TripsSheet() {
 
     return (
       <SwipeActions key={summary.id}>
-        <HStack spacing={12} modifiers={[onTapGesture(() => onTap(summary))]}>
+        <HStack
+          spacing={12}
+          modifiers={[
+            onTapGesture(() => onTap(summary)),
+            ...(muted ? [grayscale(1), opacity(0.55)] : []),
+          ]}
+        >
           {wallpaperUri ? (
             <Image
               uiImage={wallpaperUri}
@@ -175,12 +187,16 @@ export default function TripsSheet() {
             onPress={() => onEdit(summary)}
             modifiers={[tint(c.accent)]}
           />
-          <Button
-            systemImage={isFavorite ? 'star.slash.fill' : 'star.fill'}
-            label={isFavorite ? 'Unfavorite' : 'Favorite'}
-            onPress={() => onToggleFavorite(summary)}
-            modifiers={[tint(FAVORITE_GOLD)]}
-          />
+          {/* Favoriting picks the default Displayed Trip — meaningless for a
+              finished trip, so the Past trips section drops the action. */}
+          {muted ? null : (
+            <Button
+              systemImage={isFavorite ? 'star.slash.fill' : 'star.fill'}
+              label={isFavorite ? 'Unfavorite' : 'Favorite'}
+              onPress={() => onToggleFavorite(summary)}
+              modifiers={[tint(FAVORITE_GOLD)]}
+            />
+          )}
         </SwipeActions.Actions>
         <SwipeActions.Actions edge="trailing" allowsFullSwipe={false}>
           {/* No role="destructive": a destructive swipe button plays SwiftUI's
@@ -236,10 +252,10 @@ export default function TripsSheet() {
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
 
-      {visibleTrips.length === 0 ? (
+      {!hasTrips ? (
         <View style={styles.empty}>
           <RNText style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
-            No active trips
+            No trips yet
           </RNText>
         </View>
       ) : (
@@ -255,12 +271,19 @@ export default function TripsSheet() {
             modifiers={[
               listStyle('insetGrouped'),
               scrollContentBackground('hidden'),
-              animation(Animation.default, visibleTrips.length),
+              animation(Animation.default, visibleTrips.length + pastTrips.length),
             ]}
           >
-            <Section modifiers={[listRowBackground(c.surface)]}>
-              {visibleTrips.map((summary) => renderRow(summary))}
-            </Section>
+            {visibleTrips.length > 0 ? (
+              <Section modifiers={[listRowBackground(c.surface)]}>
+                {visibleTrips.map((summary) => renderRow(summary))}
+              </Section>
+            ) : null}
+            {pastTrips.length > 0 ? (
+              <Section title="Past trips" modifiers={[listRowBackground(c.surface)]}>
+                {pastTrips.map((summary) => renderRow(summary, true))}
+              </Section>
+            ) : null}
           </List>
         </Host>
       )}

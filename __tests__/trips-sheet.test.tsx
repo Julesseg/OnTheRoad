@@ -77,6 +77,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   shapes: { roundedRectangle: () => ({}), capsule: () => ({}) },
   listRowBackground: () => ({}),
   scrollContentBackground: () => ({}),
+  grayscale: () => ({}),
+  opacity: () => ({}),
 }));
 
 // @expo/ui renders native SwiftUI views that can't mount under jsdom. Stand the
@@ -114,10 +116,20 @@ vi.mock('@expo/ui/swift-ui', async () => {
   SwipeActions.Actions = ({ children }: { children?: React.ReactNode }) =>
     React.createElement('div', null, children);
 
+  // Section renders its optional title as a heading so the "Past trips" divider
+  // stays queryable.
+  const Section = ({ title, children }: { title?: string; children?: React.ReactNode }) =>
+    React.createElement(
+      'div',
+      null,
+      title ? React.createElement('h2', null, title) : null,
+      children,
+    );
+
   return {
     Host: pass('div'),
     List: pass('div'),
-    Section: pass('div'),
+    Section,
     VStack: pass('div'),
     HStack,
     Spacer: () => null,
@@ -236,19 +248,35 @@ describe('TripsSheet', () => {
     expect(titles).toEqual(['Coast Run', 'Desert Loop', 'Mountain Pass']);
   });
 
-  it('does not show archived (past) trips', async () => {
-    storeWith({ trips: allTrips });
+  it('shows past trips under a "Past trips" section, most recently ended first', async () => {
+    const older = trip({ id: 'older', title: 'Older Trip', startDate: '2026-04-01', endDate: '2026-04-10' });
+    storeWith({ trips: [...allTrips, older] });
     await renderSheet();
 
-    expect(screen.queryByText('Old Trip')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Past trips' })).toBeInTheDocument();
+    const pastTitles = screen.getAllByText(/^(Old Trip|Older Trip)$/).map((e) => e.textContent);
+    expect(pastTitles).toEqual(['Old Trip', 'Older Trip']);
   });
 
-  it('has no section headers', async () => {
+  it('past trip rows expose Edit/Export/Delete but no Favorite action', async () => {
     storeWith({ trips: allTrips });
     await renderSheet();
 
-    // The flat list never splits trips under an "Upcoming" divider.
+    const old = rowOf('Old Trip');
+    expect(within(old).queryByRole('button', { name: 'Favorite' })).not.toBeInTheDocument();
+    expect(within(old).queryByRole('button', { name: 'Unfavorite' })).not.toBeInTheDocument();
+    expect(within(old).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(within(old).getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(within(old).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+  });
+
+  it('does not split active trips under an in-progress/upcoming divider', async () => {
+    storeWith({ trips: allTrips });
+    await renderSheet();
+
+    // Active trips stay a single flat section — only "Past trips" gets a header.
     expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
+    expect(screen.queryByText('In progress', { selector: 'h2' })).not.toBeInTheDocument();
   });
 
   it('shows title, date range, and an inline countdown pill on each row', async () => {

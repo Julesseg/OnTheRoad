@@ -77,7 +77,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
 });
 
 import { useTripStore } from '@/lib/store';
-import { router } from 'expo-router';
 
 const storeWith = (overrides: object) =>
   vi.mocked(useTripStore).mockImplementation((sel: any) =>
@@ -148,13 +147,11 @@ describe('SettingsSheet', () => {
     expect(screen.queryByRole('button', { name: /import/i })).not.toBeInTheDocument();
   });
 
-  it('tapping "Archived trips" navigates to /archived', async () => {
+  it('offers no archived-trips entry — past trips live in the Trips list', async () => {
     storeWith({});
     const { default: SettingsSheet } = await import('@/app/settings');
     render(<SettingsSheet />);
 
-    fireEvent.click(screen.getByRole('button', { name: /archived trips/i }));
-
-    expect(router.push).toHaveBeenCalledWith('/archived');
+    expect(screen.queryByRole('button', { name: /archived/i })).not.toBeInTheDocument();
   });
 });

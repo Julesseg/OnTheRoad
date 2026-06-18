@@ -182,12 +182,14 @@ export default function HomeScreen() {
       )}
       {/* Center-on-user: themed glass + Ember accent to match the scope button
           (the native MapKit my-location button can't be tinted). Sits just below
-          the scope button and centres on the traveller, not the trip route. */}
+          the scope button and centres on the traveller, not the trip route. When
+          no trip is loaded the scope button is hidden, so this slides up into its
+          top slot rather than leaving a gap. */}
       <MapControlButton
         name="location.fill"
         accessibilityLabel="Center on my location"
         color={c.accent}
-        style={[styles.mapButton, { top: insets.top + 12 + 44 + 12 }]}
+        style={[styles.mapButton, { top: insets.top + 12 + (trip ? 44 + 12 : 0) }]}
         onPress={onCenterOnUser}
       />
       {/* Pin info card: floats just above the XS-peek day sheet (rendered after the

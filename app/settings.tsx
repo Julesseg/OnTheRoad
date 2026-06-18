@@ -1,6 +1,6 @@
 import { View, StyleSheet, useColorScheme } from 'react-native';
-import { Stack, router } from 'expo-router';
-import { Host, Form, Section, Picker, Button, Text } from '@expo/ui/swift-ui';
+import { Stack } from 'expo-router';
+import { Host, Form, Section, Picker, Text } from '@expo/ui/swift-ui';
 import {
   background,
   listRowBackground,
@@ -79,14 +79,6 @@ export default function SettingsSheet() {
                 </Text>
               ))}
             </Picker>
-          </Section>
-
-          <Section title="Data" modifiers={[listRowBackground(c.surface)]}>
-            <Button
-              label="Archived trips"
-              systemImage="archivebox"
-              onPress={() => router.push('/archived')}
-            />
           </Section>
         </Form>
       </Host>
