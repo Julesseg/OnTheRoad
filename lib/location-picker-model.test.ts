@@ -190,6 +190,104 @@ describe('LocationPicker model', () => {
     expect(pickerReducer(loaded, { type: 'cancelPinMode' })).toBe(loaded);
   });
 
+  const GUM_WALL = { name: 'Gum Wall', coords: { lat: 47.6086, lng: -122.3401 } } as const;
+  const GUM_WALL_RESULT = { title: 'Gum Wall', coords: GUM_WALL.coords };
+
+  it('tapping a named POI adds it as an auto-selected row above the existing list', () => {
+    // Mid-search, the user taps a landmark on the map instead.
+    const searching = pickerReducer(
+      pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
+      { type: 'resultsLoaded', results: [PIKE, SPACE_NEEDLE] },
+    );
+
+    const tapped = pickerReducer(searching, { type: 'poiSelected', ...GUM_WALL });
+
+    // The POI sits on top as its own row; the search results keep their indices.
+    expect(rows(tapped)).toEqual([
+      { kind: 'poi', result: GUM_WALL_RESULT },
+      { kind: 'result', index: 0, result: PIKE },
+      { kind: 'result', index: 1, result: SPACE_NEEDLE },
+      // The query is untouched, so its plain-address fallback row still stands.
+      { kind: 'address', text: 'seattle' },
+    ]);
+    expect(tapped.selected).toEqual({ kind: 'poi' });
+    expect(cameraTarget(tapped)).toEqual({ kind: 'point', coords: GUM_WALL.coords });
+    // While the landmark is active only its pin shows — the candidate pins step aside.
+    expect(resultPins(tapped)).toEqual([GUM_WALL.coords]);
+    // A named POI commits with its name as the address.
+    expect(committedLocation(tapped)).toEqual({
+      address: 'Gum Wall',
+      lat: 47.6086,
+      lng: -122.3401,
+    });
+  });
+
+  it('switching to another POI replaces the first — only one landmark at a time', () => {
+    const first = pickerReducer(initialPickerState, { type: 'poiSelected', ...GUM_WALL });
+    const second = pickerReducer(first, {
+      type: 'poiSelected',
+      name: 'Space Needle',
+      coords: SPACE_NEEDLE.coords,
+    });
+
+    expect(rows(second)).toEqual([
+      { kind: 'poi', result: { title: 'Space Needle', coords: SPACE_NEEDLE.coords } },
+    ]);
+    // Only the current landmark's pin remains.
+    expect(resultPins(second)).toEqual([SPACE_NEEDLE.coords]);
+  });
+
+  it('selecting a search result discards the tapped POI and its pin', () => {
+    const searched = pickerReducer(
+      pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
+      { type: 'resultsLoaded', results: [PIKE, SPACE_NEEDLE] },
+    );
+    const tapped = pickerReducer(searched, { type: 'poiSelected', ...GUM_WALL });
+
+    const picked = pickerReducer(tapped, { type: 'selectRow', key: { kind: 'result', index: 1 } });
+
+    // The POI row is gone; only the search results (and address fallback) remain.
+    expect(picked.poi).toBeNull();
+    expect(rows(picked).some((r) => r.kind === 'poi')).toBe(false);
+    expect(resultPins(picked)).toEqual([PIKE.coords, SPACE_NEEDLE.coords]);
+    expect(committedLocation(picked)).toEqual({
+      address: 'Space Needle',
+      lat: SPACE_NEEDLE.coords.lat,
+      lng: SPACE_NEEDLE.coords.lng,
+    });
+  });
+
+  it('typing a new query clears a tapped POI', () => {
+    const tapped = pickerReducer(initialPickerState, { type: 'poiSelected', ...GUM_WALL });
+    const typed = pickerReducer(tapped, { type: 'queryChanged', text: 'paris' });
+    expect(typed.poi).toBeNull();
+  });
+
+  it('tapping a POI keeps its coordinates and auto-selects it', () => {
+    const tapped = pickerReducer(initialPickerState, {
+      type: 'poiSelected',
+      name: null,
+      coords: { lat: 1, lng: 2 },
+    });
+
+    expect(tapped.selected).toEqual({ kind: 'poi' });
+    expect(committedLocation(tapped)).toEqual({ address: '1, 2', lat: 1, lng: 2 });
+  });
+
+  it('tapping a POI in pin mode drops the pin there', () => {
+    const pinMode = pickerReducer(initialPickerState, { type: 'enterPinMode' });
+    const tapped = pickerReducer(pinMode, {
+      type: 'poiSelected',
+      name: 'Space Needle',
+      coords: { lat: 47.6205, lng: -122.3493 },
+    });
+
+    // No selection-mode result; the POI tap just positions the dropped pin.
+    expect(tapped.mode).toBe('pin');
+    expect(tapped.droppedPin).toEqual({ lat: 47.6205, lng: -122.3493 });
+    expect(committedLocation(tapped)).toEqual({ lat: 47.6205, lng: -122.3493 });
+  });
+
   it('clearing the query empties the rows and the selection', () => {
     const loaded = pickerReducer(
       pickerReducer(initialPickerState, { type: 'queryChanged', text: 'pike' }),

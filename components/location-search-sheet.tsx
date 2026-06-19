@@ -26,6 +26,7 @@ const SEARCH_DETENT_INDEX = 1;
 
 function sameKey(a: SelectionKey | null, b: SelectionKey): boolean {
   if (!a) return false;
+  if (a.kind === 'poi' && b.kind === 'poi') return true;
   if (a.kind === 'address' && b.kind === 'address') return true;
   return a.kind === 'result' && b.kind === 'result' && a.index === b.index;
 }
@@ -217,6 +218,26 @@ export function LocationSearchSheet() {
               {rowList.map((row, i) => {
                 if (row.kind === 'resolving') {
                   return <Text key="resolving">Resolving…</Text>;
+                }
+                if (row.kind === 'poi') {
+                  const key: SelectionKey = { kind: 'poi' };
+                  const selected = sameKey(state.selected, key);
+                  return (
+                    <Button key="poi" onPress={() => onPickRow(key)}>
+                      <HStack>
+                        <VStack alignment="leading" spacing={2}>
+                          <Text>{row.result.title}</Text>
+                          {row.result.address ? (
+                            <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>
+                              {row.result.address}
+                            </Text>
+                          ) : null}
+                        </VStack>
+                        <Spacer />
+                        {selected ? <Text modifiers={[foregroundStyle(accent)]}>✓</Text> : null}
+                      </HStack>
+                    </Button>
+                  );
                 }
                 if (row.kind === 'result') {
                   const key: SelectionKey = { kind: 'result', index: row.index };

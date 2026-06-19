@@ -151,11 +151,21 @@ in the [Location Picker](#location-picker), not yet an Item.
 ### Result pin
 
 A transient marker for a single search candidate inside the
-[Location Picker](#location-picker) — a Photon result, a pasted coordinate, or a
-resolved maps link — drawn in the accent colour over the trip's own greyed
+[Location Picker](#location-picker) — a Photon result, a pasted coordinate, a
+resolved maps link, or a tapped [landmark](#landmark) — drawn in the accent colour over the trip's own greyed
 [Pins](#pin). It is not yet an [Item](#item): it becomes a `location` only if the
 user selects it and confirms. Prefer **result pin** over "candidate"; reserve
 [Pin](#pin) for a located Item already on the trip.
+
+### Landmark
+
+A native map point of interest — a museum, park, café, monument — that MapKit
+draws and labels on its own. On the home map these reveal nothing (the map is a
+view onto the trip, not a place browser). In the [Location Picker](#location-picker)
+they become useful: tapping one adds it to the top of the current results as an
+auto-selected [result pin](#result-pin), ready to confirm — so a place the
+traveller spots on the map can be picked without typing its name, without losing
+the search list already showing.
 
 ### Location Picker
 
@@ -163,7 +173,8 @@ The map-centered surface for choosing an [Item](#item)'s `location`: a
 full-screen map (the trip's [Pins](#pin) and route shown greyed as context) with
 a search sheet over it. Typing surfaces [result pins](#result-pin) the traveller
 picks from, so a confirmed location almost always carries coordinates; a pasted
-coordinate or maps link resolves to a result pin too, and a pin can be dropped by
+coordinate or maps link resolves to a result pin too, tapping a
+[landmark](#landmark) on the map turns it into one, and a pin can be dropped by
 hand. Confirming a plain address with no coordinates — `{ address }` — is the
 deliberate **last resort**, offered only as a standing fallback row for when
 there is no point to show on the map. See

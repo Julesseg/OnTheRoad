@@ -4,9 +4,12 @@ import type { Item } from './schema';
 
 export type Mode = 'search' | 'pin';
 
-// A selectable row's identity. Selection is sticky and there is no deselect, so
-// this is only ever cleared by the X (cancel) — never by re-tapping a row.
-export type SelectionKey = { kind: 'result'; index: number } | { kind: 'address' };
+// A selectable row's identity. A tapped landmark is its own kind: there is at
+// most one, and choosing any other row discards it (CONTEXT.md#landmark).
+export type SelectionKey =
+  | { kind: 'poi' }
+  | { kind: 'result'; index: number }
+  | { kind: 'address' };
 
 export interface PickerState {
   query: string;
@@ -17,6 +20,10 @@ export interface PickerState {
   synthesized: PhotonResult | null;
   // A maps URL is being resolved to coordinates (a transient "Resolving…" row).
   resolving: boolean;
+  // The most recently tapped map landmark (POI), shown as a transient row above
+  // the search results. At most one; replaced by the next POI tap and cleared
+  // when any other row is selected, so a stale landmark never lingers.
+  poi: PhotonResult | null;
   selected: SelectionKey | null;
   mode: Mode;
   droppedPin: Coords | null;
@@ -30,6 +37,7 @@ interface SavedSearch {
   results: PhotonResult[];
   synthesized: PhotonResult | null;
   resolving: boolean;
+  poi: PhotonResult | null;
   selected: SelectionKey | null;
 }
 
@@ -38,6 +46,7 @@ export const initialPickerState: PickerState = {
   results: [],
   synthesized: null,
   resolving: false,
+  poi: null,
   selected: null,
   mode: 'search',
   droppedPin: null,
@@ -51,7 +60,8 @@ export type PickerEvent =
   | { type: 'selectRow'; key: SelectionKey }
   | { type: 'enterPinMode' }
   | { type: 'dropPin'; coords: Coords }
-  | { type: 'cancelPinMode' };
+  | { type: 'cancelPinMode' }
+  | { type: 'poiSelected'; name: string | null; coords: Coords };
 
 const URL_RE = /^https?:\/\//i;
 
@@ -82,6 +92,7 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
           results: [],
           synthesized,
           resolving: false,
+          poi: null,
           selected: { kind: 'result', index: 0 },
         };
       }
@@ -94,6 +105,7 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
           results: [],
           synthesized: null,
           resolving: true,
+          poi: null,
           selected: null,
         };
       }
@@ -105,6 +117,7 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
         results: [],
         synthesized: null,
         resolving: false,
+        poi: null,
         selected: null,
       };
     }
@@ -128,17 +141,20 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
       return { ...state, results: event.results, selected };
     }
     case 'selectRow':
-      return { ...state, selected: event.key };
+      // Choosing any row other than the tapped landmark discards that landmark
+      // (and its map pin), so a stale POI never lingers beside the new choice.
+      if (event.key.kind === 'poi') return { ...state, selected: event.key };
+      return { ...state, poi: null, selected: event.key };
     case 'enterPinMode': {
       // Idempotent: the sheet drives this both by drag and by button, so the event
       // can arrive when already in pin mode — re-saving would clobber the search.
       if (state.mode === 'pin') return state;
-      const { query, results, synthesized, resolving, selected } = state;
+      const { query, results, synthesized, resolving, poi, selected } = state;
       return {
         ...state,
         mode: 'pin',
         droppedPin: null,
-        saved: { query, results, synthesized, resolving, selected },
+        saved: { query, results, synthesized, resolving, poi, selected },
       };
     }
     case 'dropPin':
@@ -149,17 +165,35 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
       if (!state.saved) return { ...state, mode: 'search', droppedPin: null };
       return { ...state, ...state.saved, mode: 'search', droppedPin: null, saved: null };
     }
+    case 'poiSelected': {
+      // In pin mode a tapped POI behaves like any map tap — it drops the pin
+      // there (the native POI tap is the only signal we get, since onMapClick
+      // doesn't fire over a POI).
+      if (state.mode === 'pin') return { ...state, droppedPin: event.coords };
+      // In search mode the POI takes the transient `poi` slot above the results
+      // and is auto-selected, leaving the existing search list untouched beneath
+      // it. It replaces any previously tapped POI (only one at a time). A nameless
+      // POI keeps only its point (its coord pair stands in as a title).
+      const poi: PhotonResult = event.name
+        ? { title: event.name, coords: event.coords }
+        : synthesizedFromCoords(event.coords);
+      return { ...state, poi, selected: { kind: 'poi' } };
+    }
   }
 }
 
 export type Row =
   | { kind: 'resolving' }
+  | { kind: 'poi'; result: PhotonResult }
   | { kind: 'result'; index: number; result: PhotonResult }
   | { kind: 'address'; text: string };
 
 export function rows(state: PickerState): Row[] {
   const out: Row[] = [];
   if (state.resolving) out.push({ kind: 'resolving' });
+  // The tapped landmark sits at the top, above the search results it doesn't
+  // disturb.
+  if (state.poi) out.push({ kind: 'poi', result: state.poi });
   resultList(state).forEach((result, index) => out.push({ kind: 'result', index, result }));
   // The plain-address last resort is only for ordinary free text. A pasted
   // coordinate or resolved URL already has a point (so address-only would discard
@@ -171,9 +205,12 @@ export function rows(state: PickerState): Row[] {
 }
 
 // Accent result pins drawn over the trip's greyed pins. Cleared in pin mode so
-// only the hand-dropped pin shows.
+// only the hand-dropped pin shows. A tapped landmark is the focus, so while one
+// is active only its pin shows — the search-result candidate pins step aside so
+// no stale pin lingers beside it.
 export function resultPins(state: PickerState): Coords[] {
   if (state.mode === 'pin') return [];
+  if (state.poi) return [state.poi.coords];
   return resultList(state).map((r) => r.coords);
 }
 
@@ -187,6 +224,9 @@ export function cameraTarget(state: PickerState): CameraTarget | null {
     return state.droppedPin ? { kind: 'point', coords: state.droppedPin } : null;
   }
   const selected = state.selected;
+  if (selected?.kind === 'poi') {
+    return state.poi ? { kind: 'point', coords: state.poi.coords } : null;
+  }
   if (selected?.kind === 'result') {
     const result = resultList(state)[selected.index];
     return result ? { kind: 'point', coords: result.coords } : null;
@@ -202,6 +242,10 @@ export function committedLocation(state: PickerState): Item['location'] | null {
       : null;
   }
   const selected = state.selected;
+  if (selected?.kind === 'poi') {
+    const poi = state.poi;
+    return poi ? { address: poi.title, lat: poi.coords.lat, lng: poi.coords.lng } : null;
+  }
   if (selected?.kind === 'result') {
     const result = resultList(state)[selected.index];
     if (!result) return null;
