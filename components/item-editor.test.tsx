@@ -114,13 +114,16 @@ vi.mock('@expo/ui/swift-ui', async () => {
           autoFocus?: boolean;
           modifiers?: Record<string, unknown>[];
         },
-        ref: React.Ref<{ setText: (t: string) => void }>,
+        ref: React.Ref<{ setText: (t: string) => void; focus: () => void }>,
       ) => {
         const inputRef = React.useRef<HTMLInputElement>(null);
         React.useImperativeHandle(ref, () => ({
           setText: (t: string) => {
             if (inputRef.current) inputRef.current.value = t;
           },
+          // Mirrors the native TextFieldRef.focus() the row calls on Return to
+          // keep the keyboard up while the next entry mounts.
+          focus: () => inputRef.current?.focus(),
         }));
         // The native `onSubmit` modifier fires on Return; mirror it as an Enter
         // keydown so tests can drive the "add next entry" behavior.

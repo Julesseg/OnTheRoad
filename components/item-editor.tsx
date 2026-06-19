@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
@@ -10,6 +10,7 @@ import {
   Section,
   Text,
   TextField,
+  type TextFieldRef,
   DatePicker,
   Picker,
   Button,
@@ -192,6 +193,13 @@ function TimeRow({
 // `autoFocus` is set only on a freshly added entry so the keyboard opens on it;
 // pressing Return (labeled "next") calls `onSubmit` to add the following entry,
 // keeping focus moving down the list so you can type entries back to back.
+//
+// On Return we re-assert focus on this field before adding the next entry.
+// SwiftUI resigns the field's first responder on submit, which starts the
+// keyboard dismissing; the new row only grabs it back after a JS round-trip and
+// a native mount, and that gap is the visible flicker. Re-focusing this field
+// synchronously keeps the keyboard up, so when the new row mounts and autofocuses
+// the focus just moves between fields without the keyboard bouncing.
 function ChecklistEntryRow({
   entry,
   position,
@@ -209,6 +217,11 @@ function ChecklistEntryRow({
 }) {
   const { accent, textSubtle } = useThemeColors();
   const labelState = useNativeState(entry.label);
+  const fieldRef = useRef<TextFieldRef>(null);
+  const handleSubmit = useCallback(() => {
+    fieldRef.current?.focus();
+    onSubmit();
+  }, [onSubmit]);
   return (
     <HStack spacing={12}>
       <Image
@@ -223,11 +236,16 @@ function ChecklistEntryRow({
         ]}
       />
       <TextField
+        ref={fieldRef}
         text={labelState}
         placeholder="Checklist entry"
         autoFocus={autoFocus}
         onTextChange={onRename}
-        modifiers={[submitLabel('next'), onSubmitModifier(onSubmit)]}
+        modifiers={[
+          submitLabel('next'),
+          // eslint-disable-next-line react-hooks/refs -- handleSubmit reads the field ref on Return, not render
+          onSubmitModifier(handleSubmit),
+        ]}
       />
     </HStack>
   );
