@@ -60,6 +60,9 @@ export const TripMap = forwardRef<
     droppedPin?: Coords | null;
     // A tap on empty map, reported as coordinates so the picker can drop a pin.
     onMapPress?: (coords: Coords) => void;
+    // The camera moved (pan/zoom/tilt), e.g. a double-tap-and-hold zoom — lets the
+    // picker cancel a pending tap-to-pin so a zoom gesture doesn't drop a pin.
+    onCameraMove?: () => void;
   }
 >(
   function TripMap(
@@ -75,6 +78,7 @@ export const TripMap = forwardRef<
       resultPins,
       droppedPin,
       onMapPress,
+      onCameraMove,
     },
     ref,
   ) {
@@ -178,6 +182,7 @@ export const TripMap = forwardRef<
             onMapPress?.({ lat: latitude, lng: longitude });
           }
         }}
+        onCameraMove={onCameraMove ? () => onCameraMove() : undefined}
       />
     );
   },

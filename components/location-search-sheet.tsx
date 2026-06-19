@@ -36,6 +36,7 @@ const PEEK_DETENT_INDEX = 0;
 function sameKey(a: SelectionKey | null, b: SelectionKey): boolean {
   if (!a) return false;
   if (a.kind === 'address' && b.kind === 'address') return true;
+  if (a.kind === 'pin' && b.kind === 'pin') return true;
   return a.kind === 'result' && b.kind === 'result' && a.index === b.index;
 }
 

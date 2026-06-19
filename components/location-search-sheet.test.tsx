@@ -233,8 +233,10 @@ describe('LocationSearchSheet', () => {
     expect(screen.getByRole('button', { name: 'Select' })).toBeDisabled();
 
     act(() => usePickerStore.getState().dispatch({ type: 'mapTapped', coords: { lat: 1.5, lng: 2.5 } }));
-    // The pin shows as a row labelled by its coordinates, and Select is armed.
-    expect(screen.getByText('1.5, 2.5')).toBeInTheDocument();
+    // The pin shows as a row labelled by its truncated coordinates, selected
+    // (checkmark) and arming Select.
+    expect(screen.getByText('1.500, 2.500')).toBeInTheDocument();
+    expect(screen.getByText('✓')).toBeInTheDocument();
     const select = screen.getByRole('button', { name: 'Select' });
     expect(select).not.toBeDisabled();
 
@@ -252,11 +254,11 @@ describe('LocationSearchSheet', () => {
     type('pike');
     await flushDebounce();
     act(() => usePickerStore.getState().dispatch({ type: 'mapTapped', coords: { lat: 1.5, lng: 2.5 } }));
-    expect(screen.getByText('1.5, 2.5')).toBeInTheDocument();
+    expect(screen.getByText('1.500, 2.500')).toBeInTheDocument();
 
     // Choosing another result drops the pin row.
     fireEvent.click(screen.getByText('Pike Place Market'));
-    expect(screen.queryByText('1.5, 2.5')).not.toBeInTheDocument();
+    expect(screen.queryByText('1.500, 2.500')).not.toBeInTheDocument();
   });
 
   it('the peek detent surfaces the selected name as the title; the search detent clears it', async () => {

@@ -138,10 +138,11 @@ export type Row =
   | { kind: 'result'; index: number; result: PhotonResult }
   | { kind: 'address'; text: string };
 
-// A map-tapped pin's display label — its coordinate pair, the same form a pasted
-// coordinate takes (no address; commit stays coords-only).
+// A map-tapped pin's display label — its coordinate pair truncated to 3 decimals
+// for legibility (the committed location keeps full precision; commit stays
+// coords-only, with no address).
 export function pinLabel(coords: Coords): string {
-  return `${coords.lat}, ${coords.lng}`;
+  return `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`;
 }
 
 export function rows(state: PickerState): Row[] {

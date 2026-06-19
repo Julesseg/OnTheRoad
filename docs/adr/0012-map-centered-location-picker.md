@@ -164,9 +164,14 @@ Further refinements to the tappable map:
 - **A dropped pin stands alone on the map.** While a hand-dropped pin is placed,
   the search candidates' [result pins](../../CONTEXT.md#result-pin) clear, so the
   previously selected result's pin disappears and only the dropped pin shows; they
-  return when another result row is selected. The pin's list row animates in/out.
+  return when another result row is selected. The pin's list row **animates in/out**
+  and carries the selected checkmark; it is labelled by its coordinates
+  **truncated to 3 decimals** (the committed location keeps full precision).
 - **The search field is hidden at the 0.1 peek** (the title stands in for it) and,
   since the native field is uncontrolled and resets on remount, its text is
   restored from the query when it reappears at 0.5.
-- **A tap is held briefly before dropping a pin** so a quick double-tap (zoom)
-  cancels the pending pin instead of leaving a stray one.
+- **A tap is held briefly before dropping a pin** so a zoom gesture doesn't leave a
+  stray pin: a second quick tap cancels it, and — for double-tap-*and-hold* zoom
+  (hold the second tap, swipe to zoom) — any camera move (`onCameraMove`) during
+  the window cancels the pending pin too. A plain single tap doesn't move the
+  camera, so its pin survives.

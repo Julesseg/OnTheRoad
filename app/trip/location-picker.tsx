@@ -123,6 +123,15 @@ export default function LocationPickerScreen() {
     },
     [],
   );
+  // Cancel a pending tap-to-pin when the camera moves: a double-tap-and-hold zoom
+  // (hold the second tap, swipe to zoom) drives the camera, so it must not also
+  // drop a pin. A plain single tap doesn't move the camera, so its pin survives.
+  const cancelPendingPin = useCallback(() => {
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+    }
+  }, []);
 
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -147,6 +156,7 @@ export default function LocationPickerScreen() {
             usePickerStore.getState().dispatch({ type: 'mapTapped', coords });
           }, TAP_TO_PIN_DELAY_MS);
         }}
+        onCameraMove={cancelPendingPin}
       />
     </View>
   );

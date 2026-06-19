@@ -201,7 +201,8 @@ describe('LocationPicker model', () => {
     expect(selectionLabel(loaded)).toBe('Pike Place Market');
 
     const tapped = pickerReducer(loaded, { type: 'mapTapped', coords: { lat: 1, lng: 2 } });
-    expect(selectionLabel(tapped)).toBe('1, 2');
+    // Coordinates display truncated to 3 decimals.
+    expect(selectionLabel(tapped)).toBe('1.000, 2.000');
 
     const address = pickerReducer(loaded, { type: 'selectRow', key: { kind: 'address' } });
     expect(selectionLabel(address)).toBe('seattle');
