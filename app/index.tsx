@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
 import { useTripStore } from '@/lib/store';
+import type { Coords } from '@/lib/coords';
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
 import { PinInfoCard, mapsTargetForItem } from '@/components/pin-info-card';
 import { MapControlButton } from '@/components/map-control-button';
@@ -104,6 +105,28 @@ export default function HomeScreen() {
     : fullCoords;
   const coords = filteredCoords.length > 0 ? filteredCoords : fullCoords;
 
+  // With no pins to frame (no trip, or a trip whose items carry no coordinates),
+  // the route viewport collapses to the zoomed-out world view off the African
+  // coast. Center on the traveller instead — zoomed to their surroundings, like a
+  // single-pin frame — once their position resolves. Gated so the GPS read only
+  // happens when it's actually needed: permission already granted (reusing the one
+  // permission flow above rather than re-requesting), the trip has finished
+  // loading (coords are empty transiently during the async load), and there's
+  // genuinely nothing to frame. A denied permission leaves the world view as before.
+  const [userFallback, setUserFallback] = useState<Coords | null>(null);
+  const hasCoords = coords.length > 0;
+  const tripLoading = summary != null && trip == null;
+  useEffect(() => {
+    if (hasCoords || tripLoading || !showUserLocation) return;
+    let cancelled = false;
+    void Location.getCurrentPositionAsync().then(({ coords: c }) => {
+      if (!cancelled) setUserFallback({ lat: c.latitude, lng: c.longitude });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCoords, tripLoading, showUserLocation]);
+
   // Resolve the trip's legs to real-road geometry (cached on-device), drawn by
   // the map; off-day legs are still dimmed via activeDate (ADR-0009).
   const roadLegs = useRoadLegs(trip);
@@ -120,10 +143,10 @@ export default function HomeScreen() {
     selectedLocated?.item.location?.lat != null && selectedLocated.item.location?.lng != null
       ? [{ lat: selectedLocated.item.location.lat, lng: selectedLocated.item.location.lng }]
       : null;
-  const viewport = framedViewport(
-    selectedPinCoords ?? coords,
-    panelFractionForDetent(sheetDetentIndex),
-  );
+  // Frame the selected pin if any, else the route; with neither, fall back to the
+  // traveller's own position so the camera doesn't collapse to the world view.
+  const framedCoords = selectedPinCoords ?? (hasCoords ? coords : userFallback ? [userFallback] : []);
+  const viewport = framedViewport(framedCoords, panelFractionForDetent(sheetDetentIndex));
 
   // Tapping a pin shows its info card and frames the camera on it (via the viewport
   // above). Drive the sheet down to the XS peek so the card has room above it —
