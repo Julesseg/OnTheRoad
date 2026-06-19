@@ -170,9 +170,11 @@ export function selectionLabel(state: PickerState): string | null {
   return null;
 }
 
-// Accent result pins drawn over the trip's greyed pins (the map-tapped pin is a
-// separate layer the screen draws over these).
+// Accent result pins drawn over the trip's greyed pins. A hand-dropped pin stands
+// alone: while one is placed the search candidates' pins clear, so the last
+// selected result's pin disappears and only the dropped pin shows.
 export function resultPins(state: PickerState): Coords[] {
+  if (state.pin) return [];
   return resultList(state).map((r) => r.coords);
 }
 

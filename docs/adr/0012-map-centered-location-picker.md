@@ -152,3 +152,21 @@ that was more ceremony than the gesture deserves. We drop the mode entirely:
 - The `react-native-screens` detent-setter patch from the previous amendment is
   no longer exercised (nothing drives `sheetInitialDetentIndex` at runtime); it is
   left in place as it is harmless and other surfaces may rely on it.
+
+Further refinements to the tappable map:
+
+- **The picker map shows the traveller and opens like the home map.** It enables
+  the blue dot when location permission is granted, and on first load frames the
+  trip's pins when it has any, otherwise zooms in on the traveller — reusing
+  `requestUserLocationPermission` / `centerOnUser` from
+  [user location](../../CONTEXT.md#user-location), the same primitives the home
+  map's center-on-user button uses.
+- **A dropped pin stands alone on the map.** While a hand-dropped pin is placed,
+  the search candidates' [result pins](../../CONTEXT.md#result-pin) clear, so the
+  previously selected result's pin disappears and only the dropped pin shows; they
+  return when another result row is selected. The pin's list row animates in/out.
+- **The search field is hidden at the 0.1 peek** (the title stands in for it) and,
+  since the native field is uncontrolled and resets on remount, its text is
+  restored from the query when it reappears at 0.5.
+- **A tap is held briefly before dropping a pin** so a quick double-tap (zoom)
+  cancels the pending pin instead of leaving a stray one.

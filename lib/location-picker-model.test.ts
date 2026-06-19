@@ -152,8 +152,11 @@ describe('LocationPicker model', () => {
     // Both the camera and the committed location follow the pin, coords-only.
     expect(cameraTarget(tapped)).toEqual({ kind: 'point', coords: { lat: 1, lng: 2 } });
     expect(committedLocation(tapped)).toEqual({ lat: 1, lng: 2 });
-    // The search candidates stay as accent pins on the map alongside the dropped one.
-    expect(resultPins(tapped)).toEqual([PIKE.coords, SPACE_NEEDLE.coords]);
+    // The dropped pin stands alone: the search candidates' map pins clear so only
+    // it shows. Selecting another result brings the result pins back.
+    expect(resultPins(tapped)).toEqual([]);
+    const picked = pickerReducer(tapped, { type: 'selectRow', key: { kind: 'result', index: 1 } });
+    expect(resultPins(picked)).toEqual([PIKE.coords, SPACE_NEEDLE.coords]);
   });
 
   it('selecting another result makes the map-tapped pin disappear', () => {

@@ -175,7 +175,9 @@ there is no point to show on the map. See
 The device's own position, shown as the standard blue dot when the traveller
 grants when-in-use location permission (requested as the map first appears). A
 themed control re-centres the map on it — distinct from re-centring on the
-[Trip route](#trip-route), which frames all of a trip's pins.
+[Trip route](#trip-route), which frames all of a trip's pins. The
+[Location Picker](#location-picker) shows the same dot and, when the trip has no
+pins to frame, opens centred on the traveller.
 
 ### App State
 

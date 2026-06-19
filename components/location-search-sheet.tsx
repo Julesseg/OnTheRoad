@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import { Stack, router, useNavigation } from 'expo-router';
+import type { SearchBarCommands } from 'react-native-screens';
 import { Host, Form, Section, HStack, VStack, Spacer, Text, Button } from '@expo/ui/swift-ui';
 import {
+  Animation,
+  animation,
   background,
   font,
   foregroundStyle,
@@ -82,6 +85,18 @@ export function LocationSearchSheet() {
     navigation.setOptions({ title });
   }, [navigation, title]);
 
+  // The search bar is hidden at the peek detent (the title stands in for it). The
+  // native field is uncontrolled and resets when it remounts, so restore the
+  // current query into it once it reappears at the search detent.
+  const searchBarRef = useRef<SearchBarCommands>(null);
+  useEffect(() => {
+    if (atPeek) return;
+    const query = usePickerStore.getState().state.query;
+    if (!query) return;
+    const id = setTimeout(() => searchBarRef.current?.setText(query), 0);
+    return () => clearTimeout(id);
+  }, [atPeek]);
+
   // Debounced Photon search for free-text input; the model auto-selects the first
   // result on arrival.
   const searchAbort = useRef<AbortController | null>(null);
@@ -141,14 +156,19 @@ export function LocationSearchSheet() {
   return (
     <>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.SearchBar
-        placeholder="Search or paste a location"
-        autoCapitalize="none"
-        // Keep the navigation bar (and its Cancel/Select buttons) on screen while
-        // the search field is active — by default the search controller hides it.
-        hideNavigationBar={false}
-        onChangeText={(e) => dispatch({ type: 'queryChanged', text: e.nativeEvent.text })}
-      />
+      {/* Hidden at the peek detent, where the sheet title shows the selection
+          instead; its text is restored on reappear (the native field is uncontrolled). */}
+      {atPeek ? null : (
+        <Stack.SearchBar
+          ref={searchBarRef}
+          placeholder="Search or paste a location"
+          autoCapitalize="none"
+          // Keep the navigation bar (and its Cancel/Select buttons) on screen while
+          // the search field is active — by default the search controller hides it.
+          hideNavigationBar={false}
+          onChangeText={(e) => dispatch({ type: 'queryChanged', text: e.nativeEvent.text })}
+        />
+      )}
 
       {/* Top-bar controls. Cancel aborts the pick; Select commits the current
           selection (a result/address or a map-tapped pin) — armed whenever there's
@@ -186,7 +206,13 @@ export function LocationSearchSheet() {
             the sheet reads as liquid glass over the map. */}
         <Form modifiers={[scrollContentBackground('hidden'), background(c.backgroundGlass)]}>
           {
-            <Section modifiers={[listRowBackground(c.surfaceGlass)]}>
+            <Section
+              modifiers={[
+                listRowBackground(c.surfaceGlass),
+                // Animate the map-tapped pin row sliding in/out as the pin appears.
+                animation(Animation.default, state.pin != null),
+              ]}
+            >
               {rowList.map((row, i) => {
                 if (row.kind === 'pin') {
                   const key: SelectionKey = { kind: 'pin' };

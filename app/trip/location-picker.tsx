@@ -1,17 +1,24 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
+import * as Location from 'expo-location';
 
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
 import { useTripStore } from '@/lib/store';
 import { usePickerStore } from '@/lib/location-picker-store';
 import { cameraTarget, resultPins } from '@/lib/location-picker-model';
 import { effectiveTripId } from '@/lib/active-trip';
+import { tripRouteCoords } from '@/lib/trip-route';
+import { centerOnUser, requestUserLocationPermission } from '@/lib/user-location';
 import { todayString } from '@/lib/date-utils';
 
 // Lifts the selected point into the area the search sheet leaves visible, so the
 // chosen pin sits above the sheet rather than behind it.
 const SEARCH_PANEL_FRACTION = 0.5;
+
+// A map tap is held briefly before it drops a pin, so a double-tap-to-zoom (two
+// quick taps) cancels it instead of leaving a stray pin behind.
+const TAP_TO_PIN_DELAY_MS = 300;
 
 // The map-centered Location Picker (ADR-0012): a full-screen page showing the
 // trip's Pins/route greyed as context with accent result/dropped pins on top. The
@@ -77,18 +84,68 @@ export default function LocationPickerScreen() {
     // targetKey captures the meaningful change; mapRef/target identity is stable enough.
   }, [targetKey]);
 
+  // Show the traveller's own position (when permitted) and, on first load, decide
+  // the opening camera the same way the home map does: frame the trip's pins when
+  // it has any, otherwise zoom in on the traveller. Runs once, after a trip (if
+  // any) has loaded so the pin count is known.
+  const [showUserLocation, setShowUserLocation] = useState(false);
+  const didInitialCenter = useRef(false);
+  useEffect(() => {
+    if (didInitialCenter.current) return;
+    if (summary && !trip) return; // wait for the trip to load before deciding
+    didInitialCenter.current = true;
+    const hasPins = trip ? tripRouteCoords(trip).length > 0 : false;
+    let cancelled = false;
+    void (async () => {
+      const granted = await requestUserLocationPermission(Location);
+      if (cancelled) return;
+      setShowUserLocation(granted);
+      // With no trip pins to frame, zoom in on the traveller (the route framing is
+      // TripMap's default viewport when there are pins).
+      if (!hasPins && granted) {
+        const result = await centerOnUser(Location);
+        if (!cancelled && result.kind === 'located') {
+          mapRef.current?.centerOn(result.coordinates, { panelFraction: SEARCH_PANEL_FRACTION });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [trip, summary]);
+
+  // A map tap is held for TAP_TO_PIN_DELAY_MS before dropping a pin so a quick
+  // double-tap (zoom) cancels it rather than leaving a stray pin.
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+    },
+    [],
+  );
+
   return (
     <View style={StyleSheet.absoluteFill}>
       <TripMap
         ref={mapRef}
         trip={trip}
         dimmed
+        showUserLocation={showUserLocation}
         resultPins={resultPins(state)}
         droppedPin={state.pin}
         onMapPress={(coords) => {
-          // A map tap drops (or moves) the pin at any time — it leads the result
-          // list, auto-selected, until another row is chosen.
-          usePickerStore.getState().dispatch({ type: 'mapTapped', coords });
+          // A second tap inside the window is a double-tap zoom — cancel the pending
+          // pin. Otherwise drop (or move) the pin after the delay; it leads the
+          // result list, auto-selected, until another row is chosen.
+          if (tapTimer.current) {
+            clearTimeout(tapTimer.current);
+            tapTimer.current = null;
+            return;
+          }
+          tapTimer.current = setTimeout(() => {
+            tapTimer.current = null;
+            usePickerStore.getState().dispatch({ type: 'mapTapped', coords });
+          }, TAP_TO_PIN_DELAY_MS);
         }}
       />
     </View>

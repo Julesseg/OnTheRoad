@@ -40,6 +40,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   listRowBackground: vi.fn(() => ({})),
   scrollContentBackground: vi.fn(() => ({})),
   tint: vi.fn(() => ({})),
+  animation: vi.fn(() => ({})),
+  Animation: { default: {} },
 }));
 
 const { back, setOptions, detentListeners } = vi.hoisted(() => ({
@@ -54,19 +56,24 @@ vi.mock('expo-router', async () => {
   const React = await import('react');
   const Stack: any = () => null;
   Stack.Header = () => null;
-  Stack.SearchBar = ({
-    placeholder,
-    onChangeText,
-  }: {
-    placeholder?: string;
-    onChangeText?: (e: { nativeEvent: { text: string } }) => void;
-  }) =>
-    React.createElement('input', {
-      placeholder,
-      'aria-label': placeholder,
-      onChange: (e: { target: { value: string } }) =>
-        onChangeText?.({ nativeEvent: { text: e.target.value } }),
-    });
+  Stack.SearchBar = React.forwardRef(
+    (
+      {
+        placeholder,
+        onChangeText,
+      }: {
+        placeholder?: string;
+        onChangeText?: (e: { nativeEvent: { text: string } }) => void;
+      },
+      _ref: React.Ref<unknown>,
+    ) =>
+      React.createElement('input', {
+        placeholder,
+        'aria-label': placeholder,
+        onChange: (e: { target: { value: string } }) =>
+          onChangeText?.({ nativeEvent: { text: e.target.value } }),
+      }),
+  );
   Stack.Toolbar = ({ children }: { children?: React.ReactNode }) =>
     React.createElement('div', null, children);
   Stack.Toolbar.Button = ({
@@ -266,5 +273,24 @@ describe('LocationSearchSheet', () => {
 
     emitDetent(1); // search
     expect(setOptions).toHaveBeenLastCalledWith({ title: '' });
+  });
+
+  it('hides the search bar at the peek detent and shows it again at the search detent', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', photonFetchReturning([PIKE_FEATURE]));
+    usePickerStore.getState().begin(() => {});
+    render(<LocationSearchSheet />);
+
+    type('pike');
+    await flushDebounce();
+    expect(screen.getByLabelText('Search or paste a location')).toBeInTheDocument();
+
+    emitDetent(0); // peek — the title stands in, so the bar is hidden
+    expect(screen.queryByLabelText('Search or paste a location')).not.toBeInTheDocument();
+    // The query is retained in state while the bar is gone.
+    expect(usePickerStore.getState().state.query).toBe('pike');
+
+    emitDetent(1); // back to search — the bar reappears
+    expect(screen.getByLabelText('Search or paste a location')).toBeInTheDocument();
   });
 });
