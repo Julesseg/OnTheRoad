@@ -66,10 +66,12 @@ other goals are reinterpreted into native-form terms:
 ## Consequences
 
 - An optional time can never be expressed by a native picker's *value* (it always
-  has one); the "unset" state lives entirely in the surrounding row (placeholder
-  + inline Clear). A future reader must not "simplify" the time rows down to a
-  bare `DatePicker` — that silently destroys optionality for Location/Activity
-  `time` and Accommodation `checkIn`/`checkOut`.
+  has one); the "unset" state must live in the surrounding row. **The specific
+  "placeholder + inline Clear" mechanism here is superseded by
+  [ADR-0014](0014-reminders-style-optional-item-fields.md)**, which moves the
+  unset state into a toggle-expand row; the underlying rule — never reduce the
+  time row to a bare `DatePicker`, which silently destroys optionality — still
+  holds.
 - The forms will look **native and dense**, not airy. This is intentional and is
   the main reason for this ADR: someone re-reading the original brief will ask
   why the forms aren't full of negative space — the answer is this trade.
