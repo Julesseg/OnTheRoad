@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
@@ -57,10 +57,10 @@ import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
 import { beginLocationPick } from '@/lib/location-picker-store';
 import {
   ENTRY_SENTINEL,
-  mergeEntryUp,
+  insertEntryAfter,
   moveEntries,
+  removeEntry,
   sanitizeChecklist,
-  splitEntry,
 } from '@/lib/checklist';
 import type { TextFieldRef } from '@expo/ui/swift-ui';
 import { newId } from '@/lib/id';
@@ -194,17 +194,16 @@ function TimeRow({
 // the system swipe-to-delete and reorder the system long-press drag — both
 // wired on the surrounding List.ForEach, not here.
 //
-// The rows behave like lines in a paragraph. The native text always carries a
-// leading sentinel (see `ENTRY_SENTINEL`) so we can read three intents out of a
-// single `onTextChange`:
-//   - text lost its sentinel  → backspace at offset 0 → merge into the row above
-//   - text gained a newline   → Return → split, the tail moving to a new row
+// The native text always carries a leading sentinel (see `ENTRY_SENTINEL`) so a
+// single `onTextChange` can tell apart three intents:
+//   - text lost its sentinel  → Backspace at offset 0 → delete (if empty) / no-op
+//   - text gained a newline   → Return → add a fresh row right below this one
 //   - anything else           → an ordinary rename
-// Using the text stream (rather than SwiftUI's `.onSubmit`, which resigns the
-// keyboard) is what lets Return move the caret to the next row without the
-// keyboard dropping and springing back. A freshly created row opens focused via
-// `autoFocus` (the reliable native path); the parent handles caret placement and
-// the merge/first-row cases imperatively through `registerRef`.
+// Reading the text stream (rather than SwiftUI's `.onSubmit`, which resigns the
+// keyboard) is what lets Return add the next row without the keyboard dropping
+// and springing back. A freshly created row opens focused via `autoFocus` (the
+// reliable native path); the parent focuses the previous row on delete through
+// `registerRef`.
 function ChecklistEntryRow({
   entry,
   position,
@@ -212,8 +211,8 @@ function ChecklistEntryRow({
   registerRef,
   onRename,
   onToggle,
-  onSplit,
-  onMergeUp,
+  onAddAfter,
+  onDeleteEmpty,
 }: {
   entry: ChecklistItem;
   position: number;
@@ -221,8 +220,8 @@ function ChecklistEntryRow({
   registerRef: (id: string, ref: TextFieldRef | null) => void;
   onRename: (id: string, label: string) => void;
   onToggle: () => void;
-  onSplit: (id: string, before: string, after: string) => void;
-  onMergeUp: (id: string, trailing: string) => void;
+  onAddAfter: (id: string) => void;
+  onDeleteEmpty: (id: string) => void;
 }) {
   const { accent, textSubtle } = useThemeColors();
   // Seed the native field with the sentinel ahead of the label; React state and
@@ -232,21 +231,25 @@ function ChecklistEntryRow({
 
   function handleTextChange(raw: string) {
     if (!raw.startsWith(ENTRY_SENTINEL)) {
-      // The sentinel was backspaced away — the caret was at the very start. The
-      // parent merges into the row above (or, for the first row, deletes it or
-      // restores the sentinel).
-      onMergeUp(entry.id, raw);
+      // The sentinel was backspaced away — the caret was at the very start.
+      if (raw === '') {
+        // Empty row: delete it (the parent focuses the row above).
+        onDeleteEmpty(entry.id);
+      } else {
+        // Non-empty row: Backspace at the start does nothing; put the sentinel
+        // back and keep the caret pinned just after it.
+        fieldRef.current?.setText(ENTRY_SENTINEL + raw);
+        fieldRef.current?.setSelection(ENTRY_SENTINEL.length, ENTRY_SENTINEL.length);
+      }
       return;
     }
     const body = raw.slice(ENTRY_SENTINEL.length);
     const nl = body.indexOf('\n');
     if (nl !== -1) {
-      const before = body.slice(0, nl);
-      const after = body.slice(nl + 1);
-      // Drop the newline (and the moved tail) from this field straight away so
-      // the row never visibly grows to two lines while the split commits.
-      fieldRef.current?.setText(ENTRY_SENTINEL + before);
-      onSplit(entry.id, before, after);
+      // Return: keep this row's text (drop the newline) and add a blank row
+      // below it for the caret to move to.
+      fieldRef.current?.setText(ENTRY_SENTINEL + body.slice(0, nl) + body.slice(nl + 1));
+      onAddAfter(entry.id);
       return;
     }
     onRename(entry.id, body);
@@ -349,10 +352,10 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   }
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
-  // Live handles to each row's native TextField, keyed by entry id, so a merge
-  // can move focus and place the caret on the surviving row imperatively. New
-  // rows instead open focused via `autoFocus` (`focusId`) — the reliable native
-  // path for raising the keyboard, which `ref.focus()` from an effect is not.
+  // Live handles to each row's native TextField, keyed by entry id, so deleting
+  // a row can move focus onto the one above imperatively. New rows instead open
+  // focused via `autoFocus` (`focusId`) — the reliable native path for raising
+  // the keyboard, which `ref.focus()` from an effect is not.
   const rowRefs = useRef(new Map<string, TextFieldRef>());
   const [focusId, setFocusId] = useState<string | null>(null);
   const identity = itemIdentity(category);
@@ -361,16 +364,6 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
     if (ref) rowRefs.current.set(id, ref);
     else rowRefs.current.delete(id);
   }
-
-  // `autoFocus` lands the caret at the end of the row's text; nudge it to the
-  // line start (just past the sentinel) so a fresh row begins at column 0 and a
-  // split sits before the moved tail.
-  useEffect(() => {
-    if (!focusId) return;
-    rowRefs.current
-      .get(focusId)
-      ?.setSelection(ENTRY_SENTINEL.length, ENTRY_SENTINEL.length);
-  }, [focusId]);
 
   function addEntry() {
     const id = newId();
@@ -382,38 +375,24 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
     setChecklist((cl) => cl.map((e) => (e.id === id ? { ...e, label } : e)));
   }
 
-  function splitEntryAt(id: string, before: string, after: string) {
-    const { checklist: next, focus } = splitEntry(checklist, id, before, after, newId);
+  function addEntryAfter(id: string) {
+    const { checklist: next, focusId: created } = insertEntryAfter(checklist, id, newId);
     setChecklist(next);
-    setFocusId(focus.id);
+    setFocusId(created);
   }
 
-  function mergeEntryAt(id: string, trailing: string) {
-    const i = checklist.findIndex((e) => e.id === id);
-    if (i <= 0) {
-      // First row — nothing above to merge into. Delete it and dismiss the
-      // keyboard when it's empty; otherwise put the sentinel back and stay put.
-      const ref = rowRefs.current.get(id);
-      if (trailing === '') {
-        ref?.blur();
-        setChecklist((cl) => cl.filter((e) => e.id !== id));
-      } else {
-        ref?.setText(ENTRY_SENTINEL + trailing);
-        ref?.setSelection(ENTRY_SENTINEL.length, ENTRY_SENTINEL.length);
-      }
-      return;
-    }
-    const { checklist: next, focus } = mergeEntryUp(checklist, id, trailing);
-    if (!focus) return;
-    const merged = next.find((e) => e.id === focus.id);
-    // Move focus and the caret onto the previous row *before* removing this one,
-    // so the keyboard keeps a first responder throughout and never drops.
-    const ref = rowRefs.current.get(focus.id);
-    if (ref) {
-      ref.setText(ENTRY_SENTINEL + (merged?.label ?? ''));
-      ref.focus();
+  function deleteEmptyEntry(id: string) {
+    const { checklist: next, focus } = removeEntry(checklist, id);
+    // Focus the row above (caret at its end) *before* removing this one, so the
+    // keyboard keeps a first responder throughout and never drops. When there's
+    // no row above, just dismiss the keyboard.
+    if (focus) {
+      const ref = rowRefs.current.get(focus.id);
+      ref?.focus();
       const at = ENTRY_SENTINEL.length + focus.cursor;
-      ref.setSelection(at, at);
+      ref?.setSelection(at, at);
+    } else {
+      rowRefs.current.get(id)?.blur();
     }
     setChecklist(next);
   }
@@ -610,8 +589,8 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                       cl.map((e) => (e.id === entry.id ? { ...e, checked: !e.checked } : e)),
                     )
                   }
-                  onSplit={splitEntryAt}
-                  onMergeUp={mergeEntryAt}
+                  onAddAfter={addEntryAfter}
+                  onDeleteEmpty={deleteEmptyEntry}
                 />
               ))}
             </List.ForEach>

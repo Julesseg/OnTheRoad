@@ -17,46 +17,33 @@ export const ENTRY_SENTINEL = '\u200B';
  * to the native field). */
 export type ChecklistFocus = { id: string; cursor: number };
 
-/** Split entry `id` at the caret: `before` stays on the row, `after` moves to a
- * fresh row inserted directly below it, and the caret lands at the start of that
- * new row — Return behaving like a newline in a paragraph. Pure. Returns the
- * list unchanged (focusing the same row) when `id` isn't found. */
-export function splitEntry(
+/** Insert a fresh blank entry directly below `id` (Return on a row). The current
+ * row keeps its text; the new row is the one to focus. Pure. Appends to the end
+ * when `id` isn't found. */
+export function insertEntryAfter(
   checklist: ChecklistItem[],
   id: string,
-  before: string,
-  after: string,
   makeId: () => string,
-): { checklist: ChecklistItem[]; focus: ChecklistFocus } {
+): { checklist: ChecklistItem[]; focusId: string } {
+  const created: ChecklistItem = { id: makeId(), label: '', checked: false };
   const i = checklist.findIndex((e) => e.id === id);
-  if (i === -1) return { checklist, focus: { id, cursor: before.length } };
-  const created: ChecklistItem = { id: makeId(), label: after, checked: false };
-  const next = [
-    ...checklist.slice(0, i),
-    { ...checklist[i], label: before },
-    created,
-    ...checklist.slice(i + 1),
-  ];
-  return { checklist: next, focus: { id: created.id, cursor: 0 } };
+  if (i === -1) return { checklist: [...checklist, created], focusId: created.id };
+  const next = [...checklist.slice(0, i + 1), created, ...checklist.slice(i + 1)];
+  return { checklist: next, focusId: created.id };
 }
 
-/** Merge entry `id` into the row above it, appending `trailing` (whatever sat
- * after the deleted sentinel) to the previous label and placing the caret at the
- * join. Backspace at the start of a line, paragraph-style. Pure. A no-op
- * (`focus: null`) when `id` is the first row — there's nothing above to merge
- * into. */
-export function mergeEntryUp(
+/** Remove entry `id` (Backspace on an empty row). `focus` points at the row
+ * above with the caret at its end, or is `null` when `id` was the first row
+ * (nothing above to land on). Pure. */
+export function removeEntry(
   checklist: ChecklistItem[],
   id: string,
-  trailing: string,
 ): { checklist: ChecklistItem[]; focus: ChecklistFocus | null } {
   const i = checklist.findIndex((e) => e.id === id);
-  if (i <= 0) return { checklist, focus: null };
-  const prev = checklist[i - 1];
-  const cursor = prev.label.length;
-  const merged = { ...prev, label: prev.label + trailing };
-  const next = [...checklist.slice(0, i - 1), merged, ...checklist.slice(i + 1)];
-  return { checklist: next, focus: { id: prev.id, cursor } };
+  if (i === -1) return { checklist, focus: null };
+  const next = [...checklist.slice(0, i), ...checklist.slice(i + 1)];
+  const focus = i > 0 ? { id: checklist[i - 1].id, cursor: checklist[i - 1].label.length } : null;
+  return { checklist: next, focus };
 }
 
 /** Progress label for a checklist, e.g. "2/5" — checked count over total. */

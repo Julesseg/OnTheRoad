@@ -565,8 +565,8 @@ describe('ItemEditor', () => {
     const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
     fields[0].setSelectionRange(fields[0].value.length, fields[0].value.length);
     fireEvent.keyDown(fields[0], { key: 'Enter' });
-    const afterSplit = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
-    fireEvent.change(afterSplit[1], { target: { value: 'Middle' } });
+    const afterAdd = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    fireEvent.change(afterAdd[1], { target: { value: 'Middle' } });
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
@@ -577,60 +577,58 @@ describe('ItemEditor', () => {
     ]);
   });
 
-  it('Return mid-entry moves the text after the caret into the new row (paragraph split)', async () => {
+  it('Return keeps the current row’s text and adds a blank row below it (no split)', async () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor itemId="cl-split" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    render(<ItemEditor itemId="cl-add" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
     const field = screen.getByPlaceholderText('Checklist entry') as HTMLInputElement;
     fireEvent.change(field, { target: { value: 'HelloWorld' } });
-    field.setSelectionRange(5, 5); // caret between "Hello" and "World"
+    field.setSelectionRange(5, 5); // caret mid-text — must NOT split the text
     fireEvent.keyDown(field, { key: 'Enter' });
 
     const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
     expect(fields).toHaveLength(2);
-    expect(fields[0].value).toBe('Hello');
-    expect(fields[1].value).toBe('World');
-    // Caret lands at the start of the new line, which now holds the moved tail.
+    expect(fields[0].value).toBe('HelloWorld'); // text stays put on the row
+    expect(fields[1].value).toBe(''); // the new row below is blank
     expect(fields[1]).toHaveFocus();
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect((onSubmit.mock.calls[0][0] as Item).checklist!.map((e) => e.label)).toEqual([
-      'Hello',
-      'World',
+      'HelloWorld',
     ]);
   });
 
-  it('Backspace at the start of an entry merges it into the previous one', async () => {
+  it('Backspace at the start of a non-empty entry does nothing', async () => {
     const onSubmit = vi.fn();
     const initial: Item = {
-      id: 'cl-merge', name: 'Pack', category: 'activity',
+      id: 'cl-nb', name: 'Pack', category: 'activity',
       checklist: [
         { id: 'a', label: 'Hello', checked: false },
         { id: 'b', label: 'World', checked: false },
       ],
     };
-    render(<ItemEditor itemId="cl-merge" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    render(<ItemEditor itemId="cl-nb" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
     const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
     fields[1].setSelectionRange(0, 0);
     fireEvent.keyDown(fields[1], { key: 'Backspace' });
 
     const after = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
-    expect(after).toHaveLength(1);
-    expect(after[0].value).toBe('HelloWorld');
-    expect(after[0]).toHaveFocus();
+    expect(after).toHaveLength(2);
+    expect(after.map((f) => f.value)).toEqual(['Hello', 'World']);
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect((onSubmit.mock.calls[0][0] as Item).checklist).toEqual([
-      { id: 'a', label: 'HelloWorld', checked: false },
+      { id: 'a', label: 'Hello', checked: false },
+      { id: 'b', label: 'World', checked: false },
     ]);
   });
 
-  it('Backspace at the start of an empty entry deletes it', async () => {
+  it('Backspace at the start of an empty entry deletes it and focuses the previous one', async () => {
     const onSubmit = vi.fn();
     const initial: Item = {
       id: 'cl-bsp', name: 'Pack', category: 'activity',
@@ -655,7 +653,7 @@ describe('ItemEditor', () => {
     ]);
   });
 
-  it('Backspace at the start of a non-empty first entry keeps it (nothing above to merge)', () => {
+  it('Backspace at the start of a non-empty first entry keeps it', () => {
     const initial: Item = {
       id: 'cl-first', name: 'Pack', category: 'activity',
       checklist: [{ id: 'a', label: 'Hello', checked: false }],

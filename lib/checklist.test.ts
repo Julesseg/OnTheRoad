@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   checklistProgress,
-  mergeEntryUp,
+  insertEntryAfter,
   moveEntries,
+  removeEntry,
   sanitizeChecklist,
-  splitEntry,
 } from './checklist';
 import type { ChecklistItem } from './schema';
 
@@ -57,56 +57,54 @@ describe('moveEntries', () => {
   });
 });
 
-describe('splitEntry', () => {
+describe('insertEntryAfter', () => {
   let n = 0;
   const makeId = () => `new${n++}`;
   beforeEach(() => {
     n = 0;
   });
 
-  it('keeps `before` on the row and moves `after` to a fresh row right below it', () => {
-    const list = labelled('Hello', 'Last'); // ids c0, c1
-    const { checklist, focus } = splitEntry(list, 'c0', 'Hel', 'lo', makeId);
-    expect(checklist.map((e) => e.label)).toEqual(['Hel', 'lo', 'Last']);
+  it('inserts a fresh blank row directly below the given one and focuses it', () => {
+    const list = labelled('First', 'Last'); // ids c0, c1
+    const { checklist, focusId } = insertEntryAfter(list, 'c0', makeId);
+    expect(checklist.map((e) => e.label)).toEqual(['First', '', 'Last']);
     expect(checklist.map((e) => e.id)).toEqual(['c0', 'new0', 'c1']);
-    // The new row takes focus with the caret at its start (the moved tail).
-    expect(focus).toEqual({ id: 'new0', cursor: 0 });
+    expect(checklist[1]).toMatchObject({ label: '', checked: false });
+    expect(focusId).toBe('new0');
   });
 
-  it('preserves the original row id and checked state, the new row starting unchecked', () => {
-    const list = labelled('First'); // c0 is checked (even index)
-    const { checklist } = splitEntry(list, 'c0', 'Fir', 'st', makeId);
-    expect(checklist[0]).toMatchObject({ id: 'c0', label: 'Fir', checked: true });
-    expect(checklist[1]).toMatchObject({ label: 'st', checked: false });
+  it('leaves the current row’s text untouched', () => {
+    const list = labelled('Keep me'); // c0
+    const { checklist } = insertEntryAfter(list, 'c0', makeId);
+    expect(checklist[0]).toMatchObject({ id: 'c0', label: 'Keep me' });
   });
 
-  it('returns the list unchanged when the id is missing', () => {
+  it('appends to the end when the id is missing', () => {
     const list = labelled('A', 'B');
-    const result = splitEntry(list, 'nope', 'x', 'y', makeId);
-    expect(result.checklist).toBe(list);
+    const { checklist, focusId } = insertEntryAfter(list, 'nope', makeId);
+    expect(checklist.map((e) => e.label)).toEqual(['A', 'B', '']);
+    expect(focusId).toBe('new0');
   });
 });
 
-describe('mergeEntryUp', () => {
-  it('appends the trailing text to the previous label and removes the row', () => {
-    const list = labelled('Hello', 'World'); // c0, c1
-    const { checklist, focus } = mergeEntryUp(list, 'c1', 'World');
-    expect(checklist.map((e) => e.label)).toEqual(['HelloWorld']);
-    expect(checklist[0].id).toBe('c0');
-    // Caret lands at the join — the end of the original previous label.
-    expect(focus).toEqual({ id: 'c0', cursor: 'Hello'.length });
-  });
-
-  it('merging an empty row just deletes it, caret at the end of the previous one', () => {
-    const list = labelled('Passport', '');
-    const { checklist, focus } = mergeEntryUp(list, 'c1', '');
+describe('removeEntry', () => {
+  it('removes the row and points focus at the end of the row above', () => {
+    const list = labelled('Passport', ''); // c0, c1
+    const { checklist, focus } = removeEntry(list, 'c1');
     expect(checklist.map((e) => e.label)).toEqual(['Passport']);
     expect(focus).toEqual({ id: 'c0', cursor: 'Passport'.length });
   });
 
-  it('is a no-op for the first row — nothing above to merge into', () => {
-    const list = labelled('Hello', 'World');
-    const { checklist, focus } = mergeEntryUp(list, 'c0', 'Hello');
+  it('returns null focus when the first row is removed (nothing above)', () => {
+    const list = labelled('', 'World');
+    const { checklist, focus } = removeEntry(list, 'c0');
+    expect(checklist.map((e) => e.label)).toEqual(['World']);
+    expect(focus).toBeNull();
+  });
+
+  it('is a no-op when the id is missing', () => {
+    const list = labelled('A', 'B');
+    const { checklist, focus } = removeEntry(list, 'nope');
     expect(checklist).toBe(list);
     expect(focus).toBeNull();
   });
