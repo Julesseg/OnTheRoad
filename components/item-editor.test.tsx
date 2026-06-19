@@ -468,13 +468,13 @@ describe('ItemEditor', () => {
     expect(fields.map((f) => f.defaultValue)).toEqual(['Passport', 'Sunscreen']);
   });
 
-  it('adds a checklist entry and includes it on save, unchecked with a fresh id', async () => {
+  it('adds an entry typed in the composer and includes it on save, unchecked with a fresh id', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="cl-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack bags' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-    fireEvent.change(screen.getByPlaceholderText('Checklist entry'), { target: { value: 'Passport' } });
+    // A draft left in the composer (never submitted with Return) is still saved.
+    fireEvent.change(screen.getByPlaceholderText('Add entry'), { target: { value: 'Passport' } });
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
@@ -484,33 +484,35 @@ describe('ItemEditor', () => {
     expect(item.checklist![0].id).toBeTruthy();
   });
 
-  it('focuses the entry it just added so the keyboard opens', () => {
-    render(<ItemEditor itemId="cl-f" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-    expect(screen.getByPlaceholderText('Checklist entry')).toHaveFocus();
-  });
-
-  it('does not steal focus to existing entries when editing an item', () => {
+  it('does not grab the keyboard onto the composer when opening an item', () => {
     const initial: Item = {
       id: 'cl-nf', name: 'Pack', category: 'activity',
       checklist: [{ id: 'c1', label: 'Passport', checked: false }],
     };
     render(<ItemEditor itemId="cl-nf" initialItem={initial} onSubmit={() => {}} />);
     expect(screen.getByPlaceholderText('Checklist entry')).not.toHaveFocus();
+    expect(screen.getByPlaceholderText('Add entry')).not.toHaveFocus();
   });
 
-  it('hitting Return on an entry adds a new blank entry to keep inputting', () => {
+  it('Return in the composer commits the entry and keeps the composer focused and clear', () => {
     render(<ItemEditor itemId="cl-r" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-    fireEvent.change(screen.getByPlaceholderText('Checklist entry'), { target: { value: 'Passport' } });
+    const composer = screen.getByPlaceholderText('Add entry') as HTMLInputElement;
+    fireEvent.change(composer, { target: { value: 'Passport' } });
+    fireEvent.keyDown(composer, { key: 'Enter' });
 
-    fireEvent.keyDown(screen.getByDisplayValue('Passport'), { key: 'Enter' });
+    // The committed entry now shows as its own row; the composer stays put,
+    // cleared and focused so the keyboard never has to move to add the next one.
+    const entries = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    expect(entries.map((f) => f.value)).toEqual(['Passport']);
+    expect(composer.value).toBe('');
+    expect(composer).toHaveFocus();
 
-    const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
-    expect(fields).toHaveLength(2);
-    expect(fields[1].defaultValue).toBe('');
-    // The new entry takes focus so typing continues without reaching for the row.
-    expect(fields[1]).toHaveFocus();
+    // ...and you can keep typing the next entry right away.
+    fireEvent.change(composer, { target: { value: 'Sunscreen' } });
+    fireEvent.keyDown(composer, { key: 'Enter' });
+    expect(
+      (screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[]).map((f) => f.value),
+    ).toEqual(['Passport', 'Sunscreen']);
   });
 
   const PACK_ITEM: Item = {
@@ -603,16 +605,16 @@ describe('ItemEditor', () => {
     ]);
   });
 
-  it('drops entries left blank instead of saving them', async () => {
+  it('trims a committed entry and drops a blank composer draft on save', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="cl-4" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack bags' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-    const fields = screen.getAllByPlaceholderText('Checklist entry');
-    fireEvent.change(fields[0], { target: { value: '  Passport  ' } });
-    // second entry stays blank
+    const composer = screen.getByPlaceholderText('Add entry');
+    fireEvent.change(composer, { target: { value: '  Passport  ' } });
+    fireEvent.keyDown(composer, { key: 'Enter' });
+    // Leave only whitespace in the composer — it must not become an entry.
+    fireEvent.change(composer, { target: { value: '   ' } });
 
     save();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
