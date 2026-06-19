@@ -106,40 +106,33 @@ vi.mock('@expo/ui/swift-ui', async () => {
           placeholder,
           onTextChange,
           autoFocus,
-          modifiers,
+          axis,
         }: {
           text?: { value: string };
           placeholder?: string;
           onTextChange?: (t: string) => void;
           autoFocus?: boolean;
-          modifiers?: Record<string, unknown>[];
+          axis?: 'horizontal' | 'vertical';
         },
         ref: React.Ref<{ setText: (t: string) => void; focus: () => void }>,
       ) => {
-        const inputRef = React.useRef<HTMLInputElement>(null);
+        const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement>(null);
         React.useImperativeHandle(ref, () => ({
           setText: (t: string) => {
             if (inputRef.current) inputRef.current.value = t;
           },
-          // Mirrors the native TextFieldRef.focus() the row calls on Return to
-          // keep the keyboard up while the next entry mounts.
           focus: () => inputRef.current?.focus(),
         }));
-        // The native `onSubmit` modifier fires on Return; mirror it as an Enter
-        // keydown so tests can drive the "add next entry" behavior.
-        const onSubmit = modifiers?.find((m) => m && '__onSubmit' in m)?.__onSubmit as
-          | (() => void)
-          | undefined;
-        return React.createElement('input', {
+        // Vertical (multiline) fields keep newlines, so render them as a textarea
+        // — the composer relies on a Return-inserted "\n" to commit an entry, and
+        // a plain <input> would strip it. Single-line fields stay <input>.
+        return React.createElement(axis === 'vertical' ? 'textarea' : 'input', {
           ref: inputRef,
           placeholder,
           'aria-label': placeholder,
           autoFocus,
           defaultValue: text?.value,
           onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
-          onKeyDown: (e: { key: string }) => {
-            if (e.key === 'Enter') onSubmit?.();
-          },
         });
       },
     ),
@@ -494,22 +487,21 @@ describe('ItemEditor', () => {
     expect(screen.getByPlaceholderText('Add entry')).not.toHaveFocus();
   });
 
-  it('Return in the composer commits the entry and keeps the composer focused and clear', () => {
+  it('Return (a newline) in the composer commits the entry and leaves the composer clear', () => {
     render(<ItemEditor itemId="cl-r" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
-    const composer = screen.getByPlaceholderText('Add entry') as HTMLInputElement;
-    fireEvent.change(composer, { target: { value: 'Passport' } });
-    fireEvent.keyDown(composer, { key: 'Enter' });
+    // The composer is multiline: Return inserts a "\n" instead of submitting, so
+    // the keyboard never resigns. The newline is what triggers the commit.
+    const composer = screen.getByPlaceholderText('Add entry') as HTMLTextAreaElement;
+    fireEvent.change(composer, { target: { value: 'Passport\n' } });
 
-    // The committed entry now shows as its own row; the composer stays put,
-    // cleared and focused so the keyboard never has to move to add the next one.
+    // The committed entry now shows as its own row; the composer stays put and
+    // is cleared (newline stripped) so the keyboard never has to move.
     const entries = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
     expect(entries.map((f) => f.value)).toEqual(['Passport']);
     expect(composer.value).toBe('');
-    expect(composer).toHaveFocus();
 
     // ...and you can keep typing the next entry right away.
-    fireEvent.change(composer, { target: { value: 'Sunscreen' } });
-    fireEvent.keyDown(composer, { key: 'Enter' });
+    fireEvent.change(composer, { target: { value: 'Sunscreen\n' } });
     expect(
       (screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[]).map((f) => f.value),
     ).toEqual(['Passport', 'Sunscreen']);
@@ -611,8 +603,8 @@ describe('ItemEditor', () => {
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack bags' } });
 
     const composer = screen.getByPlaceholderText('Add entry');
-    fireEvent.change(composer, { target: { value: '  Passport  ' } });
-    fireEvent.keyDown(composer, { key: 'Enter' });
+    // Commit via a Return (newline); surrounding whitespace is trimmed.
+    fireEvent.change(composer, { target: { value: '  Passport  \n' } });
     // Leave only whitespace in the composer — it must not become an entry.
     fireEvent.change(composer, { target: { value: '   ' } });
 

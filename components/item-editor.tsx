@@ -41,8 +41,6 @@ import {
   contentTransition,
   animation,
   Animation,
-  submitLabel,
-  onSubmit as onSubmitModifier,
 } from '@expo/ui/swift-ui/modifiers';
 
 import {
@@ -191,21 +189,17 @@ function TimeRow({
 // wired on the surrounding List.ForEach, not here.
 //
 // New entries are typed in the persistent composer row below the list, not here
-// (see ChecklistComposerRow). Pressing Return (labeled "next") on an existing
-// entry jumps focus down to that composer so you can keep adding without
-// reaching for it.
+// (see ChecklistComposerRow); this row only renames an existing entry.
 function ChecklistEntryRow({
   entry,
   position,
   onRename,
   onToggle,
-  onSubmitEntry,
 }: {
   entry: ChecklistItem;
   position: number;
   onRename: (label: string) => void;
   onToggle: () => void;
-  onSubmitEntry: () => void;
 }) {
   const { accent, textSubtle } = useThemeColors();
   const labelState = useNativeState(entry.label);
@@ -222,34 +216,28 @@ function ChecklistEntryRow({
           onTapGesture(onToggle),
         ]}
       />
-      <TextField
-        text={labelState}
-        placeholder="Checklist entry"
-        onTextChange={onRename}
-        modifiers={[submitLabel('next'), onSubmitModifier(onSubmitEntry)]}
-      />
+      <TextField text={labelState} placeholder="Checklist entry" onTextChange={onRename} />
     </HStack>
   );
 }
 
-// The persistent "add entry" field that sits at the bottom of the checklist.
-// It is mounted once and never unmounts, which is the whole point: typing an
-// entry and pressing Return commits it to the list above and clears this field
-// *without ever moving focus to a freshly-mounted row*. Focus stays on this same
-// native field the entire time, so the keyboard never bounces (the flicker came
-// from mounting a new row and autofocusing it). `commit` runs on Return and on
-// Save (for a draft typed but not yet submitted); `onChange` keeps the parent's
-// pending-text ref in sync for the Save path.
+// The persistent "add entry" field at the bottom of the checklist. It mounts
+// once and never unmounts, and — crucially — it is a multiline field with NO
+// submit handler. SwiftUI's `.onSubmit` resigns the field's first responder the
+// instant Return is pressed (natively, before any JS runs), which is what bounced
+// the keyboard: re-focusing afterwards over the JS bridge always lands a frame
+// too late. A multiline field instead inserts a newline on Return and keeps the
+// keyboard up. We watch the text for that newline in `onChange`, commit the line
+// as an entry, and strip it — focus never leaves this field, so the keyboard
+// cannot move. (Pasting multiple lines commits each, which is a nice bonus.)
 function ChecklistComposerRow({
   fieldRef,
   textState,
   onChange,
-  onSubmit,
 }: {
   fieldRef: React.RefObject<TextFieldRef | null>;
   textState: ReturnType<typeof useNativeState<string>>;
   onChange: (label: string) => void;
-  onSubmit: () => void;
 }) {
   const { textSubtle } = useThemeColors();
   return (
@@ -259,8 +247,8 @@ function ChecklistComposerRow({
         ref={fieldRef}
         text={textState}
         placeholder="Add entry"
+        axis="vertical"
         onTextChange={onChange}
-        modifiers={[submitLabel('next'), onSubmitModifier(onSubmit)]}
       />
     </HStack>
   );
@@ -337,28 +325,32 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
   const identity = itemIdentity(category);
 
-  // The persistent composer: a single never-unmounting field for adding entries.
-  // `composerRef` lets us keep focus on it after committing; `composerText` holds
-  // the in-progress draft so it can be saved even if the user hits Save without
-  // pressing Return first.
+  // The persistent composer: a single never-unmounting multiline field for
+  // adding entries. `composerText` mirrors its draft so a half-typed entry can
+  // still be saved without pressing Return first.
   const composerRef = useRef<TextFieldRef>(null);
   const composerState = useNativeState('');
   const composerText = useRef('');
 
-  const commitComposer = useCallback(() => {
-    const label = composerText.current.trim();
-    // Clear the field and keep focus on it (same native view, no remount) so the
-    // keyboard never moves — the committed entry mounts above us, unfocused.
-    // setText clears the bound native state, so we don't touch composerState here.
-    composerText.current = '';
-    composerRef.current?.setText('');
-    composerRef.current?.focus();
-    if (label) setChecklist((cl) => [...cl, { id: newId(), label, checked: false }]);
+  // Return inserts a newline in the multiline composer (rather than dismissing
+  // the keyboard). Each completed line becomes an entry; the trailing fragment
+  // stays as the live draft, with the newline stripped from the field so focus
+  // never leaves it.
+  const onComposerChange = useCallback((text: string) => {
+    if (!text.includes('\n')) {
+      composerText.current = text;
+      return;
+    }
+    const parts = text.split('\n');
+    const draft = parts.pop() ?? '';
+    const added = parts
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((label) => ({ id: newId(), label, checked: false }));
+    composerText.current = draft;
+    composerRef.current?.setText(draft);
+    if (added.length) setChecklist((cl) => [...cl, ...added]);
   }, []);
-
-  // Existing entries hand their Return down to the composer so adding can
-  // continue from wherever the user was editing.
-  const focusComposer = useCallback(() => composerRef.current?.focus(), []);
 
   const nameState = useNativeState(defaults.name);
   const notesState = useNativeState(defaults.notes);
@@ -559,19 +551,15 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                       cl.map((e) => (e.id === entry.id ? { ...e, checked: !e.checked } : e)),
                     )
                   }
-                  onSubmitEntry={focusComposer}
                 />
               ))}
             </List.ForEach>
-            {/* Persistent add field: stays mounted so committing an entry never
-                moves focus to a freshly-mounted row (which bounced the keyboard). */}
+            {/* Persistent add field: stays mounted and never submits, so adding
+                an entry never moves focus and the keyboard cannot flicker. */}
             <ChecklistComposerRow
               fieldRef={composerRef}
               textState={composerState}
-              onChange={(t) => {
-                composerText.current = t;
-              }}
-              onSubmit={commitComposer}
+              onChange={onComposerChange}
             />
           </Section>
 
