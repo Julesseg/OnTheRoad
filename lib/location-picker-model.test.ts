@@ -212,8 +212,8 @@ describe('LocationPicker model', () => {
     ]);
     expect(tapped.selected).toEqual({ kind: 'poi' });
     expect(cameraTarget(tapped)).toEqual({ kind: 'point', coords: GUM_WALL.coords });
-    // Its pin draws on top of the search-result pins.
-    expect(resultPins(tapped)).toEqual([GUM_WALL.coords, PIKE.coords, SPACE_NEEDLE.coords]);
+    // While the landmark is active only its pin shows — the candidate pins step aside.
+    expect(resultPins(tapped)).toEqual([GUM_WALL.coords]);
     // A named POI commits with its name as the address.
     expect(committedLocation(tapped)).toEqual({
       address: 'Gum Wall',

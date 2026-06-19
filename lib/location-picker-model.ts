@@ -204,12 +204,14 @@ export function rows(state: PickerState): Row[] {
   return out;
 }
 
-// Accent result pins drawn over the trip's greyed pins, the tapped landmark
-// included. Cleared in pin mode so only the hand-dropped pin shows.
+// Accent result pins drawn over the trip's greyed pins. Cleared in pin mode so
+// only the hand-dropped pin shows. A tapped landmark is the focus, so while one
+// is active only its pin shows — the search-result candidate pins step aside so
+// no stale pin lingers beside it.
 export function resultPins(state: PickerState): Coords[] {
   if (state.mode === 'pin') return [];
-  const pins = resultList(state).map((r) => r.coords);
-  return state.poi ? [state.poi.coords, ...pins] : pins;
+  if (state.poi) return [state.poi.coords];
+  return resultList(state).map((r) => r.coords);
 }
 
 // Where the camera should fly for the current selection. A selected result (or
