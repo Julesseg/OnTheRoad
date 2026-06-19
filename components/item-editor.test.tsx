@@ -422,7 +422,7 @@ describe('ItemEditor', () => {
   it('shows lat,lng in the location row when item has only coords', () => {
     const initial: Item = { id: 'x', name: 'Hike', category: 'activity', location: { lat: 36.39, lng: 25.46 } };
     render(<ItemEditor itemId="x" initialItem={initial} onSubmit={() => {}} />);
-    expect(screen.getByRole('button', { name: '36.39, 25.46' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '36.390, 25.460' })).toBeInTheDocument();
   });
 
   it('clear button removes location; saved item omits location field', async () => {

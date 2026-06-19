@@ -152,10 +152,11 @@ in the [Location Picker](#location-picker), not yet an Item.
 
 A transient marker for a single search candidate inside the
 [Location Picker](#location-picker) — a Photon result, a pasted coordinate, a
-resolved maps link, or a tapped [landmark](#landmark) — drawn in the accent colour over the trip's own greyed
-[Pins](#pin). It is not yet an [Item](#item): it becomes a `location` only if the
-user selects it and confirms. Prefer **result pin** over "candidate"; reserve
-[Pin](#pin) for a located Item already on the trip.
+resolved maps link, a tapped [landmark](#landmark), or a point tapped directly on
+the map — drawn in the accent colour over the trip's own greyed [Pins](#pin). It
+is not yet an [Item](#item): it becomes a `location` only if the user selects it
+and confirms. Prefer **result pin** over "candidate"; reserve [Pin](#pin) for a
+located Item already on the trip.
 
 ### Landmark
 
@@ -174,10 +175,11 @@ full-screen map (the trip's [Pins](#pin) and route shown greyed as context) with
 a search sheet over it. Typing surfaces [result pins](#result-pin) the traveller
 picks from, so a confirmed location almost always carries coordinates; a pasted
 coordinate or maps link resolves to a result pin too, tapping a
-[landmark](#landmark) on the map turns it into one, and a pin can be dropped by
-hand. Confirming a plain address with no coordinates — `{ address }` — is the
-deliberate **last resort**, offered only as a standing fallback row for when
-there is no point to show on the map. See
+[landmark](#landmark) on the map turns it into one, and tapping the map anywhere
+else at any time drops a pin as the auto-selected first row (it disappears once
+another row is chosen). Confirming a plain address with no coordinates —
+`{ address }` — is the deliberate **last resort**, offered only as a standing
+fallback row for when there is no point to show on the map. See
 [ADR-0012](docs/adr/0012-map-centered-location-picker.md).
 
 ### User location
@@ -185,7 +187,9 @@ there is no point to show on the map. See
 The device's own position, shown as the standard blue dot when the traveller
 grants when-in-use location permission (requested as the map first appears). A
 themed control re-centres the map on it — distinct from re-centring on the
-[Trip route](#trip-route), which frames all of a trip's pins.
+[Trip route](#trip-route), which frames all of a trip's pins. The
+[Location Picker](#location-picker) shows the same dot and, when the trip has no
+pins to frame, opens centred on the traveller.
 
 ### App State
 
