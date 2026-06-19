@@ -2,11 +2,12 @@ import { parseLatLng, type Coords } from './coords';
 import type { PhotonResult } from './photon';
 import type { Item } from './schema';
 
-export type Mode = 'search' | 'pin';
-
-// A selectable row's identity. A tapped landmark is its own kind: there is at
-// most one, and choosing any other row discards it (CONTEXT.md#landmark).
+// A selectable row's identity. The map-tapped pin and a tapped landmark (POI) are
+// each their own transient kind: there is at most one of each, and choosing any
+// other row discards it, so a stale pin/POI never lingers behind a different
+// choice. Dropping a pin and tapping a landmark are peers — each clears the other.
 export type SelectionKey =
+  | { kind: 'pin' }
   | { kind: 'poi' }
   | { kind: 'result'; index: number }
   | { kind: 'address' };
@@ -22,23 +23,15 @@ export interface PickerState {
   resolving: boolean;
   // The most recently tapped map landmark (POI), shown as a transient row above
   // the search results. At most one; replaced by the next POI tap and cleared
-  // when any other row is selected, so a stale landmark never lingers.
+  // when any other row is selected (or a pin is dropped), so a stale landmark
+  // never lingers.
   poi: PhotonResult | null;
   selected: SelectionKey | null;
-  mode: Mode;
-  droppedPin: Coords | null;
-  // The search state captured on entering pin mode, restored if the user backs
-  // out of pin mode (X) instead of committing a dropped pin.
-  saved: SavedSearch | null;
-}
-
-interface SavedSearch {
-  query: string;
-  results: PhotonResult[];
-  synthesized: PhotonResult | null;
-  resolving: boolean;
-  poi: PhotonResult | null;
-  selected: SelectionKey | null;
+  // A coordinate placed by tapping empty map. It shows as the leading row and is
+  // auto-selected; it "disappears" the moment another row is selected (or the
+  // query changes), so it never lingers behind a different choice. The map is
+  // always tappable — there is no pin mode.
+  pin: Coords | null;
 }
 
 export const initialPickerState: PickerState = {
@@ -48,9 +41,7 @@ export const initialPickerState: PickerState = {
   resolving: false,
   poi: null,
   selected: null,
-  mode: 'search',
-  droppedPin: null,
-  saved: null,
+  pin: null,
 };
 
 export type PickerEvent =
@@ -58,9 +49,7 @@ export type PickerEvent =
   | { type: 'resultsLoaded'; results: PhotonResult[] }
   | { type: 'urlResolved'; coords: Coords | null }
   | { type: 'selectRow'; key: SelectionKey }
-  | { type: 'enterPinMode' }
-  | { type: 'dropPin'; coords: Coords }
-  | { type: 'cancelPinMode' }
+  | { type: 'mapTapped'; coords: Coords }
   | { type: 'poiSelected'; name: string | null; coords: Coords };
 
 const URL_RE = /^https?:\/\//i;
@@ -94,6 +83,7 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
           resolving: false,
           poi: null,
           selected: { kind: 'result', index: 0 },
+          pin: null,
         };
       }
       if (URL_RE.test(text.trim())) {
@@ -107,10 +97,12 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
           resolving: true,
           poi: null,
           selected: null,
+          pin: null,
         };
       }
       // Free text: results arrive asynchronously via resultsLoaded; clear any
-      // prior selection so the next batch can auto-select its first result.
+      // prior selection so the next batch can auto-select its first result. A new
+      // search supersedes a map-tapped pin or a tapped landmark, so drop both.
       return {
         ...state,
         query: text,
@@ -119,6 +111,7 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
         resolving: false,
         poi: null,
         selected: null,
+        pin: null,
       };
     }
     case 'urlResolved': {
@@ -140,59 +133,53 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
         event.results.length > 0 ? { kind: 'result', index: 0 } : null;
       return { ...state, results: event.results, selected };
     }
-    case 'selectRow':
-      // Choosing any row other than the tapped landmark discards that landmark
-      // (and its map pin), so a stale POI never lingers beside the new choice.
-      if (event.key.kind === 'poi') return { ...state, selected: event.key };
-      return { ...state, poi: null, selected: event.key };
-    case 'enterPinMode': {
-      // Idempotent: the sheet drives this both by drag and by button, so the event
-      // can arrive when already in pin mode — re-saving would clobber the search.
-      if (state.mode === 'pin') return state;
-      const { query, results, synthesized, resolving, poi, selected } = state;
-      return {
-        ...state,
-        mode: 'pin',
-        droppedPin: null,
-        saved: { query, results, synthesized, resolving, poi, selected },
-      };
+    case 'selectRow': {
+      // Selecting the map-tapped pin keeps it (and discards any tapped landmark);
+      // selecting the landmark keeps it (and discards the pin); selecting any other
+      // row discards both, so a stale pin/POI never sits behind a different choice.
+      const pin = event.key.kind === 'pin' ? state.pin : null;
+      const poi = event.key.kind === 'poi' ? state.poi : null;
+      return { ...state, selected: event.key, pin, poi };
     }
-    case 'dropPin':
-      return { ...state, droppedPin: event.coords };
-    case 'cancelPinMode': {
-      // Idempotent for the same reason as enterPinMode.
-      if (state.mode === 'search') return state;
-      if (!state.saved) return { ...state, mode: 'search', droppedPin: null };
-      return { ...state, ...state.saved, mode: 'search', droppedPin: null, saved: null };
-    }
+    case 'mapTapped':
+      // A map tap places (or moves) the pin and selects it; it leads the result
+      // list over any live results, and supersedes any tapped landmark.
+      return { ...state, pin: event.coords, poi: null, selected: { kind: 'pin' } };
     case 'poiSelected': {
-      // In pin mode a tapped POI behaves like any map tap — it drops the pin
-      // there (the native POI tap is the only signal we get, since onMapClick
-      // doesn't fire over a POI).
-      if (state.mode === 'pin') return { ...state, droppedPin: event.coords };
-      // In search mode the POI takes the transient `poi` slot above the results
-      // and is auto-selected, leaving the existing search list untouched beneath
-      // it. It replaces any previously tapped POI (only one at a time). A nameless
-      // POI keeps only its point (its coord pair stands in as a title).
+      // Tapping a landmark takes the transient `poi` slot above the results and is
+      // auto-selected, leaving the existing search list untouched beneath it. It
+      // replaces any previously tapped POI (only one at a time) and supersedes a
+      // hand-dropped pin. A nameless POI keeps only its point (its coord pair
+      // stands in as a title).
       const poi: PhotonResult = event.name
         ? { title: event.name, coords: event.coords }
         : synthesizedFromCoords(event.coords);
-      return { ...state, poi, selected: { kind: 'poi' } };
+      return { ...state, poi, pin: null, selected: { kind: 'poi' } };
     }
   }
 }
 
 export type Row =
+  | { kind: 'pin'; coords: Coords }
   | { kind: 'resolving' }
   | { kind: 'poi'; result: PhotonResult }
   | { kind: 'result'; index: number; result: PhotonResult }
   | { kind: 'address'; text: string };
 
+// A map-tapped pin's display label — its coordinate pair truncated to 3 decimals
+// for legibility (the committed location keeps full precision; commit stays
+// coords-only, with no address).
+export function pinLabel(coords: Coords): string {
+  return `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`;
+}
+
 export function rows(state: PickerState): Row[] {
   const out: Row[] = [];
+  // A map-tapped pin leads the list and disappears when another row is selected.
+  if (state.pin) out.push({ kind: 'pin', coords: state.pin });
   if (state.resolving) out.push({ kind: 'resolving' });
-  // The tapped landmark sits at the top, above the search results it doesn't
-  // disturb.
+  // The tapped landmark sits at the top of the results it doesn't disturb (it and
+  // the pin are mutually exclusive, so at most one leads the list).
   if (state.poi) out.push({ kind: 'poi', result: state.poi });
   resultList(state).forEach((result, index) => out.push({ kind: 'result', index, result }));
   // The plain-address last resort is only for ordinary free text. A pasted
@@ -204,26 +191,37 @@ export function rows(state: PickerState): Row[] {
   return out;
 }
 
-// Accent result pins drawn over the trip's greyed pins. Cleared in pin mode so
-// only the hand-dropped pin shows. A tapped landmark is the focus, so while one
-// is active only its pin shows — the search-result candidate pins step aside so
-// no stale pin lingers beside it.
+// The display label of the current selection — surfaced as the sheet title when
+// the sheet shrinks to its peek detent and the row list is out of view.
+export function selectionLabel(state: PickerState): string | null {
+  const selected = state.selected;
+  if (!selected) return null;
+  if (selected.kind === 'pin') return state.pin ? pinLabel(state.pin) : null;
+  if (selected.kind === 'poi') return state.poi?.title ?? null;
+  if (selected.kind === 'result') return resultList(state)[selected.index]?.title ?? null;
+  if (selected.kind === 'address') return state.query.trim() || null;
+  return null;
+}
+
+// Accent result pins drawn over the trip's greyed pins. A hand-dropped pin stands
+// alone (its pin is drawn separately, so the candidate pins clear); a tapped
+// landmark is the focus, so while one is active only its pin shows.
 export function resultPins(state: PickerState): Coords[] {
-  if (state.mode === 'pin') return [];
+  if (state.pin) return [];
   if (state.poi) return [state.poi.coords];
   return resultList(state).map((r) => r.coords);
 }
 
 // Where the camera should fly for the current selection. A selected result (or
-// dropped pin) zooms to its point; the address row is the lone zoom-out, framing
-// the greyed trip; null leaves the camera where it is.
+// dropped pin / tapped landmark) zooms to its point; the address row is the lone
+// zoom-out, framing the greyed trip; null leaves the camera where it is.
 export type CameraTarget = { kind: 'point'; coords: Coords } | { kind: 'frameTrip' };
 
 export function cameraTarget(state: PickerState): CameraTarget | null {
-  if (state.mode === 'pin') {
-    return state.droppedPin ? { kind: 'point', coords: state.droppedPin } : null;
-  }
   const selected = state.selected;
+  if (selected?.kind === 'pin') {
+    return state.pin ? { kind: 'point', coords: state.pin } : null;
+  }
   if (selected?.kind === 'poi') {
     return state.poi ? { kind: 'point', coords: state.poi.coords } : null;
   }
@@ -236,12 +234,11 @@ export function cameraTarget(state: PickerState): CameraTarget | null {
 }
 
 export function committedLocation(state: PickerState): Item['location'] | null {
-  if (state.mode === 'pin') {
-    return state.droppedPin
-      ? { lat: state.droppedPin.lat, lng: state.droppedPin.lng }
-      : null;
-  }
   const selected = state.selected;
+  if (selected?.kind === 'pin') {
+    // A map-tapped pin carries no address — commit coords-only.
+    return state.pin ? { lat: state.pin.lat, lng: state.pin.lng } : null;
+  }
   if (selected?.kind === 'poi') {
     const poi = state.poi;
     return poi ? { address: poi.title, lat: poi.coords.lat, lng: poi.coords.lng } : null;

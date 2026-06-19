@@ -127,3 +127,75 @@ the mode**:
   `backgroundGlass`/`surfaceGlass` wash) so it reads as liquid glass over the map,
   and the full-screen map page **slides up from the bottom** rather than appearing
   abruptly.
+
+## Amendment — pin mode is retired; the map is tappable at any detent
+
+Coupling the mode to the detent (above) still made dropping a pin a *mode* you
+entered and left, with a dedicated pin button and a saved/restored search. In use
+that was more ceremony than the gesture deserves. We drop the mode entirely:
+
+- **Tapping the map drops a pin at any time**, at either detent. The tapped
+  coordinate becomes the **first row** of the result list, auto-selected — the
+  same coords-only commit a pasted coordinate produces, labelled by its
+  `lat, lng`. It **disappears the moment another row is selected** (or the query
+  changes), so a stale pin never sits behind a different choice. Re-tapping moves
+  it. There is no `mode`, no `droppedPin`/`saved` bookkeeping, and no
+  `enterPinMode`/`cancelPinMode`/`dropPin` events — just a `pin: Coords | null`
+  and a `{ kind: 'pin' }` selection.
+- **The dedicated pin button is gone**, so the `Stack.SearchBar` stretches the
+  full width of the bottom toolbar.
+- **The detents stay (`[0.1, 0.5]`) but only resize the sheet** — they no longer
+  drive any mode. At the **0.1 peek**, where the list scrolls out of view, the
+  sheet surfaces the **selected row's name as its title** so the current choice
+  stays visible; at 0.5 the title clears and the list shows it. `Cancel` now
+  always aborts the whole pick.
+- The `react-native-screens` detent-setter patch from the previous amendment is
+  no longer exercised (nothing drives `sheetInitialDetentIndex` at runtime); it is
+  left in place as it is harmless and other surfaces may rely on it.
+
+Further refinements to the tappable map:
+
+- **The picker map shows the traveller and opens like the home map.** It enables
+  the blue dot when location permission is granted, and on first load frames the
+  trip's pins when it has any, otherwise zooms in on the traveller — reusing
+  `requestUserLocationPermission` / `centerOnUser` from
+  [user location](../../CONTEXT.md#user-location), the same primitives the home
+  map's center-on-user button uses.
+- **A dropped pin stands alone on the map.** While a hand-dropped pin is placed,
+  the search candidates' [result pins](../../CONTEXT.md#result-pin) clear, so the
+  previously selected result's pin disappears and only the dropped pin shows; they
+  return when another result row is selected. The pin's list row **animates in/out**
+  and carries the selected checkmark; it is labelled by its coordinates
+  **truncated to 3 decimals** (the committed location keeps full precision).
+- **The search field is hidden at the 0.1 peek** (the title stands in for it) and,
+  since the native field is uncontrolled and resets on remount, its text is
+  restored from the query when it reappears at 0.5.
+- **A tap is held briefly before dropping a pin, and a second press cancels it** so a
+  zoom gesture doesn't leave a stray pin. `expo-maps` only fires `onMapClick` on a
+  completed tap (press *and* release), so a double-tap-*and-hold* zoom (hold the second
+  tap, then swipe) never reports its held second tap as a click, and a camera-move
+  signal arrives too late. RN's own touch events (`onTouchStart`) don't surface over
+  the native map either. The picker instead reads the **press-down** through a
+  `react-native-gesture-handler` `Gesture.Manual().onTouchesDown` detector: the manual
+  gesture never activates, so it never steals the map's own pan/zoom, but it still
+  reports every touch-down. A second finger landing while a pin is pending cancels it
+  immediately, whether or not it is held. The trailing click that fires when that
+  finger lifts (a double-tap-to-zoom-*in*) is suppressed for a short window so it can't
+  arm a fresh pin. A plain single tap has no second press, so its pin survives.
+
+## Amendment — tapping a map landmark coexists with the always-tappable map
+
+The always-tappable redesign above and the [landmark](../../CONTEXT.md#landmark)
+(POI) feature were developed in parallel and are now reconciled. With the map
+always tappable there is no pin mode to gate it, so the two are simple peers:
+
+- **Tapping empty map drops a `pin`; tapping a labelled landmark records a
+  `poi`.** Both are transient, both lead the result list auto-selected, and they
+  are **mutually exclusive** — dropping a pin clears any tapped landmark and
+  vice-versa, and selecting any other row (or changing the query) clears both, so
+  a stale point never sits behind a different choice. A pin commits coords-only; a
+  named landmark commits with its name as the `address`.
+- MapKit's feature selection is enabled only when the picker passes `onPoiSelect`,
+  and the patched `expo-maps` native module clears the selection immediately so the
+  place card never lingers (`patches/expo-maps+56.0.6.patch`). The home map leaves
+  POIs inert.

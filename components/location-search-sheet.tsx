@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import { Stack, router, useNavigation } from 'expo-router';
+import type { SearchBarCommands } from 'react-native-screens';
 import { Host, Form, Section, HStack, VStack, Spacer, Text, Button } from '@expo/ui/swift-ui';
 import {
+  Animation,
+  animation,
   background,
   font,
   foregroundStyle,
@@ -12,31 +15,38 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 
 import { usePickerStore } from '@/lib/location-picker-store';
-import { rows, committedLocation, type SelectionKey } from '@/lib/location-picker-model';
+import {
+  rows,
+  committedLocation,
+  pinLabel,
+  selectionLabel,
+  type SelectionKey,
+} from '@/lib/location-picker-model';
 import { parseLatLng, resolveMapsUrl } from '@/lib/coords';
 import { searchPlaces } from '@/lib/photon';
 import { useThemeColors } from '@/constants/theme';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
-// The two sheet detents (must mirror sheetAllowedDetents in app/trip/_layout.tsx):
-// index 0 is the small "pin mode" rest, index 1 is the half-height search rest.
-const PIN_DETENT_INDEX = 0;
-const SEARCH_DETENT_INDEX = 1;
+// The sheet's peek detent (must mirror sheetAllowedDetents in app/trip/_layout.tsx):
+// index 0 is the small peek where the list is out of view, index 1 the half-height
+// search rest. At the peek we surface the selected row's name as the sheet title.
+const PEEK_DETENT_INDEX = 0;
 
 function sameKey(a: SelectionKey | null, b: SelectionKey): boolean {
   if (!a) return false;
-  if (a.kind === 'poi' && b.kind === 'poi') return true;
   if (a.kind === 'address' && b.kind === 'address') return true;
+  if (a.kind === 'pin' && b.kind === 'pin') return true;
+  if (a.kind === 'poi' && b.kind === 'poi') return true;
   return a.kind === 'result' && b.kind === 'result' && a.index === b.index;
 }
 
 // The search sheet that floats over the Location Picker's full-screen map
-// (ADR-0012). It rests at two detents: 0.5 for searching and 0.1 for "pin mode",
-// where it shrinks out of the way so the map is clear to drop a pin. The sheet
-// drives the mode both ways — the user can drag between detents, and the in-sheet
-// buttons animate the detent via sheetInitialDetentIndex. All state lives in the
-// shared picker store so the map underneath can react.
+// (ADR-0012). It rests at two detents — 0.5 for searching and a 0.1 peek that
+// hands the map nearly the full screen — but the detent only resizes the sheet;
+// tapping the map drops a pin (and tapping a landmark adds it as a result) at any
+// detent. All state lives in the shared picker store so the map underneath can
+// react.
 export function LocationSearchSheet() {
   const colorScheme = useColorScheme();
   const c = useThemeColors();
@@ -46,10 +56,10 @@ export function LocationSearchSheet() {
   const dispatch = usePickerStore((s) => s.dispatch);
 
   const rowList = rows(state);
-  // Select commits whatever is currently chosen — a search result/address or a
-  // dropped pin — so it's armed whenever there's a committable location.
+  // Select commits whatever is currently chosen — a search result/address, a tapped
+  // landmark, or a map-tapped pin — so it's armed whenever there's a committable
+  // location.
   const canSelect = committedLocation(state) != null;
-  const pinMode = state.mode === 'pin';
 
   // The query text is the single source for the async work: a coordinate needs no
   // network, a URL is resolved, anything else is a live Photon search.
@@ -58,31 +68,38 @@ export function LocationSearchSheet() {
   const isUrl = /^https?:\/\//i.test(trimmed);
   const isAddress = !!trimmed && !isCoord && !isUrl;
 
-  // Drive the sheet to the detent that matches the mode. With the patched
-  // react-native-screens, changing sheetInitialDetentIndex re-applies the selected
-  // detent with an animation; UIKit no-ops when the sheet is already there, so this
-  // stays in sync whether the mode changed by drag (below) or by a button.
-  useEffect(() => {
-    navigation.setOptions({
-      sheetInitialDetentIndex: pinMode ? PIN_DETENT_INDEX : SEARCH_DETENT_INDEX,
-    });
-  }, [navigation, pinMode]);
-
-  // The map/drag side: when the sheet settles at a detent, reflect it into the
-  // mode. Idempotent dispatches (the reducer guards) keep button + drag in sync.
+  // The list scrolls out of view at the peek detent, so surface the selected row's
+  // name as the sheet title there to keep the current choice visible; clear it at
+  // the search detent where the list shows it. Track the settled detent from the
+  // native sheet's onSheetDetentChanged.
+  const [atPeek, setAtPeek] = React.useState(false);
   useEffect(() => {
     const unsub = navigation.addListener(
       // expo-router emits this for the native sheet's onSheetDetentChanged.
       'sheetDetentChange' as never,
       ((e: { data: { index: number; stable: boolean } }) => {
-        if (!e.data.stable) return;
-        dispatch(
-          e.data.index === PIN_DETENT_INDEX ? { type: 'enterPinMode' } : { type: 'cancelPinMode' },
-        );
+        if (e.data.stable) setAtPeek(e.data.index === PEEK_DETENT_INDEX);
       }) as never,
     );
     return unsub;
-  }, [navigation, dispatch]);
+  }, [navigation]);
+
+  const title = atPeek ? (selectionLabel(state) ?? '') : '';
+  useEffect(() => {
+    navigation.setOptions({ title });
+  }, [navigation, title]);
+
+  // The search bar is hidden at the peek detent (the title stands in for it). The
+  // native field is uncontrolled and resets when it remounts, so restore the
+  // current query into it once it reappears at the search detent.
+  const searchBarRef = useRef<SearchBarCommands>(null);
+  useEffect(() => {
+    if (atPeek) return;
+    const query = usePickerStore.getState().state.query;
+    if (!query) return;
+    const id = setTimeout(() => searchBarRef.current?.setText(query), 0);
+    return () => clearTimeout(id);
+  }, [atPeek]);
 
   // Debounced Photon search for free-text input; the model auto-selects the first
   // result on arrival.
@@ -121,29 +138,17 @@ export function LocationSearchSheet() {
     return () => ctrl.abort();
   }, [trimmed, isUrl, dispatch]);
 
-  // Abort the whole pick: pop the sheet; the map screen underneath ends the session
-  // and returns to the editor, leaving its location untouched.
-  function onAbort() {
+  // Cancel aborts the whole pick: pop the sheet; the map screen underneath ends the
+  // session and returns to the editor, leaving its location untouched.
+  function onCancel() {
     router.back();
   }
 
-  // Cancel: in pin mode it just leaves pin mode (back to the search detent, animated
-  // by the mode change); in search mode it aborts the whole pick.
-  function onCancel() {
-    if (pinMode) dispatch({ type: 'cancelPinMode' });
-    else onAbort();
-  }
-
-  // Commit the current selection — a chosen result/address or a dropped pin — back to
-  // the editor and dismiss the picker.
+  // Commit the current selection — a chosen result/address, a tapped landmark, or a
+  // map-tapped pin — back to the editor and dismiss the picker.
   function onSelect() {
     usePickerStore.getState().confirm();
     router.back();
-  }
-
-  // Enter pin mode: the sheet shrinks to its small detent so the map is clear.
-  function onEnterPin() {
-    dispatch({ type: 'enterPinMode' });
   }
 
   // Tapping a result only selects it — the map flies to its pin for preview. The
@@ -155,10 +160,11 @@ export function LocationSearchSheet() {
   return (
     <>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      {/* The search field lives only in search mode; in pin mode the sheet is a bare
-          map-clearing rest with just the commit/cancel controls. */}
-      {pinMode ? null : (
+      {/* Hidden at the peek detent, where the sheet title shows the selection
+          instead; its text is restored on reappear (the native field is uncontrolled). */}
+      {atPeek ? null : (
         <Stack.SearchBar
+          ref={searchBarRef}
           placeholder="Search or paste a location"
           autoCapitalize="none"
           // Keep the navigation bar (and its Cancel/Select buttons) on screen while
@@ -168,9 +174,9 @@ export function LocationSearchSheet() {
         />
       )}
 
-      {/* Top-bar controls, always present. Cancel: leaves pin mode (pin) or aborts the
-          pick (search). Select: commits the current selection (a result/address or a
-          dropped pin) — armed whenever there's something committable. */}
+      {/* Top-bar controls. Cancel aborts the pick; Select commits the current
+          selection (a result/address, a tapped landmark, or a map-tapped pin) —
+          armed whenever there's something committable. */}
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel="Cancel"
@@ -190,19 +196,10 @@ export function LocationSearchSheet() {
         />
       </Stack.Toolbar>
 
-      {/* Search field + pin toggle as bottom-toolbar elements (search mode only). */}
-      {pinMode ? null : (
-        <Stack.Toolbar placement="bottom">
-          <Stack.Toolbar.SearchBarSlot />
-          <Stack.Toolbar.Spacer />
-          <Stack.Toolbar.Button
-            accessibilityLabel="Drop a pin"
-            icon="mappin.and.ellipse"
-            tintColor={accent}
-            onPress={onEnterPin}
-          />
-        </Stack.Toolbar>
-      )}
+      {/* The search field stretches the full width of the bottom toolbar. */}
+      <Stack.Toolbar placement="bottom">
+        <Stack.Toolbar.SearchBarSlot />
+      </Stack.Toolbar>
 
       <Host
         style={{ flex: 1 }}
@@ -212,10 +209,28 @@ export function LocationSearchSheet() {
         {/* Hide the list's system background and wash it with translucent glass so
             the sheet reads as liquid glass over the map. */}
         <Form modifiers={[scrollContentBackground('hidden'), background(c.backgroundGlass)]}>
-          {/* In pin mode the list is empty so the map below is free for a dropped pin. */}
-          {pinMode ? null : (
-            <Section modifiers={[listRowBackground(c.surfaceGlass)]}>
+          {
+            <Section
+              modifiers={[
+                listRowBackground(c.surfaceGlass),
+                // Animate the transient pin/landmark row sliding in/out as it appears.
+                animation(Animation.default, state.pin != null || state.poi != null),
+              ]}
+            >
               {rowList.map((row, i) => {
+                if (row.kind === 'pin') {
+                  const key: SelectionKey = { kind: 'pin' };
+                  const selected = sameKey(state.selected, key);
+                  return (
+                    <Button key="pin" onPress={() => onPickRow(key)}>
+                      <HStack>
+                        <Text>{pinLabel(row.coords)}</Text>
+                        <Spacer />
+                        {selected ? <Text modifiers={[foregroundStyle(accent)]}>✓</Text> : null}
+                      </HStack>
+                    </Button>
+                  );
+                }
                 if (row.kind === 'resolving') {
                   return <Text key="resolving">Resolving…</Text>;
                 }
@@ -272,7 +287,7 @@ export function LocationSearchSheet() {
                 );
               })}
             </Section>
-          )}
+          }
         </Form>
       </Host>
     </>

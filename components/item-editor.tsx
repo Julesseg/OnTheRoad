@@ -236,7 +236,9 @@ function ChecklistEntryRow({
 function locationLabel(loc: Item['location'] | null): string {
   if (!loc) return 'Add location';
   if (loc.address) return loc.address;
-  if (loc.lat != null && loc.lng != null) return `${loc.lat}, ${loc.lng}`;
+  // Coords-only: show the pair truncated to 3 decimals (the stored value keeps
+  // full precision).
+  if (loc.lat != null && loc.lng != null) return `${loc.lat.toFixed(3)}, ${loc.lng.toFixed(3)}`;
   return 'Add location';
 }
 

@@ -6,6 +6,7 @@ import {
   committedLocation,
   cameraTarget,
   resultPins,
+  selectionLabel,
 } from '@/lib/location-picker-model';
 import type { PhotonResult } from '@/lib/photon';
 
@@ -132,62 +133,79 @@ describe('LocationPicker model', () => {
     expect(cameraTarget(address)).toEqual({ kind: 'frameTrip' });
   });
 
-  it('pin mode clears result pins; dropping a pin arms Select and commits coords-only', () => {
+  it('tapping the map leads the list with an auto-selected coords-only pin', () => {
     const loaded = pickerReducer(
       pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
-      { type: 'resultsLoaded', results: [PIKE] },
+      { type: 'resultsLoaded', results: [PIKE, SPACE_NEEDLE] },
     );
 
-    const pinMode = pickerReducer(loaded, { type: 'enterPinMode' });
-    // Result pins are cleared while dropping by hand; nothing to commit until a drop.
-    expect(resultPins(pinMode)).toEqual([]);
-    expect(committedLocation(pinMode)).toBeNull();
+    const tapped = pickerReducer(loaded, { type: 'mapTapped', coords: { lat: 1, lng: 2 } });
 
-    const dropped = pickerReducer(pinMode, { type: 'dropPin', coords: { lat: 1, lng: 2 } });
-    expect(committedLocation(dropped)).toEqual({ lat: 1, lng: 2 });
+    // The pin is the first row, above the search results, and is auto-selected.
+    expect(rows(tapped)).toEqual([
+      { kind: 'pin', coords: { lat: 1, lng: 2 } },
+      { kind: 'result', index: 0, result: PIKE },
+      { kind: 'result', index: 1, result: SPACE_NEEDLE },
+      { kind: 'address', text: 'seattle' },
+    ]);
+    expect(tapped.selected).toEqual({ kind: 'pin' });
+    // Both the camera and the committed location follow the pin, coords-only.
+    expect(cameraTarget(tapped)).toEqual({ kind: 'point', coords: { lat: 1, lng: 2 } });
+    expect(committedLocation(tapped)).toEqual({ lat: 1, lng: 2 });
+    // The dropped pin stands alone: the search candidates' map pins clear so only
+    // it shows. Selecting another result brings the result pins back.
+    expect(resultPins(tapped)).toEqual([]);
+    const picked = pickerReducer(tapped, { type: 'selectRow', key: { kind: 'result', index: 1 } });
+    expect(resultPins(picked)).toEqual([PIKE.coords, SPACE_NEEDLE.coords]);
   });
 
-  it('cancelling pin mode discards the dropped pin and restores the prior search', () => {
+  it('selecting another result makes the map-tapped pin disappear', () => {
     const loaded = pickerReducer(
       pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
       { type: 'resultsLoaded', results: [PIKE] },
     );
-    const dropped = pickerReducer(pickerReducer(loaded, { type: 'enterPinMode' }), {
-      type: 'dropPin',
-      coords: { lat: 1, lng: 2 },
+    const tapped = pickerReducer(loaded, { type: 'mapTapped', coords: { lat: 1, lng: 2 } });
+
+    const picked = pickerReducer(tapped, { type: 'selectRow', key: { kind: 'result', index: 0 } });
+    expect(picked.pin).toBeNull();
+    expect(rows(picked).some((r) => r.kind === 'pin')).toBe(false);
+    expect(committedLocation(picked)).toEqual({
+      address: 'Pike Place Market',
+      lat: 47.6097,
+      lng: -122.3422,
     });
-
-    const back = pickerReducer(dropped, { type: 'cancelPinMode' });
-    expect(back.mode).toBe('search');
-    expect(back.droppedPin).toBeNull();
-    // The prior query, results, and selection are exactly as they were.
-    expect(rows(back)).toEqual(rows(loaded));
-    expect(back.selected).toEqual(loaded.selected);
-    expect(committedLocation(back)).toEqual(committedLocation(loaded));
   });
 
-  it('re-entering pin mode is idempotent — it does not clobber the saved search', () => {
+  it('moving the pin re-taps without clearing it; a new query drops it', () => {
     const loaded = pickerReducer(
       pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
       { type: 'resultsLoaded', results: [PIKE] },
     );
-    const pin = pickerReducer(loaded, { type: 'enterPinMode' });
-    const dropped = pickerReducer(pin, { type: 'dropPin', coords: { lat: 1, lng: 2 } });
+    const tapped = pickerReducer(loaded, { type: 'mapTapped', coords: { lat: 1, lng: 2 } });
 
-    // A second enterPinMode (e.g. the detent settle event) is a no-op: the saved
-    // search is preserved and the dropped pin is untouched.
-    const again = pickerReducer(dropped, { type: 'enterPinMode' });
-    expect(again).toBe(dropped);
-    const back = pickerReducer(again, { type: 'cancelPinMode' });
-    expect(rows(back)).toEqual(rows(loaded));
+    // Re-tapping selects the pin again at the new coordinates.
+    const moved = pickerReducer(tapped, { type: 'mapTapped', coords: { lat: 3, lng: 4 } });
+    expect(moved.pin).toEqual({ lat: 3, lng: 4 });
+    expect(moved.selected).toEqual({ kind: 'pin' });
+
+    // Typing a fresh search supersedes the pin.
+    const retyped = pickerReducer(moved, { type: 'queryChanged', text: 'paris' });
+    expect(retyped.pin).toBeNull();
   });
 
-  it('cancelling pin mode while already in search mode is a no-op', () => {
+  it('selectionLabel names the current selection for the peek-detent title', () => {
     const loaded = pickerReducer(
-      pickerReducer(initialPickerState, { type: 'queryChanged', text: 'pike' }),
+      pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
       { type: 'resultsLoaded', results: [PIKE] },
     );
-    expect(pickerReducer(loaded, { type: 'cancelPinMode' })).toBe(loaded);
+    expect(selectionLabel(loaded)).toBe('Pike Place Market');
+
+    const tapped = pickerReducer(loaded, { type: 'mapTapped', coords: { lat: 1, lng: 2 } });
+    // Coordinates display truncated to 3 decimals.
+    expect(selectionLabel(tapped)).toBe('1.000, 2.000');
+
+    const address = pickerReducer(loaded, { type: 'selectRow', key: { kind: 'address' } });
+    expect(selectionLabel(address)).toBe('seattle');
   });
 
   const GUM_WALL = { name: 'Gum Wall', coords: { lat: 47.6086, lng: -122.3401 } } as const;
@@ -274,18 +292,19 @@ describe('LocationPicker model', () => {
     expect(committedLocation(tapped)).toEqual({ address: '1, 2', lat: 1, lng: 2 });
   });
 
-  it('tapping a POI in pin mode drops the pin there', () => {
-    const pinMode = pickerReducer(initialPickerState, { type: 'enterPinMode' });
-    const tapped = pickerReducer(pinMode, {
-      type: 'poiSelected',
-      name: 'Space Needle',
-      coords: { lat: 47.6205, lng: -122.3493 },
-    });
+  it('the map-tapped pin and a tapped landmark are peers — each clears the other', () => {
+    // A landmark tap supersedes a hand-dropped pin.
+    const pinned = pickerReducer(initialPickerState, { type: 'mapTapped', coords: { lat: 1, lng: 2 } });
+    const thenPoi = pickerReducer(pinned, { type: 'poiSelected', ...GUM_WALL });
+    expect(thenPoi.pin).toBeNull();
+    expect(thenPoi.poi).toEqual(GUM_WALL_RESULT);
+    expect(thenPoi.selected).toEqual({ kind: 'poi' });
 
-    // No selection-mode result; the POI tap just positions the dropped pin.
-    expect(tapped.mode).toBe('pin');
-    expect(tapped.droppedPin).toEqual({ lat: 47.6205, lng: -122.3493 });
-    expect(committedLocation(tapped)).toEqual({ lat: 47.6205, lng: -122.3493 });
+    // And a map tap supersedes a tapped landmark.
+    const thenPin = pickerReducer(thenPoi, { type: 'mapTapped', coords: { lat: 3, lng: 4 } });
+    expect(thenPin.poi).toBeNull();
+    expect(thenPin.pin).toEqual({ lat: 3, lng: 4 });
+    expect(thenPin.selected).toEqual({ kind: 'pin' });
   });
 
   it('clearing the query empties the rows and the selection', () => {
