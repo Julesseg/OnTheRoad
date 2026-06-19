@@ -61,7 +61,7 @@ index 3b718c6..b5de32d 100644
  
  protocol AppleMapsViewProtocol: View {
 diff --git a/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift b/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
-index 7be247b..ea556c9 100644
+index 7be247b..6a25614 100644
 --- a/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
 +++ b/node_modules/expo-maps/ios/AppleMapsViewiOS18.swift
 @@ -263,7 +263,18 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
@@ -84,28 +84,32 @@ index 7be247b..ea556c9 100644
        .mapStyle(properties.mapType.toMapStyle(properties))
        .lookAroundViewer(
          isPresented: $state.lookAroundPresented,
-@@ -320,6 +331,21 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
-       ])
-       return
-     }
-+
-+    // The selected item matches none of our own content, so it's a native map
-+    // point-of-interest (a "landmark"). Surface its name and coordinate to JS so
-+    // the app can offer it as a pickable result, then clear the selection: there
-+    // is no accessory to dismiss, but resetting it lets a second tap on the same
-+    // POI fire onChange again (and drops any lingering selection highlight).
-+    let coordinate = item.placemark.coordinate
-+    props.onPoiClick([
-+      "name": item.name as Any,
-+      "coordinates": [
-+        "latitude": coordinate.latitude,
-+        "longitude": coordinate.longitude
-+      ]
-+    ])
-+    state.selection = nil
+@@ -289,6 +300,25 @@ struct AppleMapsViewiOS18: View, AppleMapsViewProtocol {
    }
  
-   private func polyline(at tap: CLLocationCoordinate2D) -> ExpoAppleMapPolyline? {
+   private func handleSelectionChange(_ newSelection: MapSelection<MKMapItem>?) {
++    // A selected native map feature (a POI / "landmark") arrives as a MapFeature,
++    // not as a tagged value — newSelection.value is nil for features, so this must
++    // be handled before the value-based marker/annotation lookups below. Surface
++    // the POI's title + coordinate to JS so the app can offer it as a pickable
++    // result, then clear the selection so a repeat tap on the same POI fires again
++    // (and any lingering selection highlight is dropped).
++    if let feature = newSelection?.feature {
++      let coordinate = feature.coordinate
++      props.onPoiClick([
++        "name": feature.title as Any,
++        "coordinates": [
++          "latitude": coordinate.latitude,
++          "longitude": coordinate.longitude
++        ]
++      ])
++      state.selection = nil
++      return
++    }
++
+     guard let item = newSelection?.value else {
+       return
+     }
 diff --git a/node_modules/expo-maps/src/apple/AppleMaps.types.ts b/node_modules/expo-maps/src/apple/AppleMaps.types.ts
 index b10df3b..7fdf0da 100644
 --- a/node_modules/expo-maps/src/apple/AppleMaps.types.ts
