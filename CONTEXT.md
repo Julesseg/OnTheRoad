@@ -162,9 +162,10 @@ user selects it and confirms. Prefer **result pin** over "candidate"; reserve
 A native map point of interest — a museum, park, café, monument — that MapKit
 draws and labels on its own. On the home map these reveal nothing (the map is a
 view onto the trip, not a place browser). In the [Location Picker](#location-picker)
-they become useful: tapping one turns it into a [result pin](#result-pin),
-auto-selected and ready to confirm, so a place the traveller spots on the map can
-be picked without typing its name.
+they become useful: tapping one adds it to the top of the current results as an
+auto-selected [result pin](#result-pin), ready to confirm — so a place the
+traveller spots on the map can be picked without typing its name, without losing
+the search list already showing.
 
 ### Location Picker
 

@@ -155,27 +155,21 @@ export function pickerReducer(state: PickerState, event: PickerEvent): PickerSta
       // there (the native POI tap is the only signal we get, since onMapClick
       // doesn't fire over a POI).
       if (state.mode === 'pin') return { ...state, droppedPin: event.coords };
-      // In search mode the POI becomes the sole result, auto-selected, so Select
-      // is armed and the camera flies to it — the same shape as a search hit. The
-      // query is cleared so the debounced search can't clobber it (and any
-      // in-flight request is aborted by its effect cleanup).
-      if (event.name) {
-        const result: PhotonResult = { title: event.name, coords: event.coords };
-        return {
-          ...state,
-          query: '',
-          results: [result],
-          synthesized: null,
-          resolving: false,
-          selected: { kind: 'result', index: 0 },
-        };
-      }
-      // A nameless POI carries only a point — commit it coords-only via synthesized.
+      // In search mode the POI is prepended to the top of the current results
+      // and auto-selected, so the existing search list is preserved beneath it.
+      // A nameless POI keeps only its point (its coord pair stands in as a title).
+      const result: PhotonResult = event.name
+        ? { title: event.name, coords: event.coords }
+        : synthesizedFromCoords(event.coords);
+      // Fold any synthesized coord/URL result into the list so the POI sits on
+      // top, and drop a prior copy of the same POI so repeat taps don't pile up.
+      const prior = resultList(state).filter(
+        (r) => r.coords.lat !== event.coords.lat || r.coords.lng !== event.coords.lng,
+      );
       return {
         ...state,
-        query: '',
-        results: [],
-        synthesized: synthesizedFromCoords(event.coords),
+        results: [result, ...prior],
+        synthesized: null,
         resolving: false,
         selected: { kind: 'result', index: 0 },
       };
