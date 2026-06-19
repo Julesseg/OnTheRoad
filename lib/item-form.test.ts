@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formToItem, itemToForm, emptyForm, itemFormSchema } from './item-form';
+import { formToItem, itemToForm, emptyForm } from './item-form';
 import type { Item } from './schema';
 
 const ITEM_ID = '01900000-0000-7000-8000-000000000003';
@@ -113,29 +113,5 @@ describe('itemToForm round-trips through formToItem', () => {
   it.each(cases)('round-trips a $category item — $name', (original) => {
     const rebuilt = formToItem(itemToForm(original), original.id);
     expect(rebuilt).toEqual(original);
-  });
-});
-
-describe('itemFormSchema validation', () => {
-  it('accepts a valid form', () => {
-    const result = itemFormSchema().safeParse({ name: 'Walk', category: 'activity', time: '09:00', notes: '' });
-    expect(result.success).toBe(true);
-  });
-
-  it('flags a missing name', () => {
-    const result = itemFormSchema().safeParse({ name: '   ', category: 'activity', time: '', notes: '' });
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.issues.map((i) => i.path.join('.'))).toContain('name');
-  });
-
-  it('flags a malformed time', () => {
-    const result = itemFormSchema().safeParse({ name: 'X', category: 'activity', time: '9am', notes: '' });
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.issues.map((i) => i.path.join('.'))).toContain('time');
-  });
-
-  it('accepts an empty time (time is optional)', () => {
-    const result = itemFormSchema().safeParse({ name: 'X', category: 'activity', time: '', notes: '' });
-    expect(result.success).toBe(true);
   });
 });

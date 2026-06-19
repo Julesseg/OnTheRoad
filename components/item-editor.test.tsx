@@ -39,12 +39,45 @@ vi.mock('@expo/ui/swift-ui', async () => {
   return {
     Host: pass('div'),
     Form: pass('div'),
-    VStack: pass('div'),
+    // VStack carrying an onTapGesture modifier (the Time row's collapse/expand
+    // label) renders as a button so the body tap stays assertable.
+    VStack: ({
+      children,
+      modifiers,
+    }: {
+      children?: React.ReactNode;
+      modifiers?: Record<string, unknown>[];
+    }) => {
+      const onTap = modifiers?.find((m) => m && '__onTap' in m)?.__onTap as (() => void) | undefined;
+      if (onTap) return React.createElement('button', { onClick: onTap }, children);
+      return React.createElement('div', null, children);
+    },
     HStack: pass('div'),
+    Spacer: () => null,
     LabeledContent: pass('div'),
     Divider: () => null,
-    // Images carrying an onTapGesture modifier (the checklist circles) render
-    // as buttons so taps and the shown symbol stay assertable.
+    // Toggle renders as a switch button so its on/off taps are assertable; the
+    // accessibility label names it ("Time").
+    Toggle: ({
+      isOn,
+      onIsOnChange,
+      modifiers,
+    }: {
+      isOn?: boolean;
+      onIsOnChange?: (on: boolean) => void;
+      modifiers?: Record<string, unknown>[];
+    }) => {
+      const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
+      return React.createElement('button', {
+        role: 'switch',
+        'aria-checked': isOn,
+        'aria-label': a11y,
+        onClick: () => onIsOnChange?.(!isOn),
+      });
+    },
+    // Images carrying an onTapGesture modifier (the checklist circles, clear
+    // affordances) render as buttons so taps and the shown symbol stay
+    // assertable; decorative leading icons render as <img> carrying their symbol.
     Image: ({
       systemName,
       modifiers,
@@ -54,12 +87,13 @@ vi.mock('@expo/ui/swift-ui', async () => {
     }) => {
       const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
       const onTap = modifiers?.find((m) => m && '__onTap' in m)?.__onTap;
-      if (!onTap) return null;
-      return React.createElement('button', {
-        'data-system-image': systemName,
-        'aria-label': a11y,
-        onClick: onTap,
-      });
+      if (onTap)
+        return React.createElement('button', {
+          'data-system-image': systemName,
+          'aria-label': a11y,
+          onClick: onTap,
+        });
+      return React.createElement('img', { 'data-system-image': systemName, 'aria-label': a11y });
     },
     List: Object.assign(pass('div'), {
       ForEach: ({
@@ -218,11 +252,18 @@ vi.mock('expo-router', async () => {
     children,
     onPress,
     accessibilityLabel,
+    disabled,
   }: {
     children?: React.ReactNode;
     onPress?: () => void;
     accessibilityLabel?: string;
-  }) => React.createElement('button', { onClick: onPress, 'aria-label': accessibilityLabel }, children);
+    disabled?: boolean;
+  }) =>
+    React.createElement(
+      'button',
+      { onClick: onPress, 'aria-label': accessibilityLabel, disabled },
+      children,
+    );
   return { Stack, router: routerMock };
 });
 
@@ -264,12 +305,23 @@ describe('ItemEditor', () => {
     expect(screen.getByText('New Stay')).toBeInTheDocument();
   });
 
-  it('shows a required error in the section footer and does not submit when name is empty', async () => {
+  it('disables Save while the name is empty and enables it once a name is typed', () => {
     const onSubmit = vi.fn();
-    render(<ItemEditor itemId="x" onSubmit={onSubmit} />);
-    save();
-    await waitFor(() => expect(screen.getByText('Required')).toBeInTheDocument());
+    render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    const saveButton = screen.getByRole('button', { name: 'Save' });
+    expect(saveButton).toBeDisabled();
+    // Clicking the disabled button does nothing.
+    fireEvent.click(saveButton);
     expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
+    expect(saveButton).toBeEnabled();
+  });
+
+  it('keeps Save disabled when the name is only whitespace', () => {
+    render(<ItemEditor itemId="x" onSubmit={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: '   ' } });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
   it('submits a built item with the selected category when name is filled', async () => {
@@ -293,12 +345,28 @@ describe('ItemEditor', () => {
     );
   });
 
-  it('sets a time through the native picker and persists it', async () => {
+  function timeToggle() {
+    return screen.getByRole('switch', { name: 'Time' });
+  }
+
+  it('starts with the Time toggle off, no picker, and no value for a new item', () => {
+    render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    expect(timeToggle()).toHaveAttribute('aria-checked', 'false');
+    expect(dpickers['Time']).toBeUndefined();
+  });
+
+  it('switching the Time toggle on defaults to 09:00, expands the picker, and persists it', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="act-t" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
     fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add time' }));
+    fireEvent.click(timeToggle());
+    // Enabling defaults to 09:00 and expands an inline picker.
+    expect(dpickers['Time']).toBeDefined();
+    const sel = dpickers['Time'].selection!;
+    expect(sel.getHours()).toBe(9);
+    expect(sel.getMinutes()).toBe(0);
+
     const picked = new Date();
     picked.setHours(9, 30, 0, 0);
     act(() => dpickers['Time'].onDateChange!(picked));
@@ -312,12 +380,43 @@ describe('ItemEditor', () => {
     );
   });
 
-  it('clears a set time back to unset', async () => {
+  it('tapping the row body collapses the picker to a locale-formatted subtitle and re-expands it', () => {
+    render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    delete dpickers['Time'];
+    fireEvent.click(timeToggle()); // on, expanded
+    expect(dpickers['Time']).toBeDefined();
+    expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
+
+    // Tapping the "Time" label (the row body, not the switch) collapses it. The
+    // body-tap target is matched by regex because its accessible name absorbs the
+    // value subtitle once collapsed.
+    delete dpickers['Time'];
+    fireEvent.click(screen.getByRole('button', { name: /Time/ }));
+    expect(screen.getByText('9:00 AM')).toBeInTheDocument();
+    expect(dpickers['Time']).toBeUndefined();
+
+    // Tapping again re-expands the picker and hides the subtitle.
+    fireEvent.click(screen.getByRole('button', { name: /Time/ }));
+    expect(dpickers['Time']).toBeDefined();
+    expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
+  });
+
+  it('opening an existing timed item starts on, collapsed, showing the value', () => {
+    const initial: Item = { id: 'act-e', name: 'Hike', category: 'activity', time: '08:00' };
+    render(<ItemEditor itemId="act-e" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('8:00 AM')).toBeInTheDocument();
+    expect(dpickers['Time']).toBeUndefined();
+  });
+
+  it('switching the Time toggle off clears the time', async () => {
     const onSubmit = vi.fn();
     const initial: Item = { id: 'act-c', name: 'Hike', category: 'activity', time: '08:00' };
     render(<ItemEditor itemId="act-c" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear time' }));
+    expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(timeToggle());
+    expect(timeToggle()).toHaveAttribute('aria-checked', 'false');
     save();
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({ id: 'act-c', name: 'Hike', category: 'activity' }, INIT_DATE),
@@ -400,6 +499,15 @@ describe('ItemEditor', () => {
     expect(range!.end!.getFullYear()).toBe(2025);
     expect(range!.end!.getMonth()).toBe(5);
     expect(range!.end!.getDate()).toBe(7);
+  });
+
+  it('renders leading SF Symbols on the Date, Time, and Location rows', () => {
+    const { container } = render(
+      <ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />,
+    );
+    expect(container.querySelector('[data-system-image="calendar"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-system-image="clock"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-system-image="map"]')).toBeInTheDocument();
   });
 
   // --- Location field (issue #76) ---

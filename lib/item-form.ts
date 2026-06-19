@@ -1,6 +1,4 @@
-import { z } from 'zod';
 import type { Item, ItemCategory } from './schema';
-import { ItemCategorySchema } from './schema';
 
 export interface ItemFormValues {
   name: string;
@@ -20,20 +18,6 @@ export function itemToForm(item: Item): ItemFormValues {
     time: item.time ?? '',
     notes: item.notes ?? '',
   };
-}
-
-const required = (msg = 'Required') => z.string().trim().min(1, msg);
-const optionalTime = z
-  .string()
-  .refine((s) => s === '' || /^([01]\d|2[0-3]):[0-5]\d$/.test(s), 'Use HH:mm (24-hour)');
-
-export function itemFormSchema() {
-  return z.object({
-    name: required(),
-    category: ItemCategorySchema,
-    time: optionalTime,
-    notes: z.string(),
-  });
 }
 
 function trimToUndefined(s: string): string | undefined {
