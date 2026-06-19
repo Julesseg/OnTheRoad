@@ -111,11 +111,13 @@ vi.mock('@expo/ui/swift-ui', async () => {
           placeholder,
           onTextChange,
           axis,
+          autoFocus,
         }: {
           text?: { value: string };
           placeholder?: string;
           onTextChange?: (t: string) => void;
           axis?: string;
+          autoFocus?: boolean;
         },
         ref: React.Ref<{
           setText: (t: string) => void;
@@ -155,6 +157,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
           placeholder,
           'aria-label': placeholder,
           'data-axis': axis,
+          autoFocus,
           defaultValue: strip(text?.value ?? ''),
           // A sentinel field keeps its leading sentinel through edits, so report
           // it back on every change; plain fields report their value verbatim.
@@ -652,7 +655,7 @@ describe('ItemEditor', () => {
     ]);
   });
 
-  it('Backspace at the start of the first entry does nothing (nothing above to merge)', () => {
+  it('Backspace at the start of a non-empty first entry keeps it (nothing above to merge)', () => {
     const initial: Item = {
       id: 'cl-first', name: 'Pack', category: 'activity',
       checklist: [{ id: 'a', label: 'Hello', checked: false }],
@@ -665,6 +668,25 @@ describe('ItemEditor', () => {
 
     expect(screen.getAllByPlaceholderText('Checklist entry')).toHaveLength(1);
     expect(field.value).toBe('Hello');
+  });
+
+  it('Backspace on an empty first entry deletes it and dismisses the keyboard', () => {
+    render(<ItemEditor itemId="cl-del" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    const field = screen.getByPlaceholderText('Checklist entry') as HTMLInputElement;
+    field.setSelectionRange(0, 0);
+
+    fireEvent.keyDown(field, { key: 'Backspace' });
+
+    // The row is gone and focus released (the field is no longer in the document).
+    expect(screen.queryByPlaceholderText('Checklist entry')).not.toBeInTheDocument();
+    expect(field).not.toHaveFocus();
+  });
+
+  it('a freshly added entry opens focused so the keyboard rises', () => {
+    render(<ItemEditor itemId="cl-af" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    expect(screen.getByPlaceholderText('Checklist entry')).toHaveFocus();
   });
 
   const PACK_ITEM: Item = {

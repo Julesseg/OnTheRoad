@@ -57,7 +57,6 @@ import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
 import { beginLocationPick } from '@/lib/location-picker-store';
 import {
   ENTRY_SENTINEL,
-  type ChecklistFocus,
   mergeEntryUp,
   moveEntries,
   sanitizeChecklist,
@@ -203,12 +202,13 @@ function TimeRow({
 //   - anything else           → an ordinary rename
 // Using the text stream (rather than SwiftUI's `.onSubmit`, which resigns the
 // keyboard) is what lets Return move the caret to the next row without the
-// keyboard dropping and springing back. Focus and caret placement after a
-// split/merge are driven imperatively by the parent through `registerRef`.
+// keyboard dropping and springing back. A freshly created row opens focused via
+// `autoFocus` (the reliable native path); the parent handles caret placement and
+// the merge/first-row cases imperatively through `registerRef`.
 function ChecklistEntryRow({
   entry,
   position,
-  isFirst,
+  autoFocus,
   registerRef,
   onRename,
   onToggle,
@@ -217,7 +217,7 @@ function ChecklistEntryRow({
 }: {
   entry: ChecklistItem;
   position: number;
-  isFirst: boolean;
+  autoFocus: boolean;
   registerRef: (id: string, ref: TextFieldRef | null) => void;
   onRename: (id: string, label: string) => void;
   onToggle: () => void;
@@ -232,13 +232,9 @@ function ChecklistEntryRow({
 
   function handleTextChange(raw: string) {
     if (!raw.startsWith(ENTRY_SENTINEL)) {
-      // The sentinel was backspaced away — the caret was at the very start.
-      if (isFirst) {
-        // Nothing above to merge into; put the sentinel back and stay put.
-        fieldRef.current?.setText(ENTRY_SENTINEL + raw);
-        fieldRef.current?.setSelection(ENTRY_SENTINEL.length, ENTRY_SENTINEL.length);
-        return;
-      }
+      // The sentinel was backspaced away — the caret was at the very start. The
+      // parent merges into the row above (or, for the first row, deletes it or
+      // restores the sentinel).
       onMergeUp(entry.id, raw);
       return;
     }
@@ -277,6 +273,7 @@ function ChecklistEntryRow({
         text={labelState}
         placeholder="Checklist entry"
         axis="vertical"
+        autoFocus={autoFocus}
         onTextChange={handleTextChange}
       />
     </HStack>
@@ -352,13 +349,12 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   }
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
-  // Live handles to each row's native TextField, keyed by entry id, so split and
-  // merge can move focus and place the caret imperatively. `pendingFocus` holds
-  // the next such request; bumping `focusTick` runs the effect that applies it
-  // once the (possibly freshly inserted) target row has registered its ref.
+  // Live handles to each row's native TextField, keyed by entry id, so a merge
+  // can move focus and place the caret on the surviving row imperatively. New
+  // rows instead open focused via `autoFocus` (`focusId`) — the reliable native
+  // path for raising the keyboard, which `ref.focus()` from an effect is not.
   const rowRefs = useRef(new Map<string, TextFieldRef>());
-  const pendingFocus = useRef<{ id: string; cursor: number; setText?: string } | null>(null);
-  const [focusTick, setFocusTick] = useState(0);
+  const [focusId, setFocusId] = useState<string | null>(null);
   const identity = itemIdentity(category);
 
   function registerRow(id: string, ref: TextFieldRef | null) {
@@ -366,30 +362,20 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
     else rowRefs.current.delete(id);
   }
 
-  function requestFocus(focus: ChecklistFocus, setText?: string) {
-    pendingFocus.current = { ...focus, setText };
-    setFocusTick((t) => t + 1);
-  }
-
+  // `autoFocus` lands the caret at the end of the row's text; nudge it to the
+  // line start (just past the sentinel) so a fresh row begins at column 0 and a
+  // split sits before the moved tail.
   useEffect(() => {
-    const pf = pendingFocus.current;
-    if (!pf) return;
-    pendingFocus.current = null;
-    const ref = rowRefs.current.get(pf.id);
-    if (!ref) return;
-    // A merged row needs its native text rewritten to the joined label (React
-    // state alone won't push into a field that's already mounted).
-    if (pf.setText !== undefined) ref.setText(pf.setText);
-    ref.focus();
-    // `cursor` is a label offset; the native field is shifted by the sentinel.
-    const at = ENTRY_SENTINEL.length + pf.cursor;
-    ref.setSelection(at, at);
-  }, [focusTick]);
+    if (!focusId) return;
+    rowRefs.current
+      .get(focusId)
+      ?.setSelection(ENTRY_SENTINEL.length, ENTRY_SENTINEL.length);
+  }, [focusId]);
 
   function addEntry() {
     const id = newId();
     setChecklist((cl) => [...cl, { id, label: '', checked: false }]);
-    requestFocus({ id, cursor: 0 });
+    setFocusId(id);
   }
 
   function renameEntry(id: string, label: string) {
@@ -399,15 +385,37 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   function splitEntryAt(id: string, before: string, after: string) {
     const { checklist: next, focus } = splitEntry(checklist, id, before, after, newId);
     setChecklist(next);
-    requestFocus(focus);
+    setFocusId(focus.id);
   }
 
   function mergeEntryAt(id: string, trailing: string) {
+    const i = checklist.findIndex((e) => e.id === id);
+    if (i <= 0) {
+      // First row — nothing above to merge into. Delete it and dismiss the
+      // keyboard when it's empty; otherwise put the sentinel back and stay put.
+      const ref = rowRefs.current.get(id);
+      if (trailing === '') {
+        ref?.blur();
+        setChecklist((cl) => cl.filter((e) => e.id !== id));
+      } else {
+        ref?.setText(ENTRY_SENTINEL + trailing);
+        ref?.setSelection(ENTRY_SENTINEL.length, ENTRY_SENTINEL.length);
+      }
+      return;
+    }
     const { checklist: next, focus } = mergeEntryUp(checklist, id, trailing);
     if (!focus) return;
-    setChecklist(next);
     const merged = next.find((e) => e.id === focus.id);
-    requestFocus(focus, ENTRY_SENTINEL + (merged?.label ?? ''));
+    // Move focus and the caret onto the previous row *before* removing this one,
+    // so the keyboard keeps a first responder throughout and never drops.
+    const ref = rowRefs.current.get(focus.id);
+    if (ref) {
+      ref.setText(ENTRY_SENTINEL + (merged?.label ?? ''));
+      ref.focus();
+      const at = ENTRY_SENTINEL.length + focus.cursor;
+      ref.setSelection(at, at);
+    }
+    setChecklist(next);
   }
 
   const nameState = useNativeState(defaults.name);
@@ -594,7 +602,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                   key={entry.id}
                   entry={entry}
                   position={i + 1}
-                  isFirst={i === 0}
+                  autoFocus={entry.id === focusId}
                   registerRef={registerRow}
                   onRename={renameEntry}
                   onToggle={() =>
