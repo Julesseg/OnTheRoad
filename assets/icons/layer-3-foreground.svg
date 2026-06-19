@@ -1,0 +1,23 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon Composer layer 3 (front): light sky details that catch the
+       Liquid Glass specular highlight. Keep sparse. -->
+
+  <!-- clouds -->
+  <g fill="#fbf3e2" opacity="0.92">
+    <g>
+      <ellipse cx="244" cy="252" rx="70" ry="34"/>
+      <ellipse cx="298" cy="232" rx="54" ry="40"/>
+      <ellipse cx="342" cy="258" rx="60" ry="30"/>
+    </g>
+    <g>
+      <ellipse cx="778" cy="300" rx="60" ry="30"/>
+      <ellipse cx="820" cy="284" rx="46" ry="34"/>
+    </g>
+  </g>
+
+  <!-- distant birds -->
+  <g stroke="#6a5a3c" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.8">
+    <path d="M150 372 q22 -20 44 0 q22 -20 44 0"/>
+    <path d="M236 410 q16 -15 32 0 q16 -15 32 0"/>
+  </g>
+</svg>

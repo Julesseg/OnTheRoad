@@ -1,0 +1,42 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon Composer layer 2 (middle): the hero — a retro side-view camper.
+       Transparent background; aligned to the same 1024 canvas as every layer. -->
+  <defs>
+    <clipPath id="bodyClip">
+      <rect x="220" y="350" width="584" height="312" rx="70"/>
+    </clipPath>
+  </defs>
+
+  <!-- contact shadow -->
+  <ellipse cx="512" cy="744" rx="300" ry="30" fill="#1c1b19" opacity="0.12"/>
+
+  <!-- wheels -->
+  <g>
+    <circle cx="348" cy="664" r="76" fill="#2a2622"/>
+    <circle cx="348" cy="664" r="36" fill="#e2d3a6"/>
+    <circle cx="348" cy="664" r="12" fill="#8a6f3c"/>
+    <circle cx="676" cy="664" r="76" fill="#2a2622"/>
+    <circle cx="676" cy="664" r="36" fill="#e2d3a6"/>
+    <circle cx="676" cy="664" r="12" fill="#8a6f3c"/>
+  </g>
+
+  <!-- two-tone body -->
+  <g clip-path="url(#bodyClip)">
+    <rect x="220" y="350" width="584" height="312" fill="#ece4d4"/>   <!-- cream upper -->
+    <rect x="220" y="516" width="584" height="146" fill="#bc5234"/>   <!-- coral lower -->
+    <rect x="220" y="500" width="584" height="16"  fill="#cda23e"/>   <!-- gold trim -->
+  </g>
+
+  <!-- roof rack -->
+  <rect x="280" y="338" width="340" height="14" rx="7" fill="#8a6f3c"/>
+
+  <!-- windows -->
+  <rect x="280" y="392" width="150" height="92" rx="20" fill="#9cc0c4"/>
+  <rect x="448" y="392" width="150" height="92" rx="20" fill="#9cc0c4"/>
+  <!-- windshield, front (right) -->
+  <rect x="628" y="392" width="120" height="92" rx="24" fill="#bcdadd"/>
+
+  <!-- headlight + bumper, front (right) -->
+  <circle cx="780" cy="596" r="20" fill="#fbe9a6"/>
+  <rect x="724" y="628" width="84" height="22" rx="11" fill="#cda23e"/>
+</svg>

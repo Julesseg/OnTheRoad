@@ -1,0 +1,64 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- All three layers flattened, for preview only. The real icon is
+       assembled in Icon Composer from the three layer-*.svg files. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#f4ecd8"/>
+      <stop offset="0.45" stop-color="#ecd29a"/>
+      <stop offset="0.72" stop-color="#e6a06e"/>
+      <stop offset="1"    stop-color="#d97e54"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0"   stop-color="#fce7b0"/>
+      <stop offset="0.6" stop-color="#f3d488"/>
+      <stop offset="1"   stop-color="#f3d488" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="bodyClip">
+      <rect x="220" y="350" width="584" height="312" rx="70"/>
+    </clipPath>
+    <clipPath id="mask"><rect width="1024" height="1024" rx="230"/></clipPath>
+  </defs>
+
+  <!-- rounded mask approximates how iOS displays it -->
+  <g clip-path="url(#mask)">
+    <!-- background -->
+    <rect width="1024" height="1024" fill="url(#sky)"/>
+    <circle cx="512" cy="430" r="268" fill="url(#sunGlow)"/>
+    <circle cx="512" cy="430" r="150" fill="#f7dd92"/>
+    <path d="M0 772 Q512 712 1024 772 L1024 1024 L0 1024 Z" fill="#caa46e"/>
+    <path d="M0 820 Q512 780 1024 820 L1024 1024 L0 1024 Z" fill="#b8915c"/>
+
+    <!-- van -->
+    <ellipse cx="512" cy="744" rx="300" ry="30" fill="#1c1b19" opacity="0.12"/>
+    <circle cx="348" cy="664" r="76" fill="#2a2622"/>
+    <circle cx="348" cy="664" r="36" fill="#e2d3a6"/>
+    <circle cx="348" cy="664" r="12" fill="#8a6f3c"/>
+    <circle cx="676" cy="664" r="76" fill="#2a2622"/>
+    <circle cx="676" cy="664" r="36" fill="#e2d3a6"/>
+    <circle cx="676" cy="664" r="12" fill="#8a6f3c"/>
+    <g clip-path="url(#bodyClip)">
+      <rect x="220" y="350" width="584" height="312" fill="#ece4d4"/>
+      <rect x="220" y="516" width="584" height="146" fill="#bc5234"/>
+      <rect x="220" y="500" width="584" height="16"  fill="#cda23e"/>
+    </g>
+    <rect x="280" y="338" width="340" height="14" rx="7" fill="#8a6f3c"/>
+    <rect x="280" y="392" width="150" height="92" rx="20" fill="#9cc0c4"/>
+    <rect x="448" y="392" width="150" height="92" rx="20" fill="#9cc0c4"/>
+    <rect x="628" y="392" width="120" height="92" rx="24" fill="#bcdadd"/>
+    <circle cx="780" cy="596" r="20" fill="#fbe9a6"/>
+    <rect x="724" y="628" width="84" height="22" rx="11" fill="#cda23e"/>
+
+    <!-- foreground -->
+    <g fill="#fbf3e2" opacity="0.92">
+      <ellipse cx="244" cy="252" rx="70" ry="34"/>
+      <ellipse cx="298" cy="232" rx="54" ry="40"/>
+      <ellipse cx="342" cy="258" rx="60" ry="30"/>
+      <ellipse cx="778" cy="300" rx="60" ry="30"/>
+      <ellipse cx="820" cy="284" rx="46" ry="34"/>
+    </g>
+    <g stroke="#6a5a3c" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.8">
+      <path d="M150 372 q22 -20 44 0 q22 -20 44 0"/>
+      <path d="M236 410 q16 -15 32 0 q16 -15 32 0"/>
+    </g>
+  </g>
+</svg>

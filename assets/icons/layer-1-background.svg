@@ -1,0 +1,27 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon Composer layer 1 (back): sunset sky + warm ground.
+       Full-bleed square; iOS applies its own rounded mask. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#f4ecd8"/>
+      <stop offset="0.45" stop-color="#ecd29a"/>
+      <stop offset="0.72" stop-color="#e6a06e"/>
+      <stop offset="1"    stop-color="#d97e54"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0"   stop-color="#fce7b0"/>
+      <stop offset="0.6" stop-color="#f3d488"/>
+      <stop offset="1"   stop-color="#f3d488" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+
+  <!-- Sun: sits behind the van, crown peeking over the roof -->
+  <circle cx="512" cy="430" r="268" fill="url(#sunGlow)"/>
+  <circle cx="512" cy="430" r="150" fill="#f7dd92"/>
+
+  <!-- Rolling ground the van rests on -->
+  <path d="M0 772 Q512 712 1024 772 L1024 1024 L0 1024 Z" fill="#caa46e"/>
+  <path d="M0 820 Q512 780 1024 820 L1024 1024 L0 1024 Z" fill="#b8915c"/>
+</svg>
