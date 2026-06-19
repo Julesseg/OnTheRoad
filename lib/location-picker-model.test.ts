@@ -190,29 +190,30 @@ describe('LocationPicker model', () => {
     expect(pickerReducer(loaded, { type: 'cancelPinMode' })).toBe(loaded);
   });
 
-  it('tapping a named POI prepends it as the auto-selected top result, keeping the existing list', () => {
+  const GUM_WALL = { name: 'Gum Wall', coords: { lat: 47.6086, lng: -122.3401 } } as const;
+  const GUM_WALL_RESULT = { title: 'Gum Wall', coords: GUM_WALL.coords };
+
+  it('tapping a named POI adds it as an auto-selected row above the existing list', () => {
     // Mid-search, the user taps a landmark on the map instead.
     const searching = pickerReducer(
       pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
       { type: 'resultsLoaded', results: [PIKE, SPACE_NEEDLE] },
     );
 
-    const tapped = pickerReducer(searching, {
-      type: 'poiSelected',
-      name: 'Gum Wall',
-      coords: { lat: 47.6086, lng: -122.3401 },
-    });
+    const tapped = pickerReducer(searching, { type: 'poiSelected', ...GUM_WALL });
 
-    // The POI is added to the top; the prior results stay beneath it.
+    // The POI sits on top as its own row; the search results keep their indices.
     expect(rows(tapped)).toEqual([
-      { kind: 'result', index: 0, result: { title: 'Gum Wall', coords: { lat: 47.6086, lng: -122.3401 } } },
-      { kind: 'result', index: 1, result: PIKE },
-      { kind: 'result', index: 2, result: SPACE_NEEDLE },
+      { kind: 'poi', result: GUM_WALL_RESULT },
+      { kind: 'result', index: 0, result: PIKE },
+      { kind: 'result', index: 1, result: SPACE_NEEDLE },
       // The query is untouched, so its plain-address fallback row still stands.
       { kind: 'address', text: 'seattle' },
     ]);
-    expect(tapped.selected).toEqual({ kind: 'result', index: 0 });
-    expect(cameraTarget(tapped)).toEqual({ kind: 'point', coords: { lat: 47.6086, lng: -122.3401 } });
+    expect(tapped.selected).toEqual({ kind: 'poi' });
+    expect(cameraTarget(tapped)).toEqual({ kind: 'point', coords: GUM_WALL.coords });
+    // Its pin draws on top of the search-result pins.
+    expect(resultPins(tapped)).toEqual([GUM_WALL.coords, PIKE.coords, SPACE_NEEDLE.coords]);
     // A named POI commits with its name as the address.
     expect(committedLocation(tapped)).toEqual({
       address: 'Gum Wall',
@@ -221,19 +222,45 @@ describe('LocationPicker model', () => {
     });
   });
 
-  it('re-tapping the same POI keeps it on top without piling up duplicates', () => {
-    const poi = { name: 'Gum Wall', coords: { lat: 47.6086, lng: -122.3401 } } as const;
-    const once = pickerReducer(
-      pickerReducer(initialPickerState, { type: 'resultsLoaded', results: [PIKE] }),
-      { type: 'poiSelected', ...poi },
-    );
-    const twice = pickerReducer(once, { type: 'poiSelected', ...poi });
+  it('switching to another POI replaces the first — only one landmark at a time', () => {
+    const first = pickerReducer(initialPickerState, { type: 'poiSelected', ...GUM_WALL });
+    const second = pickerReducer(first, {
+      type: 'poiSelected',
+      name: 'Space Needle',
+      coords: SPACE_NEEDLE.coords,
+    });
 
-    // Still a single Gum Wall entry on top, then the prior result.
-    expect(rows(twice).filter((r) => r.kind === 'result')).toEqual([
-      { kind: 'result', index: 0, result: { title: 'Gum Wall', coords: poi.coords } },
-      { kind: 'result', index: 1, result: PIKE },
+    expect(rows(second)).toEqual([
+      { kind: 'poi', result: { title: 'Space Needle', coords: SPACE_NEEDLE.coords } },
     ]);
+    // Only the current landmark's pin remains.
+    expect(resultPins(second)).toEqual([SPACE_NEEDLE.coords]);
+  });
+
+  it('selecting a search result discards the tapped POI and its pin', () => {
+    const searched = pickerReducer(
+      pickerReducer(initialPickerState, { type: 'queryChanged', text: 'seattle' }),
+      { type: 'resultsLoaded', results: [PIKE, SPACE_NEEDLE] },
+    );
+    const tapped = pickerReducer(searched, { type: 'poiSelected', ...GUM_WALL });
+
+    const picked = pickerReducer(tapped, { type: 'selectRow', key: { kind: 'result', index: 1 } });
+
+    // The POI row is gone; only the search results (and address fallback) remain.
+    expect(picked.poi).toBeNull();
+    expect(rows(picked).some((r) => r.kind === 'poi')).toBe(false);
+    expect(resultPins(picked)).toEqual([PIKE.coords, SPACE_NEEDLE.coords]);
+    expect(committedLocation(picked)).toEqual({
+      address: 'Space Needle',
+      lat: SPACE_NEEDLE.coords.lat,
+      lng: SPACE_NEEDLE.coords.lng,
+    });
+  });
+
+  it('typing a new query clears a tapped POI', () => {
+    const tapped = pickerReducer(initialPickerState, { type: 'poiSelected', ...GUM_WALL });
+    const typed = pickerReducer(tapped, { type: 'queryChanged', text: 'paris' });
+    expect(typed.poi).toBeNull();
   });
 
   it('tapping a POI keeps its coordinates and auto-selects it', () => {
@@ -243,7 +270,7 @@ describe('LocationPicker model', () => {
       coords: { lat: 1, lng: 2 },
     });
 
-    expect(tapped.selected).toEqual({ kind: 'result', index: 0 });
+    expect(tapped.selected).toEqual({ kind: 'poi' });
     expect(committedLocation(tapped)).toEqual({ address: '1, 2', lat: 1, lng: 2 });
   });
 
