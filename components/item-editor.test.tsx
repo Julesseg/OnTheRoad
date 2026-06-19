@@ -99,43 +99,80 @@ vi.mock('@expo/ui/swift-ui', async () => {
       return React.createElement('span', null, children);
     },
     useNativeState: (initial: string) => ({ value: initial }),
+    // Mirrors the SwiftUI TextField closely enough to drive the checklist's
+    // paragraph behavior: the native field always carries a leading zero-width
+    // sentinel (kept out of the visible <input> value), Return inserts a newline
+    // at the caret, and Backspace at offset 0 deletes the sentinel. Focus and
+    // selection are exposed imperatively via the ref.
     TextField: React.forwardRef(
       (
         {
           text,
           placeholder,
           onTextChange,
-          autoFocus,
-          modifiers,
+          axis,
         }: {
           text?: { value: string };
           placeholder?: string;
           onTextChange?: (t: string) => void;
-          autoFocus?: boolean;
-          modifiers?: Record<string, unknown>[];
+          axis?: string;
         },
-        ref: React.Ref<{ setText: (t: string) => void }>,
+        ref: React.Ref<{
+          setText: (t: string) => void;
+          clear: () => void;
+          focus: () => void;
+          blur: () => void;
+          setSelection: (start: number, end: number) => void;
+        }>,
       ) => {
+        const SENTINEL = '\u200B';
+        // Only the checklist rows seed their native text with the sentinel; the
+        // name/notes fields don't, and must pass their text through verbatim.
+        const usesSentinel = (text?.value ?? '').startsWith(SENTINEL);
+        const strip = (t: string) =>
+          t.startsWith(SENTINEL) ? t.slice(SENTINEL.length) : t;
         const inputRef = React.useRef<HTMLInputElement>(null);
         React.useImperativeHandle(ref, () => ({
           setText: (t: string) => {
-            if (inputRef.current) inputRef.current.value = t;
+            if (inputRef.current) inputRef.current.value = strip(t);
+          },
+          clear: () => {
+            if (inputRef.current) inputRef.current.value = '';
+          },
+          focus: () => inputRef.current?.focus(),
+          blur: () => inputRef.current?.blur(),
+          setSelection: (start: number, end: number) => {
+            const el = inputRef.current;
+            if (!el) return;
+            // Native offsets include the sentinel; shift back to the visible value.
+            const s = Math.max(0, start - SENTINEL.length);
+            const e = Math.max(0, end - SENTINEL.length);
+            el.setSelectionRange?.(s, e);
           },
         }));
-        // The native `onSubmit` modifier fires on Return; mirror it as an Enter
-        // keydown so tests can drive the "add next entry" behavior.
-        const onSubmit = modifiers?.find((m) => m && '__onSubmit' in m)?.__onSubmit as
-          | (() => void)
-          | undefined;
         return React.createElement('input', {
           ref: inputRef,
           placeholder,
           'aria-label': placeholder,
-          autoFocus,
-          defaultValue: text?.value,
-          onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
-          onKeyDown: (e: { key: string }) => {
-            if (e.key === 'Enter') onSubmit?.();
+          'data-axis': axis,
+          defaultValue: strip(text?.value ?? ''),
+          // A sentinel field keeps its leading sentinel through edits, so report
+          // it back on every change; plain fields report their value verbatim.
+          onChange: (e: { target: { value: string } }) =>
+            onTextChange?.(usesSentinel ? SENTINEL + e.target.value : e.target.value),
+          onKeyDown: (e: { key: string; currentTarget: HTMLInputElement }) => {
+            if (!usesSentinel) return;
+            const el = e.currentTarget;
+            const val = el.value ?? '';
+            if (e.key === 'Enter') {
+              const pos = el.selectionStart ?? val.length;
+              onTextChange?.(SENTINEL + val.slice(0, pos) + '\n' + val.slice(pos));
+            } else if (e.key === 'Backspace') {
+              const start = el.selectionStart ?? 0;
+              const end = el.selectionEnd ?? start;
+              // Caret at the very start: the keystroke lands on the sentinel.
+              if (start === 0 && end === 0) onTextChange?.(val);
+            }
           },
         });
       },
@@ -496,7 +533,7 @@ describe('ItemEditor', () => {
     expect(screen.getByPlaceholderText('Checklist entry')).not.toHaveFocus();
   });
 
-  it('hitting Return on an entry adds a new blank entry to keep inputting', () => {
+  it('hitting Return at the end of an entry adds a new blank entry to keep inputting', () => {
     render(<ItemEditor itemId="cl-r" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
     fireEvent.change(screen.getByPlaceholderText('Checklist entry'), { target: { value: 'Passport' } });
@@ -508,6 +545,126 @@ describe('ItemEditor', () => {
     expect(fields[1].defaultValue).toBe('');
     // The new entry takes focus so typing continues without reaching for the row.
     expect(fields[1]).toHaveFocus();
+  });
+
+  it('inserts the new entry directly below the current one, not at the end', async () => {
+    const onSubmit = vi.fn();
+    const initial: Item = {
+      id: 'cl-ins', name: 'Pack', category: 'activity',
+      checklist: [
+        { id: 'a', label: 'First', checked: false },
+        { id: 'b', label: 'Last', checked: false },
+      ],
+    };
+    render(<ItemEditor itemId="cl-ins" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    // Return at the end of the *first* row drops a blank row between the two.
+    const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    fields[0].setSelectionRange(fields[0].value.length, fields[0].value.length);
+    fireEvent.keyDown(fields[0], { key: 'Enter' });
+    const afterSplit = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    fireEvent.change(afterSplit[1], { target: { value: 'Middle' } });
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist!.map((e) => e.label)).toEqual([
+      'First',
+      'Middle',
+      'Last',
+    ]);
+  });
+
+  it('Return mid-entry moves the text after the caret into the new row (paragraph split)', async () => {
+    const onSubmit = vi.fn();
+    render(<ItemEditor itemId="cl-split" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+    const field = screen.getByPlaceholderText('Checklist entry') as HTMLInputElement;
+    fireEvent.change(field, { target: { value: 'HelloWorld' } });
+    field.setSelectionRange(5, 5); // caret between "Hello" and "World"
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    expect(fields).toHaveLength(2);
+    expect(fields[0].value).toBe('Hello');
+    expect(fields[1].value).toBe('World');
+    // Caret lands at the start of the new line, which now holds the moved tail.
+    expect(fields[1]).toHaveFocus();
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist!.map((e) => e.label)).toEqual([
+      'Hello',
+      'World',
+    ]);
+  });
+
+  it('Backspace at the start of an entry merges it into the previous one', async () => {
+    const onSubmit = vi.fn();
+    const initial: Item = {
+      id: 'cl-merge', name: 'Pack', category: 'activity',
+      checklist: [
+        { id: 'a', label: 'Hello', checked: false },
+        { id: 'b', label: 'World', checked: false },
+      ],
+    };
+    render(<ItemEditor itemId="cl-merge" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    fields[1].setSelectionRange(0, 0);
+    fireEvent.keyDown(fields[1], { key: 'Backspace' });
+
+    const after = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    expect(after).toHaveLength(1);
+    expect(after[0].value).toBe('HelloWorld');
+    expect(after[0]).toHaveFocus();
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist).toEqual([
+      { id: 'a', label: 'HelloWorld', checked: false },
+    ]);
+  });
+
+  it('Backspace at the start of an empty entry deletes it', async () => {
+    const onSubmit = vi.fn();
+    const initial: Item = {
+      id: 'cl-bsp', name: 'Pack', category: 'activity',
+      checklist: [
+        { id: 'a', label: 'Passport', checked: false },
+        { id: 'b', label: '', checked: false },
+      ],
+    };
+    render(<ItemEditor itemId="cl-bsp" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
+
+    const fields = screen.getAllByPlaceholderText('Checklist entry') as HTMLInputElement[];
+    fields[1].setSelectionRange(0, 0);
+    fireEvent.keyDown(fields[1], { key: 'Backspace' });
+
+    expect(screen.getAllByPlaceholderText('Checklist entry')).toHaveLength(1);
+    expect(screen.getByPlaceholderText('Checklist entry')).toHaveFocus();
+
+    save();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect((onSubmit.mock.calls[0][0] as Item).checklist).toEqual([
+      { id: 'a', label: 'Passport', checked: false },
+    ]);
+  });
+
+  it('Backspace at the start of the first entry does nothing (nothing above to merge)', () => {
+    const initial: Item = {
+      id: 'cl-first', name: 'Pack', category: 'activity',
+      checklist: [{ id: 'a', label: 'Hello', checked: false }],
+    };
+    render(<ItemEditor itemId="cl-first" initialItem={initial} onSubmit={() => {}} />);
+
+    const field = screen.getByPlaceholderText('Checklist entry') as HTMLInputElement;
+    field.setSelectionRange(0, 0);
+    fireEvent.keyDown(field, { key: 'Backspace' });
+
+    expect(screen.getAllByPlaceholderText('Checklist entry')).toHaveLength(1);
+    expect(field.value).toBe('Hello');
   });
 
   const PACK_ITEM: Item = {

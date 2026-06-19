@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
@@ -40,8 +40,6 @@ import {
   contentTransition,
   animation,
   Animation,
-  submitLabel,
-  onSubmit as onSubmitModifier,
 } from '@expo/ui/swift-ui/modifiers';
 
 import {
@@ -57,7 +55,15 @@ import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
 import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
 import { beginLocationPick } from '@/lib/location-picker-store';
-import { moveEntries, sanitizeChecklist } from '@/lib/checklist';
+import {
+  ENTRY_SENTINEL,
+  type ChecklistFocus,
+  mergeEntryUp,
+  moveEntries,
+  sanitizeChecklist,
+  splitEntry,
+} from '@/lib/checklist';
+import type { TextFieldRef } from '@expo/ui/swift-ui';
 import { newId } from '@/lib/id';
 
 /** One choice in the Share editor's trip selector; `past` drives the visual marking. */
@@ -189,26 +195,67 @@ function TimeRow({
 // the system swipe-to-delete and reorder the system long-press drag — both
 // wired on the surrounding List.ForEach, not here.
 //
-// `autoFocus` is set only on a freshly added entry so the keyboard opens on it;
-// pressing Return (labeled "next") calls `onSubmit` to add the following entry,
-// keeping focus moving down the list so you can type entries back to back.
+// The rows behave like lines in a paragraph. The native text always carries a
+// leading sentinel (see `ENTRY_SENTINEL`) so we can read three intents out of a
+// single `onTextChange`:
+//   - text lost its sentinel  → backspace at offset 0 → merge into the row above
+//   - text gained a newline   → Return → split, the tail moving to a new row
+//   - anything else           → an ordinary rename
+// Using the text stream (rather than SwiftUI's `.onSubmit`, which resigns the
+// keyboard) is what lets Return move the caret to the next row without the
+// keyboard dropping and springing back. Focus and caret placement after a
+// split/merge are driven imperatively by the parent through `registerRef`.
 function ChecklistEntryRow({
   entry,
   position,
-  autoFocus,
+  isFirst,
+  registerRef,
   onRename,
   onToggle,
-  onSubmit,
+  onSplit,
+  onMergeUp,
 }: {
   entry: ChecklistItem;
   position: number;
-  autoFocus: boolean;
-  onRename: (label: string) => void;
+  isFirst: boolean;
+  registerRef: (id: string, ref: TextFieldRef | null) => void;
+  onRename: (id: string, label: string) => void;
   onToggle: () => void;
-  onSubmit: () => void;
+  onSplit: (id: string, before: string, after: string) => void;
+  onMergeUp: (id: string, trailing: string) => void;
 }) {
   const { accent, textSubtle } = useThemeColors();
-  const labelState = useNativeState(entry.label);
+  // Seed the native field with the sentinel ahead of the label; React state and
+  // saved data stay sentinel-free.
+  const labelState = useNativeState(ENTRY_SENTINEL + entry.label);
+  const fieldRef = useRef<TextFieldRef | null>(null);
+
+  function handleTextChange(raw: string) {
+    if (!raw.startsWith(ENTRY_SENTINEL)) {
+      // The sentinel was backspaced away — the caret was at the very start.
+      if (isFirst) {
+        // Nothing above to merge into; put the sentinel back and stay put.
+        fieldRef.current?.setText(ENTRY_SENTINEL + raw);
+        fieldRef.current?.setSelection(ENTRY_SENTINEL.length, ENTRY_SENTINEL.length);
+        return;
+      }
+      onMergeUp(entry.id, raw);
+      return;
+    }
+    const body = raw.slice(ENTRY_SENTINEL.length);
+    const nl = body.indexOf('\n');
+    if (nl !== -1) {
+      const before = body.slice(0, nl);
+      const after = body.slice(nl + 1);
+      // Drop the newline (and the moved tail) from this field straight away so
+      // the row never visibly grows to two lines while the split commits.
+      fieldRef.current?.setText(ENTRY_SENTINEL + before);
+      onSplit(entry.id, before, after);
+      return;
+    }
+    onRename(entry.id, body);
+  }
+
   return (
     <HStack spacing={12}>
       <Image
@@ -223,11 +270,14 @@ function ChecklistEntryRow({
         ]}
       />
       <TextField
+        ref={(r) => {
+          fieldRef.current = r;
+          registerRef(entry.id, r);
+        }}
         text={labelState}
         placeholder="Checklist entry"
-        autoFocus={autoFocus}
-        onTextChange={onRename}
-        modifiers={[submitLabel('next'), onSubmitModifier(onSubmit)]}
+        axis="vertical"
+        onTextChange={handleTextChange}
       />
     </HStack>
   );
@@ -302,16 +352,62 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   }
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
-  // Id of the entry to focus next. Set when an entry is added (via the button
-  // or Return) so that row mounts focused and the keyboard opens; existing
-  // entries start unfocused (null) so opening an item never grabs the keyboard.
-  const [focusId, setFocusId] = useState<string | null>(null);
+  // Live handles to each row's native TextField, keyed by entry id, so split and
+  // merge can move focus and place the caret imperatively. `pendingFocus` holds
+  // the next such request; bumping `focusTick` runs the effect that applies it
+  // once the (possibly freshly inserted) target row has registered its ref.
+  const rowRefs = useRef(new Map<string, TextFieldRef>());
+  const pendingFocus = useRef<{ id: string; cursor: number; setText?: string } | null>(null);
+  const [focusTick, setFocusTick] = useState(0);
   const identity = itemIdentity(category);
+
+  function registerRow(id: string, ref: TextFieldRef | null) {
+    if (ref) rowRefs.current.set(id, ref);
+    else rowRefs.current.delete(id);
+  }
+
+  function requestFocus(focus: ChecklistFocus, setText?: string) {
+    pendingFocus.current = { ...focus, setText };
+    setFocusTick((t) => t + 1);
+  }
+
+  useEffect(() => {
+    const pf = pendingFocus.current;
+    if (!pf) return;
+    pendingFocus.current = null;
+    const ref = rowRefs.current.get(pf.id);
+    if (!ref) return;
+    // A merged row needs its native text rewritten to the joined label (React
+    // state alone won't push into a field that's already mounted).
+    if (pf.setText !== undefined) ref.setText(pf.setText);
+    ref.focus();
+    // `cursor` is a label offset; the native field is shifted by the sentinel.
+    const at = ENTRY_SENTINEL.length + pf.cursor;
+    ref.setSelection(at, at);
+  }, [focusTick]);
 
   function addEntry() {
     const id = newId();
     setChecklist((cl) => [...cl, { id, label: '', checked: false }]);
-    setFocusId(id);
+    requestFocus({ id, cursor: 0 });
+  }
+
+  function renameEntry(id: string, label: string) {
+    setChecklist((cl) => cl.map((e) => (e.id === id ? { ...e, label } : e)));
+  }
+
+  function splitEntryAt(id: string, before: string, after: string) {
+    const { checklist: next, focus } = splitEntry(checklist, id, before, after, newId);
+    setChecklist(next);
+    requestFocus(focus);
+  }
+
+  function mergeEntryAt(id: string, trailing: string) {
+    const { checklist: next, focus } = mergeEntryUp(checklist, id, trailing);
+    if (!focus) return;
+    setChecklist(next);
+    const merged = next.find((e) => e.id === focus.id);
+    requestFocus(focus, ENTRY_SENTINEL + (merged?.label ?? ''));
   }
 
   const nameState = useNativeState(defaults.name);
@@ -498,16 +594,16 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                   key={entry.id}
                   entry={entry}
                   position={i + 1}
-                  autoFocus={entry.id === focusId}
-                  onRename={(label) =>
-                    setChecklist((cl) => cl.map((e) => (e.id === entry.id ? { ...e, label } : e)))
-                  }
+                  isFirst={i === 0}
+                  registerRef={registerRow}
+                  onRename={renameEntry}
                   onToggle={() =>
                     setChecklist((cl) =>
                       cl.map((e) => (e.id === entry.id ? { ...e, checked: !e.checked } : e)),
                     )
                   }
-                  onSubmit={addEntry}
+                  onSplit={splitEntryAt}
+                  onMergeUp={mergeEntryAt}
                 />
               ))}
             </List.ForEach>
