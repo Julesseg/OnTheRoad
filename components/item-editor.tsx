@@ -134,12 +134,13 @@ function NoteLinks({ text }: { text: string }) {
 }
 
 // The Time row carries the optional/"unset" state in its trailing Toggle:
-//   off            → no time, no picker, no subtitle
+//   off            → no time, no picker, no value
 //   switching on   → defaults to 09:00 and expands an inline time picker
-//   tapping body   → collapses the picker to a locale-formatted value subtitle
-//                    under the "Time" label (tap again re-expands)
+//   tapping body   → collapses/expands the picker (tap again re-expands)
 //   switching off  → clears the time
-// Opening an existing timed item starts on, collapsed, showing the value.
+// Whenever the toggle is on, the locale-formatted value shows in coral under the
+// "Time" label (both expanded and collapsed). Opening an existing timed item
+// starts on and collapsed. Expand/collapse and the row's layout are animated.
 function TimeRow({
   value,
   expanded,
@@ -153,10 +154,14 @@ function TimeRow({
   onToggleExpand: () => void;
   onChange: (v: string) => void;
 }) {
-  const { textSubtle } = useThemeColors();
+  const { accent, textSubtle } = useThemeColors();
   const on = value !== '';
+  // A single value that flips whenever the row's visual state changes, so the
+  // `animation` modifier animates the picker's insertion/removal and the
+  // repositioning of the clock, label and value beneath it.
+  const phase = (on ? 1 : 0) + (expanded ? 2 : 0);
   return (
-    <>
+    <VStack alignment="leading" spacing={0} modifiers={[animation(Animation.default, phase)]}>
       {/* The whole row (icon + label, but not the trailing Toggle, which consumes
           its own taps) collapses/expands the picker. contentShape makes the empty
           space hit-test, so a tap anywhere on the row body registers. */}
@@ -167,8 +172,8 @@ function TimeRow({
         <Image systemName="clock" color={textSubtle} size={20} />
         <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
           <Text>Time</Text>
-          {on && !expanded ? (
-            <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>{formatTime(value)}</Text>
+          {on ? (
+            <Text modifiers={[font({ size: 13 }), foregroundStyle(accent)]}>{formatTime(value)}</Text>
           ) : null}
         </VStack>
         <Toggle
@@ -186,7 +191,7 @@ function TimeRow({
           modifiers={[datePickerStyle('wheel'), labelsHidden()]}
         />
       ) : null}
-    </>
+    </VStack>
   );
 }
 
