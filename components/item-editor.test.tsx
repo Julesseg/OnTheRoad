@@ -39,9 +39,10 @@ vi.mock('@expo/ui/swift-ui', async () => {
   return {
     Host: pass('div'),
     Form: pass('div'),
-    // VStack carrying an onTapGesture modifier (the Time row's collapse/expand
-    // label) renders as a button so the body tap stays assertable.
-    VStack: ({
+    VStack: pass('div'),
+    // HStack carrying an onTapGesture modifier (the tappable Time row body)
+    // renders as a button so the row press is assertable; plain stacks stay divs.
+    HStack: ({
       children,
       modifiers,
     }: {
@@ -49,15 +50,18 @@ vi.mock('@expo/ui/swift-ui', async () => {
       modifiers?: Record<string, unknown>[];
     }) => {
       const onTap = modifiers?.find((m) => m && '__onTap' in m)?.__onTap as (() => void) | undefined;
-      if (onTap) return React.createElement('button', { onClick: onTap }, children);
+      const a11y = modifiers?.find((m) => m && '__accessibilityLabel' in m)?.__accessibilityLabel;
+      if (onTap)
+        return React.createElement('button', { onClick: onTap, 'aria-label': a11y }, children);
       return React.createElement('div', null, children);
     },
-    HStack: pass('div'),
     Spacer: () => null,
     LabeledContent: pass('div'),
     Divider: () => null,
     // Toggle renders as a switch button so its on/off taps are assertable; the
-    // accessibility label names it ("Time").
+    // accessibility label names it ("Time"). It stops propagation so a tap on the
+    // switch never reaches the enclosing tappable row (matching SwiftUI, where the
+    // control consumes its own taps).
     Toggle: ({
       isOn,
       onIsOnChange,
@@ -72,7 +76,10 @@ vi.mock('@expo/ui/swift-ui', async () => {
         role: 'switch',
         'aria-checked': isOn,
         'aria-label': a11y,
-        onClick: () => onIsOnChange?.(!isOn),
+        onClick: (e: { stopPropagation: () => void }) => {
+          e.stopPropagation();
+          onIsOnChange?.(!isOn);
+        },
       });
     },
     // Images carrying an onTapGesture modifier (the checklist circles, clear
@@ -229,6 +236,8 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   tint: vi.fn(() => ({})),
   onTapGesture: (fn: () => void) => ({ __onTap: fn }),
   accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
+  contentShape: vi.fn(() => ({})),
+  shapes: { rectangle: vi.fn(() => ({})) },
   listRowBackground: vi.fn(() => ({})),
   scrollContentBackground: vi.fn(() => ({})),
   contentTransition: vi.fn(() => ({})),
@@ -288,8 +297,8 @@ describe('ItemEditor', () => {
 
   it('renders name and notes fields for a new item', () => {
     render(<ItemEditor itemId="x" onSubmit={() => {}} />);
-    expect(screen.getByPlaceholderText('What is it?')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Anything else to remember')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Title')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Notes')).toBeInTheDocument();
   });
 
   it('renders a category picker defaulting to "activity"', () => {
@@ -314,20 +323,20 @@ describe('ItemEditor', () => {
     fireEvent.click(saveButton);
     expect(onSubmit).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Hike' } });
     expect(saveButton).toBeEnabled();
   });
 
   it('keeps Save disabled when the name is only whitespace', () => {
     render(<ItemEditor itemId="x" onSubmit={() => {}} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: '   ' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: '   ' } });
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
   it('submits a built item with the selected category when name is filled', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="act-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Whale watching' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Whale watching' } });
     save();
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({ id: 'act-1', name: 'Whale watching', category: 'activity' }, INIT_DATE),
@@ -337,7 +346,7 @@ describe('ItemEditor', () => {
   it('submits with a different category when changed via picker', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="meal-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Taco truck' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Taco truck' } });
     act(() => pickers['Category'].onSelectionChange!('meal'));
     save();
     await waitFor(() =>
@@ -358,7 +367,7 @@ describe('ItemEditor', () => {
   it('switching the Time toggle on defaults to 09:00, expands the picker, and persists it', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="act-t" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Hike' } });
 
     fireEvent.click(timeToggle());
     // Enabling defaults to 09:00 and expands an inline picker.
@@ -387,18 +396,21 @@ describe('ItemEditor', () => {
     expect(dpickers['Time']).toBeDefined();
     expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
 
-    // Tapping the "Time" label (the row body, not the switch) collapses it. The
-    // body-tap target is matched by regex because its accessible name absorbs the
-    // value subtitle once collapsed.
+    // Pressing the row body (not the switch) collapses it. The body-tap target is
+    // matched by regex because its accessible name absorbs the value subtitle once
+    // collapsed.
     delete dpickers['Time'];
     fireEvent.click(screen.getByRole('button', { name: /Time/ }));
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
     expect(dpickers['Time']).toBeUndefined();
+    // Collapsing/expanding via the row never flips the toggle.
+    expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
 
     // Tapping again re-expands the picker and hides the subtitle.
     fireEvent.click(screen.getByRole('button', { name: /Time/ }));
     expect(dpickers['Time']).toBeDefined();
     expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
+    expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
   });
 
   it('opening an existing timed item starts on, collapsed, showing the value', () => {
@@ -426,7 +438,7 @@ describe('ItemEditor', () => {
   it('pre-fills name and category when editing an existing item', () => {
     const initial: Item = { id: 'stay-1', name: 'Sea Cliff Inn', category: 'stay' };
     render(<ItemEditor itemId="stay-1" initialItem={initial} onSubmit={() => {}} />);
-    const nameInput = screen.getByPlaceholderText('What is it?') as HTMLInputElement;
+    const nameInput = screen.getByPlaceholderText('Title') as HTMLInputElement;
     expect(nameInput.defaultValue).toBe('Sea Cliff Inn');
     expect(pickers['Category'].selection).toBe('stay');
   });
@@ -464,7 +476,7 @@ describe('ItemEditor', () => {
   it('saving with unchanged date passes initialDate as second arg to onSubmit', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="d-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Boat tour' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Boat tour' } });
     save();
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(
@@ -477,7 +489,7 @@ describe('ItemEditor', () => {
   it('changing the date picker fires onSubmit with the new YYYY-MM-DD string', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="d-2" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Swim' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Swim' } });
     const picked = new Date(2025, 5, 5, 12, 0, 0); // June 5 local
     act(() => dpickers['Date'].onDateChange!(picked));
     save();
@@ -572,7 +584,7 @@ describe('ItemEditor', () => {
   it('adds an entry typed in the composer and includes it on save, unchecked with a fresh id', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="cl-1" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack bags' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Pack bags' } });
 
     // A draft left in the composer (never submitted with Return) is still saved.
     fireEvent.change(screen.getByPlaceholderText('Add entry'), { target: { value: 'Passport' } });
@@ -708,7 +720,7 @@ describe('ItemEditor', () => {
   it('trims a committed entry and drops a blank composer draft on save', async () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="cl-4" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Pack bags' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Pack bags' } });
 
     const composer = screen.getByPlaceholderText('Add entry');
     // Commit via a Return (newline); surrounding whitespace is trimmed.
@@ -789,7 +801,7 @@ describe('ItemEditor', () => {
     const { rerender } = render(
       <ItemEditor itemId="x" trip={TRIP} initialDate="2025-06-03" onSubmit={onSubmit} />,
     );
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Hike' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Hike' } });
     rerender(
       <ItemEditor
         itemId="x"
@@ -811,7 +823,7 @@ describe('ItemEditor', () => {
     const onSubmit = vi.fn();
     render(<ItemEditor itemId="loc-2" trip={TRIP} initialDate={INIT_DATE} onSubmit={onSubmit} />);
 
-    fireEvent.change(screen.getByPlaceholderText('What is it?'), { target: { value: 'Caldera view' } });
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Caldera view' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add location' }));
     // The picker lives on its own route; the editor hands its callback to the store.
     const onConfirm = usePickerStore.getState().onConfirm;

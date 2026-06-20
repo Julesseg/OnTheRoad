@@ -36,6 +36,8 @@ import {
   tint,
   truncationMode,
   onTapGesture,
+  contentShape,
+  shapes,
   contentTransition,
   animation,
   Animation,
@@ -155,19 +157,20 @@ function TimeRow({
   const on = value !== '';
   return (
     <>
-      <HStack spacing={12}>
+      {/* The whole row (icon + label, but not the trailing Toggle, which consumes
+          its own taps) collapses/expands the picker. contentShape makes the empty
+          space hit-test, so a tap anywhere on the row body registers. */}
+      <HStack
+        spacing={12}
+        modifiers={on ? [contentShape(shapes.rectangle()), onTapGesture(onToggleExpand)] : []}
+      >
         <Image systemName="clock" color={textSubtle} size={20} />
-        <VStack
-          alignment="leading"
-          spacing={2}
-          modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' }), ...(on ? [onTapGesture(onToggleExpand)] : [])]}
-        >
+        <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
           <Text>Time</Text>
           {on && !expanded ? (
             <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>{formatTime(value)}</Text>
           ) : null}
         </VStack>
-        <Spacer />
         <Toggle
           isOn={on}
           onIsOnChange={onToggle}
@@ -180,7 +183,7 @@ function TimeRow({
           selection={timeToDate(value)}
           displayedComponents={['hourAndMinute']}
           onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('compact'), labelsHidden()]}
+          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
         />
       ) : null}
     </>
@@ -282,9 +285,11 @@ function LocationRow({
   return (
     // Tappable Text/Image instead of Buttons — iOS 26 drops the row's bottom
     // separator around button rows, and the gesture also confines the tap target
-    // to the label. The leading `map` glyph matches the itinerary's location icon.
+    // to the label. The leading `map` glyph matches the itinerary's location icon;
+    // the value/CTA is trailing-aligned (Spacer pushes it to the right).
     <HStack spacing={12}>
       <Image systemName="map" color={textSubtle} size={20} />
+      <Spacer />
       <Text
         modifiers={[
           foregroundStyle(accent),
@@ -295,7 +300,6 @@ function LocationRow({
       >
         {locationLabel(location)}
       </Text>
-      <Spacer />
       {location ? (
         <Image
           systemName="xmark.circle.fill"
@@ -483,13 +487,13 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
             <VStack alignment="leading" spacing={8}>
               <TextField
                 text={nameState}
-                placeholder="What is it?"
+                placeholder="Title"
                 onTextChange={setName}
-                modifiers={[font({ size: 18, weight: 'semibold' })]}
+                modifiers={[font({ size: 24, weight: 'semibold' })]}
               />
               <TextField
                 text={notesState}
-                placeholder="Anything else to remember"
+                placeholder="Notes"
                 onTextChange={setNotes}
                 axis="vertical"
               />
