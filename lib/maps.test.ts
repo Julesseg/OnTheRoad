@@ -96,4 +96,15 @@ describe('reconcilePreferredMapsApp', () => {
   it('falls back to apple when only apple is available', () => {
     expect(reconcilePreferredMapsApp('waze', ['apple'])).toBe('apple');
   });
+
+  // The fallback is the installed set's head — Apple Maps on iOS, Google Maps on
+  // Android — so a stored preference can never dead-end on either platform.
+  it('reconciles a stored apple preference to Google Maps on Android', () => {
+    // On Android the installed set has no Apple Maps and leads with Google.
+    expect(reconcilePreferredMapsApp('apple', ['google', 'waze'])).toBe('google');
+  });
+
+  it('falls back to Google Maps on Android when the preferred app is not installed', () => {
+    expect(reconcilePreferredMapsApp('waze', ['google'])).toBe('google');
+  });
 });

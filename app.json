@@ -43,6 +43,20 @@
         {
           "ios": {
             "deploymentTarget": "26.0"
+          },
+          "android": {
+            "manifestQueries": {
+              "intent": [
+                {
+                  "action": "android.intent.action.VIEW",
+                  "data": { "scheme": "comgooglemaps" }
+                },
+                {
+                  "action": "android.intent.action.VIEW",
+                  "data": { "scheme": "waze" }
+                }
+              ]
+            }
           }
         }
       ],

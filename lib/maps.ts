@@ -1,4 +1,4 @@
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import type { MapsApp } from './schema';
 
@@ -25,6 +25,12 @@ export function buildAppleMapsUrl(target: MapsTarget): string {
 }
 
 export function buildGoogleMapsUrl(target: MapsTarget): string {
+  // iOS opens the Google Maps app via its comgooglemaps:// scheme. Android's
+  // Google Maps does not register that scheme; the universal maps URL opens the
+  // app when installed and the browser otherwise (ADR-0015).
+  if (Platform.OS === 'android') {
+    return `https://www.google.com/maps/dir/?api=1&destination=${daddrParam(target)}`;
+  }
   return `comgooglemaps://?daddr=${daddrParam(target)}`;
 }
 
@@ -52,6 +58,13 @@ export function openInMaps(target: MapsTarget, options: { app: MapsApp }): Promi
 }
 
 export async function getInstalledMapsApps(): Promise<MapsApp[]> {
+  // The platform's guaranteed app leads the set: Apple Maps ships with iOS,
+  // Google Maps is the Android default. Apple Maps doesn't exist on Android, so
+  // it's dropped there entirely (ADR-0015).
+  if (Platform.OS === 'android') {
+    const wazeInstalled = await Linking.canOpenURL(PROBE_SCHEME.waze!).catch(() => false);
+    return wazeInstalled ? ['google', 'waze'] : ['google'];
+  }
   const optional = Object.keys(PROBE_SCHEME) as MapsApp[];
   const available = await Promise.all(
     optional.map((app) => Linking.canOpenURL(PROBE_SCHEME[app]!).catch(() => false)),
@@ -59,8 +72,11 @@ export async function getInstalledMapsApps(): Promise<MapsApp[]> {
   return ['apple', ...optional.filter((_, i) => available[i])];
 }
 
-// Falls back to Apple Maps (always present on iOS) when the stored preference
-// points at an app that isn't installed, so the chosen app can never dead-end.
+// Falls back to the installed set's head — Apple Maps on iOS, Google Maps on
+// Android — when the stored preference points at an app that isn't installed (or
+// doesn't exist on this platform, e.g. a stored `apple` on Android), so the chosen
+// app can never dead-end.
 export function reconcilePreferredMapsApp(preferred: MapsApp, installed: MapsApp[]): MapsApp {
-  return installed.includes(preferred) ? preferred : 'apple';
+  if (installed.includes(preferred)) return preferred;
+  return installed[0] ?? 'apple';
 }
