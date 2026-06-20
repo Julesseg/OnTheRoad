@@ -10,7 +10,15 @@ const dpickers = vi.hoisted(
   () =>
     ({}) as Record<
       string,
-      { onDateChange?: (d: Date) => void; selection?: Date; range?: { start?: Date; end?: Date } }
+      {
+        onDateChange?: (d: Date) => void;
+        selection?: Date;
+        range?: { start?: Date; end?: Date };
+        // The clipped frame height applied to the Time picker: 0 = collapsed,
+        // >0 = expanded. Used by tests to tell the two states apart now that the
+        // picker is always mounted and revealed by growing its height.
+        height?: number;
+      }
     >,
 );
 const pickers = vi.hoisted(
@@ -182,13 +190,19 @@ vi.mock('@expo/ui/swift-ui', async () => {
       onDateChange?: (d: Date) => void;
       selection?: Date;
       range?: { start?: Date; end?: Date };
+      modifiers?: Record<string, unknown>[];
     }) => {
-      if (props.title)
+      if (props.title) {
+        const frameMod = props.modifiers?.find((m) => m && '__frame' in m) as
+          | { __frame?: { height?: number } }
+          | undefined;
         dpickers[props.title] = {
           onDateChange: props.onDateChange,
           selection: props.selection,
           range: props.range,
+          height: frameMod?.__frame?.height,
         };
+      }
       return null;
     },
     Picker: (props: {
@@ -232,7 +246,9 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   listRowInsets: vi.fn(() => ({})),
   listRowSeparator: vi.fn(() => ({})),
   padding: vi.fn(() => ({})),
-  frame: vi.fn(() => ({})),
+  // frame captures its options so tests can read the Time picker's clipped height.
+  frame: (opts: Record<string, unknown>) => ({ __frame: opts }),
+  clipped: vi.fn(() => ({})),
   tint: vi.fn(() => ({})),
   onTapGesture: (fn: () => void) => ({ __onTap: fn }),
   accessibilityLabel: (label: string) => ({ __accessibilityLabel: label }),
@@ -242,12 +258,16 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   scrollContentBackground: vi.fn(() => ({})),
   contentTransition: vi.fn(() => ({})),
   animation: vi.fn(() => ({})),
-  Animation: { default: {} },
+  Animation: { default: {}, easeInOut: vi.fn(() => ({})) },
   submitLabel: vi.fn(() => ({})),
   onSubmit: (fn: () => void) => ({ __onSubmit: fn }),
 }));
 
 vi.mock('expo-symbols', () => ({ SymbolView: () => null }));
+
+// Device reports no explicit clock preference, so formatTime falls back to the
+// locale default (en-US → "9:00 AM") in tests.
+vi.mock('expo-localization', () => ({ getCalendars: () => [{ uses24hourClock: null }] }));
 
 vi.mock('expo-router', async () => {
   const React = await import('react');
@@ -358,10 +378,11 @@ describe('ItemEditor', () => {
     return screen.getByRole('switch', { name: 'Time' });
   }
 
-  it('starts with the Time toggle off, no picker, and no value for a new item', () => {
+  it('starts with the Time toggle off, the picker collapsed, and no value for a new item', () => {
     render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
     expect(timeToggle()).toHaveAttribute('aria-checked', 'false');
-    expect(dpickers['Time']).toBeUndefined();
+    // The picker is always mounted but clipped to zero height while collapsed.
+    expect(dpickers['Time'].height).toBe(0);
   });
 
   it('switching the Time toggle on defaults to 09:00, expands the picker, and persists it', async () => {
@@ -370,8 +391,8 @@ describe('ItemEditor', () => {
     fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Hike' } });
 
     fireEvent.click(timeToggle());
-    // Enabling defaults to 09:00 and expands an inline picker.
-    expect(dpickers['Time']).toBeDefined();
+    // Enabling defaults to 09:00 and reveals the picker (non-zero height).
+    expect(dpickers['Time'].height).toBeGreaterThan(0);
     const sel = dpickers['Time'].selection!;
     expect(sel.getHours()).toBe(9);
     expect(sel.getMinutes()).toBe(0);
@@ -391,25 +412,23 @@ describe('ItemEditor', () => {
 
   it('pressing the row body collapses and re-expands the picker while the value stays visible', () => {
     render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
-    delete dpickers['Time'];
     fireEvent.click(timeToggle()); // on, expanded
-    expect(dpickers['Time']).toBeDefined();
+    expect(dpickers['Time'].height).toBeGreaterThan(0);
     // The value is shown whenever the toggle is on, expanded included.
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
 
-    // Pressing the row body (not the switch) collapses the picker; the value
-    // stays visible. The body-tap target is matched by regex because its
+    // Pressing the row body (not the switch) collapses the picker to zero height;
+    // the value stays visible. The body-tap target is matched by regex because its
     // accessible name absorbs the value subtitle.
-    delete dpickers['Time'];
     fireEvent.click(screen.getByRole('button', { name: /Time/ }));
-    expect(dpickers['Time']).toBeUndefined();
+    expect(dpickers['Time'].height).toBe(0);
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
     // Collapsing/expanding via the row never flips the toggle.
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
 
     // Tapping again re-expands the picker; the value is still shown.
     fireEvent.click(screen.getByRole('button', { name: /Time/ }));
-    expect(dpickers['Time']).toBeDefined();
+    expect(dpickers['Time'].height).toBeGreaterThan(0);
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
   });
@@ -419,7 +438,7 @@ describe('ItemEditor', () => {
     render(<ItemEditor itemId="act-e" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText('8:00 AM')).toBeInTheDocument();
-    expect(dpickers['Time']).toBeUndefined();
+    expect(dpickers['Time'].height).toBe(0);
   });
 
   it('switching the Time toggle off clears the time', async () => {

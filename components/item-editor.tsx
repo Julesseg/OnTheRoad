@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { getCalendars } from 'expo-localization';
 import {
   Host,
   Form,
@@ -38,6 +39,7 @@ import {
   onTapGesture,
   contentShape,
   shapes,
+  clipped,
   contentTransition,
   animation,
   Animation,
@@ -101,10 +103,16 @@ function dateToTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-// The collapsed Time row shows the value the way the locale would write it
-// (e.g. "9:00 AM" or "09:00") under the "Time" label.
+// The collapsed/expanded Time row shows the value the way the device writes it,
+// honoring the system 24-hour vs. AM/PM setting (falling back to the locale's
+// own convention when the device doesn't express a preference).
 function formatTime(t: string): string {
-  return timeToDate(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const d = timeToDate(t);
+  const uses24 = getCalendars()[0]?.uses24hourClock;
+  if (uses24 == null) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return uses24
+    ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 function NoteLinks({ text }: { text: string }) {
@@ -133,14 +141,21 @@ function NoteLinks({ text }: { text: string }) {
   );
 }
 
+// The natural height of a wheel hour/minute picker. The picker is always mounted
+// and clipped to this height when open, 0 when closed, so opening/closing grows
+// and shrinks the space it occupies (sliding the rows below) instead of the view
+// popping in and out.
+const TIME_PICKER_HEIGHT = 216;
+
 // The Time row carries the optional/"unset" state in its trailing Toggle:
-//   off            → no time, no picker, no value
-//   switching on   → defaults to 09:00 and expands an inline time picker
+//   off            → no value, picker collapsed to nothing
+//   switching on   → defaults to 09:00 and reveals the picker
 //   tapping body   → collapses/expands the picker (tap again re-expands)
 //   switching off  → clears the time
-// Whenever the toggle is on, the locale-formatted value shows in coral under the
+// Whenever the toggle is on, the device-formatted value shows in coral under the
 // "Time" label (both expanded and collapsed). Opening an existing timed item
-// starts on and collapsed. Expand/collapse and the row's layout are animated.
+// starts on and collapsed. A single eased animation drives the value/label slide
+// and the picker's height grow/shrink so the layout settles smoothly.
 function TimeRow({
   value,
   expanded,
@@ -156,12 +171,14 @@ function TimeRow({
 }) {
   const { accent, textSubtle } = useThemeColors();
   const on = value !== '';
+  const open = on && expanded;
   // A single value that flips whenever the row's visual state changes, so the
-  // `animation` modifier animates the picker's insertion/removal and the
-  // repositioning of the clock, label and value beneath it.
+  // `animation` modifier eases every dependent layout change in one transaction:
+  // the value/label sliding into place and the picker's height growing/shrinking.
   const phase = (on ? 1 : 0) + (expanded ? 2 : 0);
+  const anim = Animation.easeInOut({ duration: 0.25 });
   return (
-    <VStack alignment="leading" spacing={0} modifiers={[animation(Animation.default, phase)]}>
+    <VStack alignment="leading" spacing={0} modifiers={[animation(anim, phase)]}>
       {/* The whole row (icon + label, but not the trailing Toggle, which consumes
           its own taps) collapses/expands the picker. contentShape makes the empty
           space hit-test, so a tap anywhere on the row body registers. */}
@@ -182,15 +199,20 @@ function TimeRow({
           modifiers={[labelsHidden(), accessibilityLabel('Time')]}
         />
       </HStack>
-      {on && expanded ? (
-        <DatePicker
-          title="Time"
-          selection={timeToDate(value)}
-          displayedComponents={['hourAndMinute']}
-          onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
-        />
-      ) : null}
+      {/* Always mounted; the clipped frame height (0 when closed) is what animates,
+          so the picker's space grows/shrinks rather than the view fading in/out. */}
+      <DatePicker
+        title="Time"
+        selection={timeToDate(value || '09:00')}
+        displayedComponents={['hourAndMinute']}
+        onDateChange={(d) => onChange(dateToTime(d))}
+        modifiers={[
+          datePickerStyle('wheel'),
+          labelsHidden(),
+          frame({ height: open ? TIME_PICKER_HEIGHT : 0 }),
+          clipped(),
+        ]}
+      />
     </VStack>
   );
 }
