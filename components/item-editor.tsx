@@ -155,15 +155,11 @@ function TimeRow({
 }) {
   const { textSubtle } = useThemeColors();
   const on = value !== '';
-  // A single value that changes across every state transition (off → on+expanded
-  // → on+collapsed). Driving the VStack's `animation` modifier with it lets
-  // SwiftUI animate the row's own height change when the picker or the value
-  // subtitle appears or disappears — a native expand/collapse, no JS layout lib.
-  const phase = on ? (expanded ? 2 : 1) : 0;
   return (
-    // Wrapping the row + inline picker in one animated VStack means the whole
-    // cell grows/shrinks together; SwiftUI tweens the height as `phase` changes.
-    <VStack alignment="leading" spacing={8} modifiers={[animation(Animation.default, phase)]}>
+    // Outer wrapper is NOT animated, so the row's contents (icon, label, toggle,
+    // value subtitle) never tween — they stay put. spacing 0 means the empty
+    // reveal container adds no gap below the row while collapsed.
+    <VStack alignment="leading" spacing={0}>
       {/* The whole row (icon + label, but not the trailing Toggle, which consumes
           its own taps) collapses/expands the picker. contentShape makes the empty
           space hit-test, so a tap anywhere on the row body registers. */}
@@ -184,15 +180,26 @@ function TimeRow({
           modifiers={[labelsHidden(), accessibilityLabel('Time')]}
         />
       </HStack>
-      {on && expanded ? (
-        <DatePicker
-          title="Time"
-          selection={timeToDate(value)}
-          displayedComponents={['hourAndMinute']}
-          onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
-        />
-      ) : null}
+      {/* Reveal container: always mounted and the ONLY animated subtree. When the
+          picker inserts, this container grows from zero to the picker's height;
+          the `animation` modifier tweens that height change, so the space opens up
+          underneath the (fixed) row instead of the row's own contents moving. */}
+      <VStack
+        modifiers={[
+          frame({ maxWidth: Infinity, alignment: 'leading' }),
+          animation(Animation.default, on && expanded),
+        ]}
+      >
+        {on && expanded ? (
+          <DatePicker
+            title="Time"
+            selection={timeToDate(value)}
+            displayedComponents={['hourAndMinute']}
+            onDateChange={(d) => onChange(dateToTime(d))}
+            modifiers={[datePickerStyle('wheel'), labelsHidden()]}
+          />
+        ) : null}
+      </VStack>
     </VStack>
   );
 }
