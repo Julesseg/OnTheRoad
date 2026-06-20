@@ -101,8 +101,9 @@ function dateToTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-// The collapsed Time row shows the value the way the locale would write it
-// (e.g. "9:00 AM" or "09:00") under the "Time" label.
+// While the toggle is on, the Time row shows the value the way the locale would
+// write it (e.g. "9:00 AM" or "09:00") under the "Time" label — whether or not
+// the picker is expanded.
 function formatTime(t: string): string {
   return timeToDate(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
@@ -133,11 +134,12 @@ function NoteLinks({ text }: { text: string }) {
   );
 }
 
-// The Time row carries the optional/"unset" state in its trailing Toggle:
+// The Time row carries the optional/"unset" state in its trailing Toggle. The
+// value subtitle (coral) shows the whole time the toggle is on; only the picker
+// expands/collapses:
 //   off            → no time, no picker, no subtitle
-//   switching on   → defaults to 09:00 and expands an inline time picker
-//   tapping body   → collapses the picker to a locale-formatted value subtitle
-//                    under the "Time" label (tap again re-expands)
+//   switching on   → defaults to 09:00, shows the value, expands the picker
+//   tapping body   → collapses/expands the picker (value subtitle stays put)
 //   switching off  → clears the time
 // Opening an existing timed item starts on, collapsed, showing the value.
 function TimeRow({
@@ -153,7 +155,7 @@ function TimeRow({
   onToggleExpand: () => void;
   onChange: (v: string) => void;
 }) {
-  const { textSubtle } = useThemeColors();
+  const { textSubtle, accent } = useThemeColors();
   const on = value !== '';
   // The picker is rendered as a real sibling row, not nested in the row's cell:
   // when it inserts/removes, the enclosing Form's List animates the insertion and
@@ -172,8 +174,10 @@ function TimeRow({
         <Image systemName="clock" color={textSubtle} size={20} />
         <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
           <Text>Time</Text>
-          {on && !expanded ? (
-            <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>{formatTime(value)}</Text>
+          {/* The value shows whenever the toggle is on — collapsed or expanded —
+              in the coral accent. Only switching off (on === false) hides it. */}
+          {on ? (
+            <Text modifiers={[font({ size: 13 }), foregroundStyle(accent)]}>{formatTime(value)}</Text>
           ) : null}
         </VStack>
         <Toggle

@@ -389,16 +389,17 @@ describe('ItemEditor', () => {
     );
   });
 
-  it('tapping the row body collapses the picker to a locale-formatted subtitle and re-expands it', () => {
+  it('shows the value while the toggle is on, and the body tap only collapses/expands the picker', () => {
     render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
     delete dpickers['Time'];
     fireEvent.click(timeToggle()); // on, expanded
     expect(dpickers['Time']).toBeDefined();
-    expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
+    // The value shows even while the picker is expanded.
+    expect(screen.getByText('9:00 AM')).toBeInTheDocument();
 
-    // Pressing the row body (not the switch) collapses it. The body-tap target is
-    // matched by regex because its accessible name absorbs the value subtitle once
-    // collapsed.
+    // Pressing the row body (not the switch) collapses the picker; the value
+    // stays. The body-tap target is matched by regex because its accessible name
+    // absorbs the value subtitle.
     delete dpickers['Time'];
     fireEvent.click(screen.getByRole('button', { name: /Time/ }));
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
@@ -406,10 +407,10 @@ describe('ItemEditor', () => {
     // Collapsing/expanding via the row never flips the toggle.
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
 
-    // Tapping again re-expands the picker and hides the subtitle.
+    // Tapping again re-expands the picker; the value still shows.
     fireEvent.click(screen.getByRole('button', { name: /Time/ }));
     expect(dpickers['Time']).toBeDefined();
-    expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
+    expect(screen.getByText('9:00 AM')).toBeInTheDocument();
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
   });
 
