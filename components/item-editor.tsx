@@ -10,6 +10,7 @@ import {
   TextField,
   type TextFieldRef,
   DatePicker,
+  DisclosureGroup,
   Picker,
   Button,
   Image,
@@ -36,8 +37,6 @@ import {
   tint,
   truncationMode,
   onTapGesture,
-  contentShape,
-  shapes,
   contentTransition,
   animation,
   Animation,
@@ -134,59 +133,66 @@ function NoteLinks({ text }: { text: string }) {
 }
 
 // The Time row carries the optional/"unset" state in its trailing Toggle:
-//   off            → no time, no picker, no subtitle
+//   off            → no time, no picker, no subtitle (a plain row)
 //   switching on   → defaults to 09:00 and expands an inline time picker
-//   tapping body   → collapses the picker to a locale-formatted value subtitle
+//   tapping header → collapses the picker to a locale-formatted value subtitle
 //                    under the "Time" label (tap again re-expands)
 //   switching off  → clears the time
 // Opening an existing timed item starts on, collapsed, showing the value.
+//
+// When on, the row is a DisclosureGroup whose *header* is the clock + "Time" +
+// Toggle row itself (via DisclosureGroup.Label): tapping the header expands the
+// wheel natively, the Toggle consumes its own taps, and the wheel reveal is the
+// system's own animation. (DisclosureGroup keeps its trailing chevron — the
+// stock library exposes no way to hide it.)
 function TimeRow({
   value,
   expanded,
   onToggle,
-  onToggleExpand,
+  onExpandedChange,
   onChange,
 }: {
   value: string;
   expanded: boolean;
   onToggle: (on: boolean) => void;
-  onToggleExpand: () => void;
+  onExpandedChange: (expanded: boolean) => void;
   onChange: (v: string) => void;
 }) {
   const { textSubtle } = useThemeColors();
   const on = value !== '';
+
+  // The header row, shared between the off (plain) and on (DisclosureGroup
+  // label) states. When collapsed it shows the chosen time as a subtitle.
+  const header = (
+    <HStack spacing={12}>
+      <Image systemName="clock" color={textSubtle} size={20} />
+      <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
+        <Text>Time</Text>
+        {on && !expanded ? (
+          <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>{formatTime(value)}</Text>
+        ) : null}
+      </VStack>
+      <Toggle
+        isOn={on}
+        onIsOnChange={onToggle}
+        modifiers={[labelsHidden(), accessibilityLabel('Time')]}
+      />
+    </HStack>
+  );
+
+  if (!on) return header;
+
   return (
-    <>
-      {/* The whole row (icon + label, but not the trailing Toggle, which consumes
-          its own taps) collapses/expands the picker. contentShape makes the empty
-          space hit-test, so a tap anywhere on the row body registers. */}
-      <HStack
-        spacing={12}
-        modifiers={on ? [contentShape(shapes.rectangle()), onTapGesture(onToggleExpand)] : []}
-      >
-        <Image systemName="clock" color={textSubtle} size={20} />
-        <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
-          <Text>Time</Text>
-          {on && !expanded ? (
-            <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>{formatTime(value)}</Text>
-          ) : null}
-        </VStack>
-        <Toggle
-          isOn={on}
-          onIsOnChange={onToggle}
-          modifiers={[labelsHidden(), accessibilityLabel('Time')]}
-        />
-      </HStack>
-      {on && expanded ? (
-        <DatePicker
-          title="Time"
-          selection={timeToDate(value)}
-          displayedComponents={['hourAndMinute']}
-          onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
-        />
-      ) : null}
-    </>
+    <DisclosureGroup isExpanded={expanded} onIsExpandedChange={onExpandedChange}>
+      <DisclosureGroup.Label>{header}</DisclosureGroup.Label>
+      <DatePicker
+        title="Time"
+        selection={timeToDate(value)}
+        displayedComponents={['hourAndMinute']}
+        onDateChange={(d) => onChange(dateToTime(d))}
+        modifiers={[datePickerStyle('wheel'), labelsHidden()]}
+      />
+    </DisclosureGroup>
   );
 }
 
@@ -541,7 +547,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               value={time}
               expanded={timeExpanded}
               onToggle={onTimeToggle}
-              onToggleExpand={() => setTimeExpanded((e) => !e)}
+              onExpandedChange={setTimeExpanded}
               onChange={setTime}
             />
 

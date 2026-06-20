@@ -40,7 +40,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
     Host: pass('div'),
     Form: pass('div'),
     VStack: pass('div'),
-    // HStack carrying an onTapGesture modifier (the tappable Time row body)
+    // HStack carrying an onTapGesture modifier (e.g. a tappable note-link row)
     // renders as a button so the row press is assertable; plain stacks stay divs.
     HStack: ({
       children,
@@ -176,6 +176,41 @@ vi.mock('@expo/ui/swift-ui', async () => {
           onChange: (e: { target: { value: string } }) => onTextChange?.(e.target.value),
         });
       },
+    ),
+    // DisclosureGroup renders its custom label (DisclosureGroup.Label) as a
+    // tappable header button — clicking it toggles expansion via
+    // onIsExpandedChange (matching SwiftUI, where a header tap expands the
+    // group). The content children render only while expanded, so the inner
+    // DatePicker (and thus dpickers['Time']) exists only when open. A Toggle in
+    // the label stops propagation, so flipping the switch never expands.
+    DisclosureGroup: Object.assign(
+      ({
+        isExpanded,
+        onIsExpandedChange,
+        children,
+      }: {
+        isExpanded?: boolean;
+        onIsExpandedChange?: (next: boolean) => void;
+        children?: React.ReactNode;
+      }) => {
+        const arr = React.Children.toArray(children);
+        const isLabel = (c: React.ReactNode): c is React.ReactElement<{ children?: React.ReactNode }> =>
+          React.isValidElement(c) &&
+          Boolean((c.type as { __disclosureLabel?: boolean })?.__disclosureLabel);
+        const label = arr.find(isLabel);
+        const content = arr.filter((c) => !isLabel(c));
+        return React.createElement(
+          'div',
+          null,
+          React.createElement(
+            'button',
+            { onClick: () => onIsExpandedChange?.(!isExpanded) },
+            label ? label.props.children : null,
+          ),
+          isExpanded ? content : null,
+        );
+      },
+      { Label: Object.assign(({ children }: { children?: React.ReactNode }) => children, { __disclosureLabel: true }) },
     ),
     DatePicker: (props: {
       title?: string;
