@@ -10,7 +10,6 @@ import {
   TextField,
   type TextFieldRef,
   DatePicker,
-  DisclosureGroup,
   Picker,
   Button,
   Image,
@@ -37,6 +36,8 @@ import {
   tint,
   truncationMode,
   onTapGesture,
+  contentShape,
+  shapes,
   contentTransition,
   animation,
   Animation,
@@ -133,56 +134,57 @@ function NoteLinks({ text }: { text: string }) {
 }
 
 // The Time row carries the optional/"unset" state in its trailing Toggle:
-//   off            → no time, no picker
-//   switching on   → defaults to 09:00 and opens the inline time picker
+//   off            → no time, no picker, no subtitle
+//   switching on   → defaults to 09:00 and expands an inline time picker
+//   tapping body   → collapses the picker to a locale-formatted value subtitle
+//                    under the "Time" label (tap again re-expands)
 //   switching off  → clears the time
-// While the toggle is on, the wheel picker lives in a native DisclosureGroup
-// labelled with the locale-formatted value: tapping the disclosure collapses it
-// to just that value and expands it back, using SwiftUI's own animation (no
-// hand-rolled reveal). Opening an existing timed item starts on and collapsed.
+// Opening an existing timed item starts on, collapsed, showing the value.
 function TimeRow({
   value,
   expanded,
   onToggle,
-  onSetExpanded,
+  onToggleExpand,
   onChange,
 }: {
   value: string;
   expanded: boolean;
   onToggle: (on: boolean) => void;
-  onSetExpanded: (v: boolean) => void;
+  onToggleExpand: () => void;
   onChange: (v: string) => void;
 }) {
   const { textSubtle } = useThemeColors();
   const on = value !== '';
   return (
     <>
-      <HStack spacing={12}>
+      {/* The whole row (icon + label, but not the trailing Toggle, which consumes
+          its own taps) collapses/expands the picker. contentShape makes the empty
+          space hit-test, so a tap anywhere on the row body registers. */}
+      <HStack
+        spacing={12}
+        modifiers={on ? [contentShape(shapes.rectangle()), onTapGesture(onToggleExpand)] : []}
+      >
         <Image systemName="clock" color={textSubtle} size={20} />
-        <Text modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>Time</Text>
+        <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
+          <Text>Time</Text>
+          {on && !expanded ? (
+            <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>{formatTime(value)}</Text>
+          ) : null}
+        </VStack>
         <Toggle
           isOn={on}
           onIsOnChange={onToggle}
           modifiers={[labelsHidden(), accessibilityLabel('Time')]}
         />
       </HStack>
-      {on ? (
-        // The native collapsible: its header shows the chosen time and the
-        // disclosure chevron; expanding it reveals the wheel below, animated by
-        // SwiftUI. Controlled so toggling the time on opens it straight away.
-        <DisclosureGroup
-          label={formatTime(value)}
-          isExpanded={expanded}
-          onIsExpandedChange={onSetExpanded}
-        >
-          <DatePicker
-            title="Time"
-            selection={timeToDate(value)}
-            displayedComponents={['hourAndMinute']}
-            onDateChange={(d) => onChange(dateToTime(d))}
-            modifiers={[datePickerStyle('wheel'), labelsHidden()]}
-          />
-        </DisclosureGroup>
+      {on && expanded ? (
+        <DatePicker
+          title="Time"
+          selection={timeToDate(value)}
+          displayedComponents={['hourAndMinute']}
+          onDateChange={(d) => onChange(dateToTime(d))}
+          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
+        />
       ) : null}
     </>
   );
@@ -539,7 +541,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               value={time}
               expanded={timeExpanded}
               onToggle={onTimeToggle}
-              onSetExpanded={setTimeExpanded}
+              onToggleExpand={() => setTimeExpanded((e) => !e)}
               onChange={setTime}
             />
 

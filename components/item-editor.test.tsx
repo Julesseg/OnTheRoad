@@ -191,34 +191,6 @@ vi.mock('@expo/ui/swift-ui', async () => {
         };
       return null;
     },
-    // The native collapsible: its header is a button showing the label (the
-    // formatted time) and toggling expansion; its children (the wheel picker)
-    // mount only while expanded, matching SwiftUI's reveal.
-    DisclosureGroup: ({
-      label,
-      isExpanded,
-      onIsExpandedChange,
-      children,
-    }: {
-      label?: string;
-      isExpanded?: boolean;
-      onIsExpandedChange?: (v: boolean) => void;
-      children?: React.ReactNode;
-    }) =>
-      React.createElement(
-        'div',
-        null,
-        React.createElement(
-          'button',
-          {
-            'aria-label': label,
-            'aria-expanded': isExpanded,
-            onClick: () => onIsExpandedChange?.(!isExpanded),
-          },
-          label,
-        ),
-        isExpanded ? children : null,
-      ),
     Picker: (props: {
       label?: string;
       onSelectionChange?: (v: unknown) => void;
@@ -398,9 +370,8 @@ describe('ItemEditor', () => {
     fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Hike' } });
 
     fireEvent.click(timeToggle());
-    // Enabling defaults to 09:00 and opens the disclosure, mounting the wheel.
+    // Enabling defaults to 09:00 and expands an inline picker.
     expect(dpickers['Time']).toBeDefined();
-    expect(screen.getByRole('button', { name: '9:00 AM' })).toBeInTheDocument();
     const sel = dpickers['Time'].selection!;
     expect(sel.getHours()).toBe(9);
     expect(sel.getMinutes()).toBe(0);
@@ -418,23 +389,27 @@ describe('ItemEditor', () => {
     );
   });
 
-  it('collapsing the disclosure unmounts the wheel but keeps the value; expanding shows it again', () => {
+  it('tapping the row body collapses the picker to a locale-formatted subtitle and re-expands it', () => {
     render(<ItemEditor itemId="x" trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
+    delete dpickers['Time'];
     fireEvent.click(timeToggle()); // on, expanded
     expect(dpickers['Time']).toBeDefined();
+    expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
 
-    // Tapping the disclosure header (showing the chosen time, not the switch)
-    // collapses it: the wheel unmounts, but the value stays visible and the
-    // toggle stays on.
+    // Pressing the row body (not the switch) collapses it. The body-tap target is
+    // matched by regex because its accessible name absorbs the value subtitle once
+    // collapsed.
     delete dpickers['Time'];
-    fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
-    expect(dpickers['Time']).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: /Time/ }));
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
+    expect(dpickers['Time']).toBeUndefined();
+    // Collapsing/expanding via the row never flips the toggle.
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
 
-    // Tapping the disclosure again re-expands it and remounts the wheel.
-    fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
+    // Tapping again re-expands the picker and hides the subtitle.
+    fireEvent.click(screen.getByRole('button', { name: /Time/ }));
     expect(dpickers['Time']).toBeDefined();
+    expect(screen.queryByText('9:00 AM')).not.toBeInTheDocument();
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
   });
 
@@ -442,9 +417,7 @@ describe('ItemEditor', () => {
     const initial: Item = { id: 'act-e', name: 'Hike', category: 'activity', time: '08:00' };
     render(<ItemEditor itemId="act-e" initialItem={initial} trip={TRIP} initialDate={INIT_DATE} onSubmit={() => {}} />);
     expect(timeToggle()).toHaveAttribute('aria-checked', 'true');
-    // On but collapsed: the value shows in the disclosure header and the wheel
-    // is not mounted.
-    expect(screen.getByRole('button', { name: '8:00 AM' })).toBeInTheDocument();
+    expect(screen.getByText('8:00 AM')).toBeInTheDocument();
     expect(dpickers['Time']).toBeUndefined();
   });
 
