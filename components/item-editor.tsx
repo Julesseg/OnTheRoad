@@ -38,6 +38,8 @@ import {
   onTapGesture,
   contentShape,
   shapes,
+  fixedSize,
+  clipped,
   contentTransition,
   animation,
   Animation,
@@ -133,6 +135,13 @@ function NoteLinks({ text }: { text: string }) {
   );
 }
 
+// The natural height of a wheel hour/minute picker. While the toggle is on the
+// picker stays mounted at this full height; collapsing/expanding animates a
+// clipped window over it from 0 → full, anchored to the top edge, so the picker
+// is revealed downward from under the row (and slides the Location row below)
+// rather than popping in and out.
+const TIME_PICKER_HEIGHT = 216;
+
 // The Time row carries the optional/"unset" state in its trailing Toggle:
 //   off            → no time, no picker, no subtitle
 //   switching on   → defaults to 09:00 and expands an inline time picker
@@ -140,6 +149,9 @@ function NoteLinks({ text }: { text: string }) {
 //                    under the "Time" label (tap again re-expands)
 //   switching off  → clears the time
 // Opening an existing timed item starts on, collapsed, showing the value.
+//
+// Reveal is animated: one eased transaction grows/shrinks the picker's clipped
+// window and slides the "Time" label and value subtitle into place together.
 function TimeRow({
   value,
   expanded,
@@ -155,8 +167,17 @@ function TimeRow({
 }) {
   const { textSubtle } = useThemeColors();
   const on = value !== '';
+  const open = on && expanded;
+  // A single value that changes on every visual phase (off / on-collapsed /
+  // on-expanded), so the `animation` modifier eases the label reposition and the
+  // picker's reveal together in one transaction.
+  const phase = (on ? 1 : 0) + (expanded ? 2 : 0);
   return (
-    <>
+    <VStack
+      alignment="leading"
+      spacing={0}
+      modifiers={[animation(Animation.easeInOut({ duration: 0.25 }), phase)]}
+    >
       {/* The whole row (icon + label, but not the trailing Toggle, which consumes
           its own taps) collapses/expands the picker. contentShape makes the empty
           space hit-test, so a tap anywhere on the row body registers. */}
@@ -177,16 +198,26 @@ function TimeRow({
           modifiers={[labelsHidden(), accessibilityLabel('Time')]}
         />
       </HStack>
-      {on && expanded ? (
+      {/* Kept mounted while the toggle is on. fixedSize holds the wheel at its
+          natural height; the clipped frame (0 when collapsed, full when expanded,
+          anchored top) is the only thing that animates — so the picker slides out
+          from under the row instead of the wheel itself squashing. */}
+      {on ? (
         <DatePicker
           title="Time"
           selection={timeToDate(value)}
           displayedComponents={['hourAndMinute']}
           onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
+          modifiers={[
+            datePickerStyle('wheel'),
+            labelsHidden(),
+            fixedSize({ vertical: true }),
+            frame({ height: open ? TIME_PICKER_HEIGHT : 0, alignment: 'top' }),
+            clipped(),
+          ]}
         />
       ) : null}
-    </>
+    </VStack>
   );
 }
 
