@@ -155,11 +155,13 @@ function TimeRow({
 }) {
   const { textSubtle } = useThemeColors();
   const on = value !== '';
+  // The picker is rendered as a real sibling row, not nested in the row's cell:
+  // when it inserts/removes, the enclosing Form's List animates the insertion and
+  // slides the rows below (Location) down/up. That animation is driven from the
+  // Form's `animation` modifier in ItemEditor — a row-reflow change belongs to the
+  // List, so animating an inner container here would only move the picker itself.
   return (
-    // Outer wrapper is NOT animated, so the row's contents (icon, label, toggle,
-    // value subtitle) never tween — they stay put. spacing 0 means the empty
-    // reveal container adds no gap below the row while collapsed.
-    <VStack alignment="leading" spacing={0}>
+    <>
       {/* The whole row (icon + label, but not the trailing Toggle, which consumes
           its own taps) collapses/expands the picker. contentShape makes the empty
           space hit-test, so a tap anywhere on the row body registers. */}
@@ -180,27 +182,16 @@ function TimeRow({
           modifiers={[labelsHidden(), accessibilityLabel('Time')]}
         />
       </HStack>
-      {/* Reveal container: always mounted and the ONLY animated subtree. When the
-          picker inserts, this container grows from zero to the picker's height;
-          the `animation` modifier tweens that height change, so the space opens up
-          underneath the (fixed) row instead of the row's own contents moving. */}
-      <VStack
-        modifiers={[
-          frame({ maxWidth: Infinity, alignment: 'leading' }),
-          animation(Animation.default, on && expanded),
-        ]}
-      >
-        {on && expanded ? (
-          <DatePicker
-            title="Time"
-            selection={timeToDate(value)}
-            displayedComponents={['hourAndMinute']}
-            onDateChange={(d) => onChange(dateToTime(d))}
-            modifiers={[datePickerStyle('wheel'), labelsHidden()]}
-          />
-        ) : null}
-      </VStack>
-    </VStack>
+      {on && expanded ? (
+        <DatePicker
+          title="Time"
+          selection={timeToDate(value)}
+          displayedComponents={['hourAndMinute']}
+          onDateChange={(d) => onChange(dateToTime(d))}
+          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -362,6 +353,11 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   // whether the inline picker is shown vs. collapsed to a value subtitle.
   const [time, setTime] = useState(defaults.time);
   const [timeExpanded, setTimeExpanded] = useState(false);
+  // Drives the Form's `animation` modifier: it flips across every Time transition
+  // (off / on+collapsed / on+expanded). Because it only changes on Time taps, the
+  // List animates just the picker-row insert/remove and the resulting slide of the
+  // rows beneath it — nothing else in the form moves.
+  const timePhase = time === '' ? 0 : timeExpanded ? 2 : 1;
 
   // The persistent composer: a single never-unmounting multiline field for
   // adding entries. `composerText` mirrors its draft so a half-typed entry can
@@ -472,7 +468,15 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
         colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
         modifiers={[tint(c.accent)]}
       >
-        <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
+        <Form
+          modifiers={[
+            scrollContentBackground('hidden'),
+            background(c.background),
+            // Animate the List itself so inserting/removing the Time picker row
+            // slides the rows below it (Location) instead of snapping into place.
+            animation(Animation.default, timePhase),
+          ]}
+        >
           {/* Share editor only: the destination Trip picker is its own section at
               the very top, above the title/notes cell. */}
           {tripOptions ? (
