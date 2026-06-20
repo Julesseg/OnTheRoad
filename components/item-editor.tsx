@@ -2,8 +2,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Host,
   Form,
@@ -17,7 +15,8 @@ import {
   Image,
   HStack,
   VStack,
-  LabeledContent,
+  Spacer,
+  Toggle,
   List,
   useNativeState,
 } from '@expo/ui/swift-ui';
@@ -28,7 +27,6 @@ import {
   pickerStyle,
   tag,
   accessibilityLabel,
-  multilineTextAlignment,
   labelsHidden,
   background,
   frame,
@@ -38,6 +36,8 @@ import {
   tint,
   truncationMode,
   onTapGesture,
+  contentShape,
+  shapes,
   contentTransition,
   animation,
   Animation,
@@ -48,7 +48,6 @@ import {
   emptyForm,
   itemToForm,
   formToItem,
-  itemFormSchema,
 } from '@/lib/item-form';
 import { useThemeColors } from '@/constants/theme';
 import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
@@ -102,16 +101,11 @@ function dateToTime(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-// Native form rows label themselves; when a field is invalid we tint its
-// leading label red to match the error message in the section footer.
-function fieldLabel(label: string, error: string | undefined, errColor: string): string | React.ReactNode {
-  return error ? <Text modifiers={[foregroundStyle(errColor)]}>{label}</Text> : label;
-}
-
-function FieldError({ message }: { message?: string }) {
-  const { destructive } = useThemeColors();
-  if (!message) return null;
-  return <Text modifiers={[font({ size: 13 }), foregroundStyle(destructive)]}>{message}</Text>;
+// While the toggle is on, the Time row shows the value the way the locale would
+// write it (e.g. "9:00 AM" or "09:00") under the "Time" label — whether or not
+// the picker is expanded.
+function formatTime(t: string): string {
+  return timeToDate(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function NoteLinks({ text }: { text: string }) {
@@ -140,44 +134,68 @@ function NoteLinks({ text }: { text: string }) {
   );
 }
 
+// The Time row carries the optional/"unset" state in its trailing Toggle. The
+// value subtitle (coral) shows the whole time the toggle is on; only the picker
+// expands/collapses:
+//   off            → no time, no picker, no subtitle
+//   switching on   → defaults to 09:00, shows the value, expands the picker
+//   tapping body   → collapses/expands the picker (value subtitle stays put)
+//   switching off  → clears the time
+// Opening an existing timed item starts on, collapsed, showing the value.
 function TimeRow({
   value,
+  expanded,
+  onToggle,
+  onToggleExpand,
   onChange,
-  error,
 }: {
   value: string;
+  expanded: boolean;
+  onToggle: (on: boolean) => void;
+  onToggleExpand: () => void;
   onChange: (v: string) => void;
-  error?: string;
 }) {
-  const { textSubtle, destructive } = useThemeColors();
-  if (!value) {
-    return (
-      <LabeledContent label={fieldLabel('Time', error, destructive)}>
-        <Button label="Add time" onPress={() => onChange('09:00')} />
-      </LabeledContent>
-    );
-  }
+  const { textSubtle, accent } = useThemeColors();
+  const on = value !== '';
+  // The picker is rendered as a real sibling row, not nested in the row's cell:
+  // when it inserts/removes, the enclosing Form's List animates the insertion and
+  // slides the rows below (Location) down/up. That animation is driven from the
+  // Form's `animation` modifier in ItemEditor — a row-reflow change belongs to the
+  // List, so animating an inner container here would only move the picker itself.
   return (
-    // The clear control is an Image with a tap gesture, not a Button — iOS 26
-    // permanently drops the row's bottom separator when the row contains a
-    // button, and listRowSeparator('visible') cannot override that.
-    <LabeledContent label={fieldLabel('Time', error, destructive)}>
-      <HStack spacing={8}>
+    <>
+      {/* The whole row (icon + label, but not the trailing Toggle, which consumes
+          its own taps) collapses/expands the picker. contentShape makes the empty
+          space hit-test, so a tap anywhere on the row body registers. */}
+      <HStack
+        spacing={12}
+        modifiers={on ? [contentShape(shapes.rectangle()), onTapGesture(onToggleExpand)] : []}
+      >
+        <Image systemName="clock" color={textSubtle} size={20} />
+        <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
+          <Text>Time</Text>
+          {/* The value shows whenever the toggle is on — collapsed or expanded —
+              in the coral accent. Only switching off (on === false) hides it. */}
+          {on ? (
+            <Text modifiers={[font({ size: 13 }), foregroundStyle(accent)]}>{formatTime(value)}</Text>
+          ) : null}
+        </VStack>
+        <Toggle
+          isOn={on}
+          onIsOnChange={onToggle}
+          modifiers={[labelsHidden(), accessibilityLabel('Time')]}
+        />
+      </HStack>
+      {on && expanded ? (
         <DatePicker
           title="Time"
           selection={timeToDate(value)}
           displayedComponents={['hourAndMinute']}
           onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[datePickerStyle('compact'), labelsHidden()]}
+          modifiers={[datePickerStyle('wheel'), labelsHidden()]}
         />
-        <Image
-          systemName="xmark.circle.fill"
-          color={textSubtle}
-          size={20}
-          modifiers={[accessibilityLabel('Clear time'), onTapGesture(() => onChange(''))]}
-        />
-      </HStack>
-    </LabeledContent>
+      ) : null}
+    </>
   );
 }
 
@@ -274,31 +292,32 @@ function LocationRow({
 }) {
   const { accent, textSubtle } = useThemeColors();
   return (
-    // Tappable Text/Image instead of Buttons — see TimeRow for why (iOS 26
-    // drops the row separator around button rows). The gesture also confines
-    // the tap target to the label, like buttonStyle('borderless') did.
-    <LabeledContent label="Location">
-      <HStack spacing={8}>
-        <Text
-          modifiers={[
-            foregroundStyle(accent),
-            lineLimit(1),
-            truncationMode('tail'),
-            onTapGesture(onPick),
-          ]}
-        >
-          {locationLabel(location)}
-        </Text>
-        {location ? (
-          <Image
-            systemName="xmark.circle.fill"
-            color={textSubtle}
-            size={20}
-            modifiers={[accessibilityLabel('Clear location'), onTapGesture(onClear)]}
-          />
-        ) : null}
-      </HStack>
-    </LabeledContent>
+    // Tappable Text/Image instead of Buttons — iOS 26 drops the row's bottom
+    // separator around button rows, and the gesture also confines the tap target
+    // to the label. The leading `map` glyph matches the itinerary's location icon;
+    // the value/CTA is trailing-aligned (Spacer pushes it to the right).
+    <HStack spacing={12}>
+      <Image systemName="map" color={textSubtle} size={20} />
+      <Spacer />
+      <Text
+        modifiers={[
+          foregroundStyle(accent),
+          lineLimit(1),
+          truncationMode('tail'),
+          onTapGesture(onPick),
+        ]}
+      >
+        {locationLabel(location)}
+      </Text>
+      {location ? (
+        <Image
+          systemName="xmark.circle.fill"
+          color={textSubtle}
+          size={20}
+          modifiers={[accessibilityLabel('Clear location'), onTapGesture(onClear)]}
+        />
+      ) : null}
+    </HStack>
   );
 }
 
@@ -324,6 +343,25 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   const [location, setLocation] = useState<Item['location'] | null>(initialItem?.location ?? null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialItem?.checklist ?? []);
   const identity = itemIdentity(category);
+
+  // Name and notes are plain state: Name gates the Save button (disabled while
+  // empty), and Notes drives the live link extraction below the field. The
+  // native field text is bound through useNativeState so the field can be seeded
+  // and edited natively; onTextChange mirrors it into React state.
+  const nameState = useNativeState(defaults.name);
+  const notesState = useNativeState(defaults.notes);
+  const [name, setName] = useState(defaults.name);
+  const [notes, setNotes] = useState(defaults.notes);
+
+  // Time lives in plain state: '' means unset (toggle off). `timeExpanded` tracks
+  // whether the inline picker is shown vs. collapsed to a value subtitle.
+  const [time, setTime] = useState(defaults.time);
+  const [timeExpanded, setTimeExpanded] = useState(false);
+  // Drives the Form's `animation` modifier: it flips across every Time transition
+  // (off / on+collapsed / on+expanded). Because it only changes on Time taps, the
+  // List animates just the picker-row insert/remove and the resulting slide of the
+  // rows beneath it — nothing else in the form moves.
+  const timePhase = time === '' ? 0 : timeExpanded ? 2 : 1;
 
   // The persistent composer: a single never-unmounting multiline field for
   // adding entries. `composerText` mirrors its draft so a half-typed entry can
@@ -352,27 +390,11 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
     if (added.length) setChecklist((cl) => [...cl, ...added]);
   }, []);
 
-  const nameState = useNativeState(defaults.name);
-  const notesState = useNativeState(defaults.notes);
+  const canSave = name.trim().length > 0;
 
-  const {
-    control,
-    handleSubmit,
-    getValues,
-    setValue,
-    formState: { errors },
-  } = useForm<ItemFormValues, unknown, ItemFormValues>({
-    resolver: zodResolver(itemFormSchema()),
-    defaultValues: defaults,
-    mode: 'onSubmit',
-  });
-
-  const notesText = useWatch({ control, name: 'notes' });
-  const time = useWatch({ control, name: 'time' });
-
-  // eslint-disable-next-line react-hooks/refs -- the composer draft ref is read on Save, not during render
-  const submit = handleSubmit(() => {
-    const values = { ...getValues(), category };
+  // The composer draft ref is read here on Save, not during render.
+  function submit() {
+    const values: ItemFormValues = { name, category, time, notes };
     // Fold in any draft sitting in the composer that was never submitted with
     // Return, so a half-typed entry isn't silently dropped on Save.
     const pending = composerText.current.trim();
@@ -380,7 +402,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
       ? [...checklist, { id: newId(), label: pending, checked: false }]
       : checklist;
     onSubmit(formToItem(values, itemId, initialItem, location, sanitizeChecklist(full)), date);
-  });
+  }
 
   const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
 
@@ -389,6 +411,16 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
     // current location, and cancelling leaves it untouched.
     beginLocationPick((loc) => setLocation(loc ?? null));
     router.push('/trip/location-picker');
+  }
+
+  function onTimeToggle(on: boolean) {
+    if (on) {
+      setTime('09:00');
+      setTimeExpanded(true);
+    } else {
+      setTime('');
+      setTimeExpanded(false);
+    }
   }
 
   return (
@@ -420,11 +452,14 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
         </Stack.Toolbar>
       ) : null}
       <Stack.Toolbar placement="right">
+        {/* Name-required validation is enforced here: the Save button is disabled
+            while Name is empty, so there is no section-footer error. */}
         <Stack.Toolbar.Button
           accessibilityLabel="Save"
           icon="checkmark"
           variant="prominent"
           tintColor={c.accent}
+          disabled={!canSave}
           onPress={submit}
         />
       </Stack.Toolbar>
@@ -437,12 +472,19 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
         colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
         modifiers={[tint(c.accent)]}
       >
-        <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
-          <Section
-            footer={<FieldError message={errors.name?.message ?? errors.time?.message} />}
-            modifiers={[listRowBackground(c.surface)]}
-          >
-            {tripOptions ? (
+        <Form
+          modifiers={[
+            scrollContentBackground('hidden'),
+            background(c.background),
+            // Animate the List itself so inserting/removing the Time picker row
+            // slides the rows below it (Location) instead of snapping into place.
+            animation(Animation.default, timePhase),
+          ]}
+        >
+          {/* Share editor only: the destination Trip picker is its own section at
+              the very top, above the title/notes cell. */}
+          {tripOptions ? (
+            <Section modifiers={[listRowBackground(c.surface)]}>
               <Picker
                 label="Trip"
                 selection={selectedTripId ?? ''}
@@ -458,26 +500,37 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                   </Text>
                 ))}
               </Picker>
-            ) : null}
+            </Section>
+          ) : null}
 
-            <LabeledContent label={fieldLabel('Name', errors.name?.message, c.destructive)}>
+          {/* Combined title/notes cell: Name (larger, semibold) over Notes, both
+              leading-aligned with no labels; extracted note links render here too. */}
+          <Section modifiers={[listRowBackground(c.surface)]}>
+            <VStack alignment="leading" spacing={8}>
               <TextField
                 text={nameState}
-                placeholder="What is it?"
-                onTextChange={(t) => setValue('name', t)}
-                modifiers={[multilineTextAlignment('trailing')]}
+                placeholder="Title"
+                onTextChange={setName}
+                modifiers={[font({ size: 24, weight: 'semibold' })]}
               />
-            </LabeledContent>
+              <TextField
+                text={notesState}
+                placeholder="Notes"
+                onTextChange={setNotes}
+                axis="vertical"
+              />
+              <NoteLinks text={notes} />
+            </VStack>
+          </Section>
 
+          {/* Icon-led detail rows. Category is a segmented picker with no leading
+              icon; Date / Time / Location each carry a monochrome leading glyph. */}
+          <Section modifiers={[listRowBackground(c.surface)]}>
             <Picker
               label="Category"
               selection={category}
-              onSelectionChange={(v) => {
-                const cat = v as ItemCategory;
-                setCategory(cat);
-                setValue('category', cat);
-              }}
-              modifiers={[pickerStyle('palette')]}
+              onSelectionChange={(v) => setCategory(v as ItemCategory)}
+              modifiers={[pickerStyle('segmented')]}
             >
               {ALL_CATEGORIES.map((cat) => (
                 <Image
@@ -490,41 +543,35 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
             </Picker>
 
             {trip && date ? (
-              <DatePicker
-                title="Date"
-                selection={parseLocalDate(date)}
-                displayedComponents={['date']}
-                range={{
-                  start: parseLocalDate(trip.startDate, 0),
-                  end: parseLocalDate(trip.endDate, 23),
-                }}
-                onDateChange={(d) => setDate(localDateString(d))}
-                modifiers={[datePickerStyle('compact')]}
-              />
+              <HStack spacing={12}>
+                <Image systemName="calendar" color={c.textSubtle} size={20} />
+                <DatePicker
+                  title="Date"
+                  selection={parseLocalDate(date)}
+                  displayedComponents={['date']}
+                  range={{
+                    start: parseLocalDate(trip.startDate, 0),
+                    end: parseLocalDate(trip.endDate, 23),
+                  }}
+                  onDateChange={(d) => setDate(localDateString(d))}
+                  modifiers={[datePickerStyle('compact')]}
+                />
+              </HStack>
             ) : null}
+
+            <TimeRow
+              value={time}
+              expanded={timeExpanded}
+              onToggle={onTimeToggle}
+              onToggleExpand={() => setTimeExpanded((e) => !e)}
+              onChange={setTime}
+            />
 
             <LocationRow
               location={location}
               onPick={openLocationPicker}
               onClear={() => setLocation(null)}
             />
-
-            <TimeRow
-              value={time as string}
-              onChange={(v) => setValue('time', v)}
-              error={errors.time?.message}
-            />
-
-            <VStack alignment="leading" spacing={8}>
-              <Text modifiers={[font({ size: 16 })]}>Notes</Text>
-              <TextField
-                text={notesState}
-                placeholder="Anything else to remember"
-                onTextChange={(t) => setValue('notes', t)}
-                axis="vertical"
-              />
-              <NoteLinks text={notesText as string} />
-            </VStack>
           </Section>
 
           <Section header={<Text>Checklist</Text>} modifiers={[listRowBackground(c.surface)]}>
