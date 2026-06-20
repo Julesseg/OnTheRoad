@@ -19,7 +19,7 @@ import {
   SegmentedButton,
   useNativeState,
 } from '@expo/ui/jetpack-compose';
-import { padding } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import {
@@ -354,10 +354,10 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
       </Stack.Toolbar>
 
       <Host style={styles.host} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'} matchContents>
-        <Column modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
+        <Column modifiers={[padding(16, 12, 16, 12)]}>
           {/* Share editor only: the destination Trip picker sits at the very top. */}
           {tripOptions ? (
-            <Card modifiers={[padding({ all: 12 })]}>
+            <Card modifiers={[paddingAll(12)]}>
               <Column>
                 <Text>Trip</Text>
                 <SingleChoiceSegmentedButtonRow>
@@ -378,7 +378,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           ) : null}
 
           {/* Combined title/notes card: Name over Notes, with extracted note links. */}
-          <Card modifiers={[padding({ all: 12 })]}>
+          <Card modifiers={[paddingAll(12)]}>
             <Column>
               <TextField value={nameState} onValueChange={setName}>
                 <TextField.Placeholder>
@@ -395,7 +395,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {/* Category + Date / Time / Location detail card. */}
-          <Card modifiers={[padding({ all: 12 })]}>
+          <Card modifiers={[paddingAll(12)]}>
             <Column>
               <Text>Category</Text>
               <SingleChoiceSegmentedButtonRow>
@@ -434,7 +434,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {/* Checklist card. Each entry is a row; move buttons reuse moveEntries. */}
-          <Card modifiers={[padding({ all: 12 })]}>
+          <Card modifiers={[paddingAll(12)]}>
             <Column>
               <Text>Checklist</Text>
               {checklist.map((entry, i) => (
@@ -468,7 +468,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {initialItem && onDelete ? (
-            <Card modifiers={[padding({ all: 12 })]}>
+            <Card modifiers={[paddingAll(12)]}>
               <Button onClick={onDelete}>
                 <Text color={c.destructive}>Delete</Text>
               </Button>

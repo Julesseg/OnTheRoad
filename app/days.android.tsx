@@ -270,11 +270,11 @@ export default function DaysSheet() {
   // the data and modifiers (Day-header tap behaviour, the countdown pill text)
   // are identical.
   const titleRow = (
-    <Column modifiers={[padding({ bottom: 4 })]}>
+    <Column modifiers={[padding(0, 0, 0, 4)]}>
       <ComposeText color={text} style={{ typography: 'headlineMedium' }}>
         {summary.title}
       </ComposeText>
-      <Row modifiers={[padding({ top: 4 })]}>
+      <Row modifiers={[padding(0, 4, 0, 0)]}>
         <ComposeText color={subtext} style={{ typography: 'bodyMedium' }}>
           {dateRange}
         </ComposeText>

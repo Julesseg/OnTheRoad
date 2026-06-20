@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Host, Column, Card, Row, Text, IconButton, Surface, Checkbox, Button } from '@expo/ui/jetpack-compose';
-import { padding } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 import type { Trip, Item } from '@/lib/schema';
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
@@ -124,7 +124,7 @@ export function ItineraryPanel({
 
     return (
       <Surface key={item.id} onClick={edit}>
-        <Column modifiers={[padding({ all: 8 })]}>
+        <Column modifiers={[paddingAll(8)]}>
           <Row>
             <IconSymbol name={identity.symbol as IconSymbolName} color={iconColor} size={12} />
             <Text color={onColor}>{typeLabel.toUpperCase()}</Text>
@@ -170,10 +170,10 @@ export function ItineraryPanel({
   return (
     <View style={styles.container}>
       <Host style={styles.host} matchContents>
-        <Column modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
+        <Column modifiers={[padding(16, 12, 16, 12)]}>
           {titleRow}
           {days.map((day) => (
-            <Card key={day.id} modifiers={[padding({ all: 8 })]}>
+            <Card key={day.id} modifiers={[paddingAll(8)]}>
               <Column>
                 <Row>
                   <Surface onClick={onDayPress ? () => onDayPress(day.date) : undefined}>

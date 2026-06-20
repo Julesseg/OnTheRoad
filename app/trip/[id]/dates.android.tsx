@@ -10,7 +10,7 @@ import {
   SegmentedButton,
   DateTimePicker,
 } from '@expo/ui/jetpack-compose';
-import { padding } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { formatLocalDate, clampRange, addDays, daysBetween } from '@/lib/trip-form';
 import { formatDayLabel } from '@/lib/date-utils';
@@ -123,8 +123,8 @@ export default function TripDatesScreen() {
       </Stack.Toolbar>
 
       <Host style={styles.host} matchContents>
-        <Column modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
-          <Card modifiers={[padding({ all: 12 })]}>
+        <Column modifiers={[padding(16, 12, 16, 12)]}>
+          <Card modifiers={[paddingAll(12)]}>
             <Column>
               <Text style={{ typography: 'titleSmall' }}>How are these dates changing?</Text>
               <SingleChoiceSegmentedButtonRow>
@@ -149,11 +149,10 @@ export default function TripDatesScreen() {
           </Card>
 
           {mode === 'shift' ? (
-            <Card modifiers={[padding({ all: 12 })]}>
+            <Card modifiers={[paddingAll(12)]}>
               <Column>
                 <Text style={{ typography: 'titleSmall' }}>New start date</Text>
                 <DateTimePicker
-                  title="Start"
                   initialDate={shiftStart}
                   displayedComponents="date"
                   onDateSelected={(d) => setShiftStart(formatLocalDate(d))}
@@ -162,17 +161,17 @@ export default function TripDatesScreen() {
               </Column>
             </Card>
           ) : (
-            <Card modifiers={[padding({ all: 12 })]}>
+            <Card modifiers={[paddingAll(12)]}>
               <Column>
                 <Text style={{ typography: 'titleSmall' }}>New dates</Text>
+                <Text>Start</Text>
                 <DateTimePicker
-                  title="Start"
                   initialDate={span.startDate}
                   displayedComponents="date"
                   onDateSelected={(d) => changeAdjust('start', d)}
                 />
+                <Text>End</Text>
                 <DateTimePicker
-                  title="End"
                   initialDate={span.endDate}
                   displayedComponents="date"
                   onDateSelected={(d) => changeAdjust('end', d)}

@@ -8,7 +8,7 @@ import {
   SingleChoiceSegmentedButtonRow,
   SegmentedButton,
 } from '@expo/ui/jetpack-compose';
-import { padding } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
@@ -44,7 +44,7 @@ function ChoiceCard<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <Card modifiers={[padding({ all: 12 })]}>
+    <Card modifiers={[paddingAll(12)]}>
       <Column>
         <Text style={{ typography: 'titleSmall' }}>{title}</Text>
         <SingleChoiceSegmentedButtonRow>
@@ -81,7 +81,7 @@ export default function SettingsSheet() {
       <Stack.Title>Settings</Stack.Title>
 
       <Host style={styles.host} matchContents>
-        <Column modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
+        <Column modifiers={[padding(16, 12, 16, 12)]}>
           <ChoiceCard
             title="Maps app"
             options={mapsApps}

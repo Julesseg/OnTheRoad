@@ -2,7 +2,7 @@ import { View, Text as RNText, StyleSheet, Alert, useColorScheme, Image } from '
 import { Stack, router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { Host, Column, Card, Surface, Row, Text, Button } from '@expo/ui/jetpack-compose';
-import { padding } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
@@ -93,9 +93,9 @@ export default function TripsSheet() {
     const isFavorite = activeTripId === summary.id;
 
     return (
-      <Card key={summary.id} modifiers={[padding({ all: 8 })]}>
+      <Card key={summary.id} modifiers={[paddingAll(8)]}>
         <Surface onClick={() => onTap(summary)}>
-          <Row modifiers={[padding({ all: 8 })]}>
+          <Row modifiers={[paddingAll(8)]}>
             {wallpaperUri ? (
               <Image source={{ uri: wallpaperUri }} style={styles.thumb} accessibilityLabel="wallpaper" />
             ) : (
@@ -105,11 +105,11 @@ export default function TripsSheet() {
             )}
             <Column>
               <Row>
-                {isFavorite ? <Text style={{ color: c.accent }}>★</Text> : null}
+                {isFavorite ? <Text color={c.accent}>★</Text> : null}
                 <Text style={{ typography: 'titleMedium' }}>{summary.title}</Text>
               </Row>
               <Row>
-                <Text style={{ typography: 'bodySmall', color: subtext }}>
+                <Text color={subtext} style={{ typography: 'bodySmall' }}>
                   {formatDateRange(summary.startDate, summary.endDate)}
                 </Text>
                 <Text style={{ typography: 'labelSmall' }}>{pill}</Text>
@@ -118,7 +118,7 @@ export default function TripsSheet() {
           </Row>
         </Surface>
 
-        <Row modifiers={[padding({ all: 4 })]}>
+        <Row modifiers={[paddingAll(4)]}>
           <Button onClick={() => onEdit(summary)}>
             <Text>Edit</Text>
           </Button>
@@ -177,11 +177,11 @@ export default function TripsSheet() {
         </View>
       ) : (
         <Host style={styles.host} matchContents>
-          <Column modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
+          <Column modifiers={[padding(16, 12, 16, 12)]}>
             {visibleTrips.map((summary) => renderRow(summary))}
             {pastTrips.length > 0 ? (
               <Column>
-                <Text style={{ typography: 'titleSmall', color: subtext }}>Past trips</Text>
+                <Text color={subtext} style={{ typography: 'titleSmall' }}>Past trips</Text>
                 {pastTrips.map((summary) => renderRow(summary, true))}
               </Column>
             ) : null}

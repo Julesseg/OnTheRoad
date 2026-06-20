@@ -12,6 +12,9 @@ Verification record for the Android port (#170). Tracks the workstream surfaces
   variant is exercised alongside its iOS twin.
 - `npm run lint` — **0 errors** (only pre-existing `exhaustive-deps` /
   `import/first` style warnings, matched 1:1 by the iOS twins).
+- `npx tsc --noEmit` — **clean**. This is the CI typecheck step that vitest
+  (esbuild) does not run, so it was run explicitly to catch type drift in the
+  Compose variants against the real `@expo/ui/jetpack-compose` types.
 
 Every Android surface ships a behavioural test: the `GoogleMaps` map
 (`trip-map.android.test`), all eight Compose form screens, the Material chrome

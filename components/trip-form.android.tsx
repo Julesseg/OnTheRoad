@@ -15,7 +15,7 @@ import {
   OutlinedButton,
   useNativeState,
 } from '@expo/ui/jetpack-compose';
-import { padding, fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, fillMaxWidth, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import {
   tripFormSchema,
@@ -177,8 +177,8 @@ export function TripForm({
       </Stack.Toolbar>
 
       <Host style={{ flex: 1 }} matchContents>
-        <Column modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
-          <Card modifiers={[padding({ all: 12 })]}>
+        <Column modifiers={[padding(16, 12, 16, 12)]}>
+          <Card modifiers={[paddingAll(12)]}>
             <Column>
               <TextField
                 value={titleState}
@@ -214,7 +214,7 @@ export function TripForm({
             </Column>
           </Card>
 
-          <Card modifiers={[padding({ all: 12 })]}>
+          <Card modifiers={[paddingAll(12)]}>
             <Column>
               <Text style={{ typography: 'titleSmall' }}>Cover photo</Text>
               {coverPreviewUri ? (

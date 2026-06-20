@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import { Stack, router, useNavigation } from 'expo-router';
 import { Host, Column, Surface, Row, Spacer, Text, TextField, useNativeState } from '@expo/ui/jetpack-compose';
-import { padding } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { usePickerStore } from '@/lib/location-picker-store';
@@ -179,7 +179,7 @@ export function LocationSearchSheet() {
         colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
         matchContents
       >
-        <Column modifiers={[padding({ horizontal: 16, vertical: 12 })]}>
+        <Column modifiers={[padding(16, 12, 16, 12)]}>
           {/* Hidden at the peek detent, where the sheet title shows the selection
               instead. The field is controlled by the picker store's query. */}
           {atPeek ? null : (
@@ -203,7 +203,7 @@ export function LocationSearchSheet() {
               const selected = sameKey(state.selected, key);
               return (
                 <Surface key="pin" onClick={() => onPickRow(key)}>
-                  <Row modifiers={[padding({ all: 12 })]}>
+                  <Row modifiers={[paddingAll(12)]}>
                     <Text>{pinLabel(row.coords)}</Text>
                     <Spacer />
                     {selected ? <IconSymbol name="checkmark" size={20} color={accent} /> : null}
@@ -213,7 +213,7 @@ export function LocationSearchSheet() {
             }
             if (row.kind === 'resolving') {
               return (
-                <Row key="resolving" modifiers={[padding({ all: 12 })]}>
+                <Row key="resolving" modifiers={[paddingAll(12)]}>
                   <Text>Resolving…</Text>
                 </Row>
               );
@@ -223,7 +223,7 @@ export function LocationSearchSheet() {
               const selected = sameKey(state.selected, key);
               return (
                 <Surface key="poi" onClick={() => onPickRow(key)}>
-                  <Row modifiers={[padding({ all: 12 })]}>
+                  <Row modifiers={[paddingAll(12)]}>
                     <Column>
                       <Text>{row.result.title}</Text>
                       {row.result.address ? <Text>{row.result.address}</Text> : null}
@@ -239,7 +239,7 @@ export function LocationSearchSheet() {
               const selected = sameKey(state.selected, key);
               return (
                 <Surface key={`result-${row.index}`} onClick={() => onPickRow(key)}>
-                  <Row modifiers={[padding({ all: 12 })]}>
+                  <Row modifiers={[paddingAll(12)]}>
                     <Column>
                       <Text>{row.result.title}</Text>
                       {row.result.address ? <Text>{row.result.address}</Text> : null}
@@ -254,7 +254,7 @@ export function LocationSearchSheet() {
             const selected = sameKey(state.selected, key);
             return (
               <Surface key={`address-${i}`} onClick={() => onPickRow(key)}>
-                <Row modifiers={[padding({ all: 12 })]}>
+                <Row modifiers={[paddingAll(12)]}>
                   <Text>{`Use '${row.text}' as a plain address`}</Text>
                   <Spacer />
                   {selected ? <IconSymbol name="checkmark" size={20} color={accent} /> : null}
