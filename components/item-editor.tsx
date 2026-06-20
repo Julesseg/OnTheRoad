@@ -10,6 +10,7 @@ import {
   TextField,
   type TextFieldRef,
   DatePicker,
+  DisclosureGroup,
   Picker,
   Button,
   Image,
@@ -36,10 +37,6 @@ import {
   tint,
   truncationMode,
   onTapGesture,
-  contentShape,
-  shapes,
-  fixedSize,
-  clipped,
   contentTransition,
   animation,
   Animation,
@@ -135,89 +132,59 @@ function NoteLinks({ text }: { text: string }) {
   );
 }
 
-// The natural height of a wheel hour/minute picker. While the toggle is on the
-// picker stays mounted at this full height; collapsing/expanding animates a
-// clipped window over it from 0 → full, anchored to the top edge, so the picker
-// is revealed downward from under the row (and slides the Location row below)
-// rather than popping in and out.
-const TIME_PICKER_HEIGHT = 216;
-
 // The Time row carries the optional/"unset" state in its trailing Toggle:
-//   off            → no time, no picker, no subtitle
-//   switching on   → defaults to 09:00 and expands an inline time picker
-//   tapping body   → collapses the picker to a locale-formatted value subtitle
-//                    under the "Time" label (tap again re-expands)
+//   off            → no time, no picker
+//   switching on   → defaults to 09:00 and opens the inline time picker
 //   switching off  → clears the time
-// Opening an existing timed item starts on, collapsed, showing the value.
-//
-// Reveal is animated: one eased transaction grows/shrinks the picker's clipped
-// window and slides the "Time" label and value subtitle into place together.
+// While the toggle is on, the wheel picker lives in a native DisclosureGroup
+// labelled with the locale-formatted value: tapping the disclosure collapses it
+// to just that value and expands it back, using SwiftUI's own animation (no
+// hand-rolled reveal). Opening an existing timed item starts on and collapsed.
 function TimeRow({
   value,
   expanded,
   onToggle,
-  onToggleExpand,
+  onSetExpanded,
   onChange,
 }: {
   value: string;
   expanded: boolean;
   onToggle: (on: boolean) => void;
-  onToggleExpand: () => void;
+  onSetExpanded: (v: boolean) => void;
   onChange: (v: string) => void;
 }) {
   const { textSubtle } = useThemeColors();
   const on = value !== '';
-  const open = on && expanded;
-  // A single value that changes on every visual phase (off / on-collapsed /
-  // on-expanded), so the `animation` modifier eases the label reposition and the
-  // picker's reveal together in one transaction.
-  const phase = (on ? 1 : 0) + (expanded ? 2 : 0);
   return (
-    <VStack
-      alignment="leading"
-      spacing={0}
-      modifiers={[animation(Animation.easeInOut({ duration: 0.25 }), phase)]}
-    >
-      {/* The whole row (icon + label, but not the trailing Toggle, which consumes
-          its own taps) collapses/expands the picker. contentShape makes the empty
-          space hit-test, so a tap anywhere on the row body registers. */}
-      <HStack
-        spacing={12}
-        modifiers={on ? [contentShape(shapes.rectangle()), onTapGesture(onToggleExpand)] : []}
-      >
+    <>
+      <HStack spacing={12}>
         <Image systemName="clock" color={textSubtle} size={20} />
-        <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
-          <Text>Time</Text>
-          {on && !expanded ? (
-            <Text modifiers={[font({ size: 13 }), foregroundStyle(textSubtle)]}>{formatTime(value)}</Text>
-          ) : null}
-        </VStack>
+        <Text modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>Time</Text>
         <Toggle
           isOn={on}
           onIsOnChange={onToggle}
           modifiers={[labelsHidden(), accessibilityLabel('Time')]}
         />
       </HStack>
-      {/* Kept mounted while the toggle is on. fixedSize holds the wheel at its
-          natural height; the clipped frame (0 when collapsed, full when expanded,
-          anchored top) is the only thing that animates — so the picker slides out
-          from under the row instead of the wheel itself squashing. */}
       {on ? (
-        <DatePicker
-          title="Time"
-          selection={timeToDate(value)}
-          displayedComponents={['hourAndMinute']}
-          onDateChange={(d) => onChange(dateToTime(d))}
-          modifiers={[
-            datePickerStyle('wheel'),
-            labelsHidden(),
-            fixedSize({ vertical: true }),
-            frame({ height: open ? TIME_PICKER_HEIGHT : 0, alignment: 'top' }),
-            clipped(),
-          ]}
-        />
+        // The native collapsible: its header shows the chosen time and the
+        // disclosure chevron; expanding it reveals the wheel below, animated by
+        // SwiftUI. Controlled so toggling the time on opens it straight away.
+        <DisclosureGroup
+          label={formatTime(value)}
+          isExpanded={expanded}
+          onIsExpandedChange={onSetExpanded}
+        >
+          <DatePicker
+            title="Time"
+            selection={timeToDate(value)}
+            displayedComponents={['hourAndMinute']}
+            onDateChange={(d) => onChange(dateToTime(d))}
+            modifiers={[datePickerStyle('wheel'), labelsHidden()]}
+          />
+        </DisclosureGroup>
       ) : null}
-    </VStack>
+    </>
   );
 }
 
@@ -572,7 +539,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               value={time}
               expanded={timeExpanded}
               onToggle={onTimeToggle}
-              onToggleExpand={() => setTimeExpanded((e) => !e)}
+              onSetExpanded={setTimeExpanded}
               onChange={setTime}
             />
 
