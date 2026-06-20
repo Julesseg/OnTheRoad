@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import {
   Host,
   Form,
@@ -43,6 +42,7 @@ import {
   Animation,
 } from '@expo/ui/swift-ui/modifiers';
 
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import {
   type ItemFormValues,
   emptyForm,
@@ -430,10 +430,10 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           below can stay monochrome (iOS strips per-item color through the Picker slot). */}
       <Stack.Title asChild>
         <View style={styles.titleRow}>
-          <SymbolView
-            name={identity.symbol as SymbolViewProps['name']}
-            tintColor={identity.accent}
-            resizeMode="scaleAspectFit"
+          <IconSymbol
+            name={identity.symbol as IconSymbolName}
+            color={identity.accent}
+            size={18}
             style={styles.titleIcon}
           />
           <RNText style={[styles.titleText, { color: identity.accent }]} numberOfLines={1}>

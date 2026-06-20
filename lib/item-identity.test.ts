@@ -20,6 +20,23 @@ describe('item identity — v3 category-keyed', () => {
     }
   });
 
+  it('carries a parallel Material symbol per category so Android has an icon source (ADR-0015)', () => {
+    const EXPECTED: Record<ItemCategory, string> = {
+      activity: 'hiking',
+      location: 'place',
+      stay: 'hotel',
+      meal: 'restaurant',
+      note: 'sticky-note-2',
+    };
+    const glyphs = require('@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialIcons.json');
+    const categories: ItemCategory[] = ['activity', 'location', 'stay', 'meal', 'note'];
+    for (const cat of categories) {
+      expect(itemIdentity(cat).materialSymbol).toBe(EXPECTED[cat]);
+      // The Material name must be a real MaterialIcons glyph, or it renders blank.
+      expect(itemIdentity(cat).materialSymbol in glyphs).toBe(true);
+    }
+  });
+
   it('keeps every accent clear of interactive (coral) and destructive (rose) palette colours', () => {
     const reserved = new Set<string>([
       EmberPalette.coral,

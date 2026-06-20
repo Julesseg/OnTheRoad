@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GlassView } from 'expo-glass-effect';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import type { Item } from '@/lib/schema';
 import type { MapsTarget } from '@/lib/maps';
 import { formatItem } from '@/lib/item-display';
@@ -57,19 +57,19 @@ export function PinInfoCard({
     >
       <Pressable onPress={onOpen} accessibilityLabel="Open item" style={styles.body}>
         <View style={styles.typeRow}>
-          <SymbolView
-            name={identity.symbol as SymbolViewProps['name']}
-            tintColor={identity.accent}
-            resizeMode="scaleAspectFit"
+          <IconSymbol
+            name={identity.symbol as IconSymbolName}
+            color={identity.accent}
+            size={13}
             style={styles.typeIcon}
           />
           <Text style={[styles.typeLabel, { color: c.textSubtle }]}>{typeLabel.toUpperCase()}</Text>
           {checklist.length > 0 ? (
             <>
-              <SymbolView
-                name={'checklist' as SymbolViewProps['name']}
-                tintColor={c.textSubtle}
-                resizeMode="scaleAspectFit"
+              <IconSymbol
+                name="checklist"
+                color={c.textSubtle}
+                size={10}
                 style={styles.checklistProgressIcon}
               />
               <Text style={[styles.progress, { color: c.textSubtle }]}>
@@ -107,10 +107,10 @@ export function PinInfoCard({
               onPress={() => onToggleChecklistEntry?.(entry.id)}
               style={styles.checkRow}
             >
-              <SymbolView
-                name={(entry.checked ? 'checkmark.circle.fill' : 'circle') as SymbolViewProps['name']}
-                tintColor={entry.checked ? c.accent : c.textSubtle}
-                resizeMode="scaleAspectFit"
+              <IconSymbol
+                name={entry.checked ? 'checkmark.circle.fill' : 'circle'}
+                color={entry.checked ? c.accent : c.textSubtle}
+                size={18}
                 style={styles.checkIcon}
               />
               <Text style={[styles.checkLabel, { color: c.text }]}>{entry.label}</Text>
@@ -132,14 +132,14 @@ function ActionPill({
 }: {
   label: string;
   accessibilityLabel: string;
-  symbol: SymbolViewProps['name'];
+  symbol: IconSymbolName;
   tint: string;
   onPress: () => void;
 }) {
   return (
     <Pressable accessibilityLabel={accessibilityLabel} onPress={onPress}>
       <GlassView glassEffectStyle="regular" tintColor={tint} style={styles.pill}>
-        <SymbolView name={symbol} tintColor={WHITE} resizeMode="scaleAspectFit" style={styles.pillIcon} />
+        <IconSymbol name={symbol} color={WHITE} size={14} style={styles.pillIcon} />
         <Text style={styles.pillLabel}>{label}</Text>
       </GlassView>
     </Pressable>

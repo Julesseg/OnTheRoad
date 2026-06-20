@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { GlassView } from 'expo-glass-effect';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+
+import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 
 // Liquid-glass pill button: an icon + label over the clear Liquid Glass material.
 // The glass fills behind via an absolute GlassView that rounds its own corners
@@ -16,7 +17,7 @@ export function GlassButton({
   onPress,
 }: {
   label: string;
-  icon: SymbolViewProps['name'];
+  icon: IconSymbolName;
   accent: string;
   onPress: () => void;
 }) {
@@ -50,12 +51,7 @@ export function GlassButton({
         style={[StyleSheet.absoluteFill, styles.glass]}
       />
       <Animated.View style={[styles.buttonContent, { transform: [{ scale }] }]}>
-        <SymbolView
-          name={icon}
-          tintColor={accent}
-          resizeMode="scaleAspectFit"
-          style={styles.buttonIcon}
-        />
+        <IconSymbol name={icon} color={accent} size={18} style={styles.buttonIcon} />
         <Text style={[styles.buttonLabel, { color: accent }]}>{label}</Text>
       </Animated.View>
     </Pressable>

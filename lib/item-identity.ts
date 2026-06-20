@@ -1,6 +1,10 @@
+import type { ComponentProps } from 'react';
+import type MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import { EmberPalette } from '@/constants/theme';
 import type { ItemCategory } from './schema';
+
+export type MaterialIconName = ComponentProps<typeof MaterialIcons>['name'];
 
 /**
  * The fixed visual identity of an Item category — its warm display label, SF Symbol,
@@ -15,16 +19,20 @@ import type { ItemCategory } from './schema';
 export interface ItemIdentity {
   category: ItemCategory;
   label: string;
+  // The SF Symbol drives the iOS render; materialSymbol is its Material Icons
+  // parallel for the Android port, so each platform shows a native-idiom glyph
+  // for the same category (ADR-0015). Keep the pair in sync.
   symbol: SFSymbol;
+  materialSymbol: MaterialIconName;
   accent: string;
 }
 
 export const ITEM_IDENTITY: Record<ItemCategory, ItemIdentity> = {
-  activity: { category: 'activity', label: 'Activity', symbol: 'figure.hiking',        accent: EmberPalette.sage },
-  location: { category: 'location', label: 'Place',    symbol: 'mappin',                accent: EmberPalette.olive },
-  stay:     { category: 'stay',     label: 'Stay',     symbol: 'bed.double.fill',       accent: EmberPalette.steel },
-  meal:     { category: 'meal',     label: 'Meal',     symbol: 'fork.knife',            accent: EmberPalette.gold },
-  note:     { category: 'note',     label: 'Note',     symbol: 'note.text',             accent: EmberPalette.mauve },
+  activity: { category: 'activity', label: 'Activity', symbol: 'figure.hiking',  materialSymbol: 'hiking',        accent: EmberPalette.sage },
+  location: { category: 'location', label: 'Place',    symbol: 'mappin',          materialSymbol: 'place',         accent: EmberPalette.olive },
+  stay:     { category: 'stay',     label: 'Stay',     symbol: 'bed.double.fill', materialSymbol: 'hotel',         accent: EmberPalette.steel },
+  meal:     { category: 'meal',     label: 'Meal',     symbol: 'fork.knife',      materialSymbol: 'restaurant',    accent: EmberPalette.gold },
+  note:     { category: 'note',     label: 'Note',     symbol: 'note.text',       materialSymbol: 'sticky-note-2', accent: EmberPalette.mauve },
 };
 
 export function itemIdentity(category: ItemCategory): ItemIdentity {
