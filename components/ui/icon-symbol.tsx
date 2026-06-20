@@ -4,7 +4,9 @@
 // platform-agnostic and Android gets an icon for every symbol the app uses.
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight } from 'expo-symbols';
+// Type-only: expo-symbols is an iOS-only native module (SF Symbols). This is the
+// Android/web render path, so it must never import it at runtime.
+import type { SymbolWeight } from 'expo-symbols';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
 import { androidIconName, type IconSymbolName } from './icon-mapping';

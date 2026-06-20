@@ -1,4 +1,6 @@
+import React from 'react';
 import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 
 // Vitest resolves the non-platform base (icon-symbol.tsx) — the Android/Material
 // fallback — so these tests pin the SF-Symbol → Material-Icon abstraction that lets
@@ -6,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 // the single resolver; every SF name the app passes to IconSymbol must resolve to a
 // real MaterialIcons glyph, or the icon renders blank on Android.
 import { androidIconName } from './icon-mapping';
+import { IconSymbol } from './icon-symbol';
 import { ITEM_IDENTITY } from '@/lib/item-identity';
 
 const glyphs = require('@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/MaterialIcons.json');
@@ -50,5 +53,14 @@ describe('androidIconName', () => {
         identity.materialSymbol,
       );
     }
+  });
+});
+
+describe('IconSymbol (Android render path)', () => {
+  it('renders the resolved Material glyph without importing the iOS expo-symbols module', () => {
+    // Mounting succeeds because expo-symbols is a type-only import here; a runtime
+    // import of that iOS-only native module would throw on Android.
+    render(<IconSymbol name="gearshape" color="#000" />);
+    expect(screen.getByTestId('material-icon').getAttribute('data-icon')).toBe('settings');
   });
 });
