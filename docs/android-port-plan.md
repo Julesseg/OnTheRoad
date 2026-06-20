@@ -15,6 +15,19 @@ step list. Decisions that shaped it (from the grilling session):
 | Build & distribution | **Local builds only** (`expo run:android`); signed-APK CI later |
 | Delivery | **One big port PR** on `claude/android-port-planning-i9xw9b`; tracked by GitHub issues |
 
+## Branching & PR target
+
+All port work lands on the long-lived integration branch **`android-port`**
+(off `main`), so `main` stays shippable until the port is whole. Every
+Android-port PR — whichever Claude conversation or human opens it — uses
+`android-port` as its **base branch**, not `main`. The port reaches `main` as a
+single integration PR (`android-port` → `main`) once the v1 definition of done
+below is met. This is also stated in `CLAUDE.md` so every session inherits it.
+
+(The planning docs themselves — this file + ADR-0015 + the `CLAUDE.md` directive
+— target `main` directly, since the branching rule has to be on the trunk to
+reach every new conversation.)
+
 ## Definition of done (v1)
 
 The app builds and launches on a current Android emulator/device via
