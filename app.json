@@ -30,7 +30,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.ontheroad"
+      "package": "com.julesseguin.ontheroad"
     },
     "web": {
       "output": "static",
