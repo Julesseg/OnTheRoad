@@ -1,0 +1,44 @@
+diff --git a/node_modules/@expo/ui/ios/DisclosureGroupView.swift b/node_modules/@expo/ui/ios/DisclosureGroupView.swift
+index a250354..21c5226 100644
+--- a/node_modules/@expo/ui/ios/DisclosureGroupView.swift
++++ b/node_modules/@expo/ui/ios/DisclosureGroupView.swift
+@@ -18,12 +18,13 @@ internal struct DisclosureGroupView: ExpoSwiftUI.View {
+     Text("DisclosureGroupView is not supported on tvOS")
+ #else
+     disclosureGroup
++      .disclosureGroupStyle(PlainDisclosureGroupStyle())
+       .onChange(of: isExpanded) { newValue in
+         if newValue == props.isExpanded { return }
+         props.onIsExpandedChange(["isExpanded": newValue])
+       }
+       .onChange(of: props.isExpanded) { newValue in
+-        isExpanded = newValue
++        withAnimation { isExpanded = newValue }
+       }
+       .onAppear {
+         isExpanded = props.isExpanded
+@@ -56,3 +57,24 @@ internal struct DisclosureGroupView: ExpoSwiftUI.View {
+   }
+ #endif
+ }
++
++#if !os(tvOS)
++// A DisclosureGroup style without the trailing chevron: the label row itself is
++// the tap target (so an embedded control — e.g. a Toggle — still consumes its
++// own taps), and the content reveal animates like the Reminders date/time rows.
++private struct PlainDisclosureGroupStyle: DisclosureGroupStyle {
++  func makeBody(configuration: Configuration) -> some View {
++    VStack(alignment: .leading, spacing: 0) {
++      configuration.label
++        .frame(maxWidth: .infinity, alignment: .leading)
++        .contentShape(Rectangle())
++        .onTapGesture {
++          withAnimation { configuration.isExpanded.toggle() }
++        }
++      if configuration.isExpanded {
++        configuration.content
++      }
++    }
++  }
++}
++#endif
