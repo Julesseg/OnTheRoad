@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, View, StyleSheet } from 'react-native';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   Host,
   Column,
@@ -18,6 +18,7 @@ import type { DateEditMode } from '@/lib/trip-days';
 import { useDateEditStore } from '@/lib/date-edit-store';
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
+import { SheetHeader, SheetHeaderTextButton } from '@/components/ui/sheet-header';
 
 // Android (Material 3) twin of trip/[id]/dates.tsx. Same store/router/date-edit
 // wiring and the same Shift/Adjust mode logic (ADR-0013, ADR-0015); the SwiftUI
@@ -100,27 +101,15 @@ export default function TripDatesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Trip dates</Stack.Title>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Cancel"
-          tintColor={c.accent}
-          onPress={() => router.back()}
-        >
-          Cancel
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Done"
-          variant="prominent"
-          tintColor={c.accent}
-          onPress={onDone}
-        >
-          Done
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      {/* In-content Material header (react-native-screens drops the native
+          header/Stack.Toolbar on Android formSheets). See SheetHeader. */}
+      <SheetHeader
+        title="Trip dates"
+        left={
+          <SheetHeaderTextButton label="Cancel" accent={c.accent} onPress={() => router.back()} />
+        }
+        right={<SheetHeaderTextButton label="Done" accent={c.accent} prominent onPress={onDone} />}
+      />
 
       <Host style={styles.host} matchContents>
         <Column modifiers={[padding(16, 12, 16, 12)]}>

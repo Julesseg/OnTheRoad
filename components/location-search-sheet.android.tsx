@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { useColorScheme } from 'react-native';
-import { Stack, router, useNavigation } from 'expo-router';
+import { useColorScheme, View } from 'react-native';
+import { router, useNavigation } from 'expo-router';
 import { Host, Column, Surface, Row, Spacer, Text, TextField, useNativeState } from '@expo/ui/jetpack-compose';
 import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
 import { usePickerStore } from '@/lib/location-picker-store';
 import {
   rows,
@@ -149,30 +150,32 @@ export function LocationSearchSheet() {
   }
 
   return (
-    <>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-
-      {/* Top-bar controls. Cancel aborts the pick; Select commits the current
-          selection (a result/address, a tapped landmark, or a map-tapped pin) —
-          armed whenever there's something committable. */}
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Cancel"
-          icon="xmark"
-          tintColor={accent}
-          onPress={onCancel}
-        />
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Select"
-          icon="checkmark"
-          variant="prominent"
-          tintColor={accent}
-          disabled={!canSelect}
-          onPress={onSelect}
-        />
-      </Stack.Toolbar>
+    <View style={{ flex: 1 }}>
+      {/* In-content Material header (react-native-screens drops the native
+          header/Stack.Toolbar on Android formSheets). Cancel aborts the pick;
+          Select commits the current selection (a result/address, a tapped
+          landmark, or a map-tapped pin) — armed whenever there's something
+          committable. See SheetHeader. */}
+      <SheetHeader
+        left={
+          <SheetHeaderIconButton
+            icon="xmark"
+            accent={accent}
+            accessibilityLabel="Cancel"
+            onPress={onCancel}
+          />
+        }
+        right={
+          <SheetHeaderIconButton
+            icon="checkmark"
+            accent={accent}
+            accessibilityLabel="Select"
+            prominent
+            disabled={!canSelect}
+            onPress={onSelect}
+          />
+        }
+      />
 
       <Host
         style={{ flex: 1 }}
@@ -264,6 +267,6 @@ export function LocationSearchSheet() {
           })}
         </Column>
       </Host>
-    </>
+    </View>
   );
 }

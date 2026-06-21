@@ -1,5 +1,5 @@
 import { View, Text as RNText, StyleSheet, Alert, useColorScheme, Image } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { Host, Column, Card, Surface, Row, Text, Button } from '@expo/ui/jetpack-compose';
 import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
@@ -7,7 +7,7 @@ import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ProgressiveBlurView } from '@/components/progressive-blur';
+import { SheetHeader, SheetHeaderIconButton, SheetHeaderMenu } from '@/components/ui/sheet-header';
 import { partitionTrips } from '@/lib/trip-partition';
 import { tripCountdownBadge, countdownPillLabel } from '@/lib/trip-badge';
 import { todayString, formatDateRange } from '@/lib/date-utils';
@@ -20,8 +20,6 @@ import type { TripSummary } from '@/lib/schema';
 // tappable Surface (open the trip) with inline Edit / Favorite / Export / Delete
 // buttons, since Material has no leading/trailing swipe idiom. The base trips.tsx
 // (iOS) is untouched — Metro resolves this variant on Android.
-
-const NAV_BAR_HEIGHT = 64;
 
 export default function TripsSheet() {
   const { trips, activeTripId, setFavorite, clearFavorite, removeTrip, setDisplayedTrip } =
@@ -140,34 +138,37 @@ export default function TripsSheet() {
     );
   }
 
-  // The native navigation bar mirrors the days sheet's Stack.Toolbar chrome: a
-  // Settings button on the left, the title, and a New trip / Import menu on the
-  // right. Kept as expo-router chrome (Stack.*) identically to iOS.
+  // In-content Material header (react-native-screens drops the native
+  // header/Stack.Toolbar on Android formSheets): Settings on the left, the title,
+  // and a New trip / Import menu on the right. See SheetHeader.
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Trips</Stack.Title>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          icon="gearshape"
-          accessibilityLabel="Settings"
-          tintColor={c.accent}
-          onPress={() => router.push('/settings')}
-        />
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu icon="plus" accessibilityLabel="Add trip" tintColor={c.accent}>
-          <Stack.Toolbar.MenuAction icon="plus" onPress={() => router.push('/trip/new')}>
-            New Trip
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction
-            icon="square.and.arrow.down"
-            onPress={() => router.push('/import')}
-          >
-            Import Trip
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      <SheetHeader
+        title="Trips"
+        left={
+          <SheetHeaderIconButton
+            icon="gearshape"
+            accent={c.accent}
+            accessibilityLabel="Settings"
+            onPress={() => router.push('/settings')}
+          />
+        }
+        right={
+          <SheetHeaderMenu
+            icon="plus"
+            accent={c.accent}
+            accessibilityLabel="Add trip"
+            actions={[
+              { label: 'New Trip', icon: 'plus', onPress: () => router.push('/trip/new') },
+              {
+                label: 'Import Trip',
+                icon: 'square.and.arrow.down',
+                onPress: () => router.push('/import'),
+              },
+            ]}
+          />
+        }
+      />
 
       {!hasTrips ? (
         <View style={styles.empty}>
@@ -188,12 +189,6 @@ export default function TripsSheet() {
           </Column>
         </Host>
       )}
-
-      {/* Progressive blur behind the transparent nav bar: full strength at the top
-          edge, easing to clear by the bar's bottom so list content stays sharp. */}
-      <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
-        <ProgressiveBlurView intensity={20} layers={10} />
-      </View>
     </View>
   );
 }
@@ -201,7 +196,6 @@ export default function TripsSheet() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   host: { flex: 1 },
-  navBlur: { position: 'absolute', top: 0, left: 0, right: 0 },
 
   thumb: { width: 56, height: 56, borderRadius: 12 },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { router } from 'expo-router';
 import {
   Host,
   Column,
@@ -22,6 +22,7 @@ import {
 import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
+import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
 import {
   type ItemFormValues,
   emptyForm,
@@ -314,44 +315,47 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   }, [composerText]);
 
   return (
-    <>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      {/* Sheet title carries the category's accent + glyph, matching the iOS header. */}
-      <Stack.Title asChild>
-        <View style={styles.titleRow}>
-          <IconSymbol
-            name={identity.symbol as IconSymbolName}
-            color={identity.accent}
-            size={18}
-            style={styles.titleIcon}
+    <View style={styles.container}>
+      {/* In-content Material header (react-native-screens drops the native
+          header/Stack.Toolbar on Android formSheets). The title carries the
+          category's accent + glyph, matching the iOS header. See SheetHeader. */}
+      <SheetHeader
+        titleNode={
+          <View style={styles.titleRow}>
+            <IconSymbol
+              name={identity.symbol as IconSymbolName}
+              color={identity.accent}
+              size={18}
+              style={styles.titleIcon}
+            />
+            <RNText style={[styles.titleText, { color: identity.accent }]} numberOfLines={1}>
+              {heading}
+            </RNText>
+          </View>
+        }
+        left={
+          onCancel ? (
+            <SheetHeaderIconButton
+              icon="xmark"
+              accent={c.accent}
+              accessibilityLabel="Cancel"
+              onPress={onCancel}
+            />
+          ) : undefined
+        }
+        right={
+          // Name-required validation is enforced here: Save is disabled while Name
+          // is empty, so there is no section-footer error.
+          <SheetHeaderIconButton
+            icon="checkmark"
+            accent={c.accent}
+            accessibilityLabel="Save"
+            prominent
+            disabled={!canSave}
+            onPress={submit}
           />
-          <RNText style={[styles.titleText, { color: identity.accent }]} numberOfLines={1}>
-            {heading}
-          </RNText>
-        </View>
-      </Stack.Title>
-      {onCancel ? (
-        <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button
-            accessibilityLabel="Cancel"
-            icon="xmark"
-            tintColor={c.accent}
-            onPress={onCancel}
-          />
-        </Stack.Toolbar>
-      ) : null}
-      <Stack.Toolbar placement="right">
-        {/* Name-required validation is enforced here: the Save button is disabled
-            while Name is empty, so there is no section-footer error. */}
-        <Stack.Toolbar.Button
-          accessibilityLabel="Save"
-          icon="checkmark"
-          variant="prominent"
-          tintColor={c.accent}
-          disabled={!canSave}
-          onPress={submit}
-        />
-      </Stack.Toolbar>
+        }
+      />
 
       <Host style={styles.host} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'} matchContents>
         <Column modifiers={[padding(16, 12, 16, 12)]}>
@@ -476,11 +480,12 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           ) : null}
         </Column>
       </Host>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   host: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   titleIcon: { width: 18, height: 18 },

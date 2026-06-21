@@ -1,5 +1,4 @@
 import { View, StyleSheet } from 'react-native';
-import { Stack } from 'expo-router';
 import {
   Host,
   Column,
@@ -12,7 +11,7 @@ import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
-import { ProgressiveBlurView } from '@/components/progressive-blur';
+import { SheetHeader } from '@/components/ui/sheet-header';
 import { MAPS_APP_LABELS } from '@/lib/maps';
 import type { AppearanceMode, MapsApp } from '@/lib/schema';
 
@@ -28,7 +27,6 @@ const APPEARANCE_LABELS: Record<AppearanceMode, string> = {
   light: 'Light',
   dark: 'Dark',
 };
-const NAV_BAR_HEIGHT = 64;
 
 function ChoiceCard<T extends string>({
   title,
@@ -77,8 +75,7 @@ export default function SettingsSheet() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Settings</Stack.Title>
+      <SheetHeader title="Settings" />
 
       <Host style={styles.host} matchContents>
         <Column modifiers={[padding(16, 12, 16, 12)]}>
@@ -98,10 +95,6 @@ export default function SettingsSheet() {
           />
         </Column>
       </Host>
-
-      <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
-        <ProgressiveBlurView intensity={20} layers={10} />
-      </View>
     </View>
   );
 }
@@ -109,5 +102,4 @@ export default function SettingsSheet() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   host: { flex: 1 },
-  navBlur: { position: 'absolute', top: 0, left: 0, right: 0 },
 });

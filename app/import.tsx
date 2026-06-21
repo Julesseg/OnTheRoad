@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
@@ -13,6 +14,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Clipboard from 'expo-clipboard';
 
 import { GlassButton } from '@/components/glass-button';
+import { SheetHeader } from '@/components/ui/sheet-header';
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
 import { useTripStore } from '@/lib/store';
@@ -95,11 +97,26 @@ export default function ImportSheet() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Import Trip</Stack.Title>
+      {/* react-native-screens drops the native header/Stack.Toolbar on Android
+          formSheets, so Android uses the in-content SheetHeader; iOS keeps the
+          native header. */}
+      {Platform.OS === 'android' ? (
+        <SheetHeader title="Import Trip" />
+      ) : (
+        <>
+          <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+          <Stack.Title>Import Trip</Stack.Title>
+        </>
+      )}
 
       <View
-        style={[styles.body, { paddingTop: NAV_BAR_HEIGHT, paddingBottom: insets.bottom + 24 }]}
+        style={[
+          styles.body,
+          {
+            paddingTop: Platform.OS === 'android' ? 0 : NAV_BAR_HEIGHT,
+            paddingBottom: insets.bottom + 24,
+          },
+        ]}
       >
         {/* Primary: add a trip from a file or pasted JSON. */}
         <View style={styles.section}>

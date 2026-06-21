@@ -25,6 +25,7 @@ import {
 import { todayString, formatDateRange } from '@/lib/date-utils';
 import { todayFilterModel } from '@/lib/today-filter';
 import { MIN_SHEET_DETENT_INDEX } from '@/lib/sheet-detents';
+import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
 
 // Android (Material 3) twin of days.tsx. Same store wiring, same expo-router
 // chrome, same handlers (day select / Day filter toggle / add item via the
@@ -149,37 +150,39 @@ export default function DaysSheet() {
   // empty title so the native bar doesn't fall back to the "days" route name.
   if (model.mode === 'empty' || !summary) {
     return (
-      <View style={styles.empty}>
-        <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-        <Stack.Title>{''}</Stack.Title>
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            icon="list.bullet"
-            tintColor={c.accent}
-            accessibilityLabel="Trips"
-            onPress={() => router.push('/trips')}
-          />
-        </Stack.Toolbar>
-        <Text style={[styles.emptyTitle, { color: text }]}>On the Road</Text>
-        <Text style={[styles.emptyHint, { color: subtext }]}>
-          Start a new trip or import one you already have.
-        </Text>
-        <View style={styles.emptyButtons}>
-          <GlassButton
-            label="New Trip"
-            icon="plus"
-            accent={c.accent}
-            onPress={() => router.push('/trip/new')}
-          />
-          <GlassButton
-            label="Import Trip"
-            icon="square.and.arrow.down"
-            accent={c.accent}
-            onPress={() => router.push('/import')}
-          />
-        </View>
-        <View pointerEvents="none" style={[styles.navBlur, { height: NAV_BAR_HEIGHT }]}>
-          <ProgressiveBlurView intensity={20} layers={10} />
+      <View style={styles.sheet}>
+        {/* In-content Material header: react-native-screens drops the native
+            header/Stack.Toolbar on Android formSheets, so the Trips action lives
+            in the sheet body (see SheetHeader). */}
+        <SheetHeader
+          right={
+            <SheetHeaderIconButton
+              icon="list.bullet"
+              accent={c.accent}
+              accessibilityLabel="Trips"
+              onPress={() => router.push('/trips')}
+            />
+          }
+        />
+        <View style={styles.empty}>
+          <Text style={[styles.emptyTitle, { color: text }]}>On the Road</Text>
+          <Text style={[styles.emptyHint, { color: subtext }]}>
+            Start a new trip or import one you already have.
+          </Text>
+          <View style={styles.emptyButtons}>
+            <GlassButton
+              label="New Trip"
+              icon="plus"
+              accent={c.accent}
+              onPress={() => router.push('/trip/new')}
+            />
+            <GlassButton
+              label="Import Trip"
+              icon="square.and.arrow.down"
+              accent={c.accent}
+              onPress={() => router.push('/import')}
+            />
+          </View>
         </View>
       </View>
     );
@@ -195,64 +198,50 @@ export default function DaysSheet() {
   // list's swipe actions, so there is no header overflow menu.
   const showBackArrow = model.showBackArrow;
   const showFilter = filterModel.canFilter || filterModel.active;
+  // In-content Material header, absolutely positioned so the large title (the
+  // list's first row) scrolls *under* it and the inline title cross-fades in —
+  // react-native-screens drops the native header/Stack.Toolbar on Android
+  // formSheets, so this replaces it (see SheetHeader). The progressive blur behind
+  // it is the RN overlay rendered in the return below.
   const chrome = (
-    <>
-      {/* Transparent native bar — the progressive blur behind it is an RN overlay
-          (see the return below), since the native bar only does a uniform blur. */}
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-        <Stack.Toolbar placement="left">
-        {showBackArrow ? (
-          <Stack.Toolbar.Button
-            icon="chevron.backward"
-            accessibilityLabel="Back to default trip"
-            tintColor={c.accent}
-            // separateBackground gives each its own capsule instead of sharing one
-            // with the adjacent filter button; a spacer only adds gap, it doesn't
-            // split the background.
-            separateBackground
-            onPress={() => {
-              // Dismiss BEFORE mutating the store so the two motions run together.
-              // react-navigation marks this sheet for dismissal first, so the
-              // outgoing sheet slides away still showing the current trip rather
-              // than snapping in place to the default; the store reset then reframes
-              // the map concurrently, and the bare map's focus effect re-presents a
-              // fresh sheet (resetting detent + scroll — see index.tsx). Order matters:
-              // the reset must land before that re-present focus fires so the fresh
-              // sheet opens on the default trip. Mirrors the trips-sheet switch.
-              router.dismissAll();
-              resetDisplayedTrip();
-            }}
-          />
-        ) : null}
-          {/* Always mounted (once the trip is loaded) and toggled via `hidden`, so the
-              native toolbar host animates the Day-filter button's show/hide in both
-              directions — e.g. it slides in when an Upcoming trip is filtered by a
-              Day-header tap. Gating the mount on the loaded trip keeps an eligible
-              In-progress trip from animating in on first paint. */}
+    <SheetHeader
+      style={styles.headerOverlay}
+      left={
+        <>
+          {showBackArrow ? (
+            <SheetHeaderIconButton
+              icon="chevron.backward"
+              accessibilityLabel="Back to default trip"
+              accent={c.accent}
+              onPress={() => {
+                // Dismiss BEFORE mutating the store so the two motions run together.
+                // react-navigation marks this sheet for dismissal first, so the
+                // outgoing sheet slides away still showing the current trip rather
+                // than snapping in place to the default; the store reset then reframes
+                // the map concurrently, and the bare map's focus effect re-presents a
+                // fresh sheet (resetting detent + scroll — see index.tsx). Order matters:
+                // the reset must land before that re-present focus fires so the fresh
+                // sheet opens on the default trip. Mirrors the trips-sheet switch.
+                router.dismissAll();
+                resetDisplayedTrip();
+              }}
+            />
+          ) : null}
+          {/* Mounted once the trip is loaded and toggled via `hidden` so the
+              Day-filter button's show/hide stays stable. */}
           {trip ? (
-            <Stack.Toolbar.Button
+            <SheetHeaderIconButton
               icon="line.3.horizontal.decrease"
               accessibilityLabel="Filter day"
-              tintColor={c.accent}
+              accent={c.accent}
               selected={filterModel.active}
               hidden={!showFilter}
-              separateBackground
               onPress={() => setTodayFilterOverride(!filterModel.active)}
             />
           ) : null}
-        </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="list.bullet"
-          accessibilityLabel="Trips"
-          tintColor={c.accent}
-          onPress={() => router.push('/trips')}
-        />
-      </Stack.Toolbar>
-
-      {/* Collapsed inline title, centred between the button groups; cross-fades
-          in as the large title scrolls under the bar. */}
-      <Stack.Title asChild>
+        </>
+      }
+      titleNode={
         <Animated.View style={[styles.inlineTitle, inlineTitleStyle]}>
           <Text style={[styles.inlineTitleText, { color: text }]} numberOfLines={1}>
             {summary.title}
@@ -261,8 +250,16 @@ export default function DaysSheet() {
             {dateRange} · {compactCountdownPillLabel(badge)}
           </Text>
         </Animated.View>
-      </Stack.Title>
-    </>
+      }
+      right={
+        <SheetHeaderIconButton
+          icon="list.bullet"
+          accessibilityLabel="Trips"
+          accent={c.accent}
+          onPress={() => router.push('/trips')}
+        />
+      }
+    />
   );
 
   // Expanded large title rendered as the List's first row. On Android this is a
@@ -326,6 +323,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loader: { marginTop: 24 },
   navBlur: { position: 'absolute', top: 0, left: 0, right: 0 },
+  // The in-content header floats over the scrolling list so the large title
+  // scrolls under it (zIndex keeps it above the list + progressive blur).
+  headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
 
   inlineTitle: { justifyContent: 'center', maxWidth: INLINE_TITLE_MAX_WIDTH },
   inlineTitleText: { fontSize: 16, fontWeight: '700' },

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Image } from 'react-native';
-import { Stack } from 'expo-router';
+import { Alert, Image, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,13 +24,15 @@ import {
 } from '@/lib/trip-form';
 import { formatDateRange } from '@/lib/date-utils';
 import { useThemeColors } from '@/constants/theme';
+import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
 
 // Android (Material 3) twin of trip-form.tsx. Same props, react-hook-form usage,
 // zod schema, and handlers (changeDate / submit / pickCover) as the iOS source —
 // only the render tree diverges: the SwiftUI Form + Sections + DatePickers become
 // a Column of Material Cards with Compose TextField, DateTimePickers, and Buttons
 // (ADR-0015). The base trip-form.tsx (iOS) is untouched — Metro resolves this
-// variant on Android. The Cancel/Save chrome stays on expo-router's Stack toolbar.
+// variant on Android. The Cancel/Save chrome uses the in-content SheetHeader,
+// since react-native-screens drops the native Stack.Toolbar on Android formSheets.
 
 /** The trip's cover photo as the form currently holds it. `existing` is an
  * already-saved wallpaper (shown by its display uri), `picked` is a freshly
@@ -154,27 +155,30 @@ export function TripForm({
     cover.kind === 'existing' ? cover.displayUri : cover.kind === 'picked' ? cover.uri : null;
 
   return (
-    <>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>{heading}</Stack.Title>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          accessibilityLabel="Cancel"
-          icon="xmark"
-          tintColor={c.accent}
-          onPress={onCancel}
-        />
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          accessibilityLabel={submitLabel}
-          icon="checkmark"
-          variant="prominent"
-          tintColor={c.accent}
-          disabled={submitting}
-          onPress={submit}
-        />
-      </Stack.Toolbar>
+    <View style={{ flex: 1 }}>
+      {/* In-content Material header (react-native-screens drops the native
+          header/Stack.Toolbar on Android formSheets). See SheetHeader. */}
+      <SheetHeader
+        title={heading}
+        left={
+          <SheetHeaderIconButton
+            icon="xmark"
+            accent={c.accent}
+            accessibilityLabel="Cancel"
+            onPress={onCancel}
+          />
+        }
+        right={
+          <SheetHeaderIconButton
+            icon="checkmark"
+            accent={c.accent}
+            accessibilityLabel={submitLabel}
+            prominent
+            disabled={submitting}
+            onPress={submit}
+          />
+        }
+      />
 
       <Host style={{ flex: 1 }} matchContents>
         <Column modifiers={[padding(16, 12, 16, 12)]}>
@@ -240,6 +244,6 @@ export function TripForm({
           </Card>
         </Column>
       </Host>
-    </>
+    </View>
   );
 }

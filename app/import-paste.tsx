@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, TextInput, Keyboard, StyleSheet, Alert } from 'react-native';
+import { View, TextInput, Keyboard, StyleSheet, Alert, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@/constants/theme';
 import { useTripStore } from '@/lib/store';
+import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
 
 /**
  * Paste JSON (ADR-0012) — the paste path of Import Trip, presented as its own
@@ -61,32 +62,61 @@ export default function ImportPasteSheet() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Paste JSON</Stack.Title>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button
-          icon="xmark"
-          accessibilityLabel="Cancel"
-          tintColor={c.accent}
-          onPress={() => router.back()}
+      {/* react-native-screens drops the native header/Stack.Toolbar on Android
+          formSheets, so Android uses the in-content SheetHeader; iOS keeps the
+          native header. */}
+      {Platform.OS === 'android' ? (
+        <SheetHeader
+          title="Paste JSON"
+          left={
+            <SheetHeaderIconButton
+              icon="xmark"
+              accent={c.accent}
+              accessibilityLabel="Cancel"
+              onPress={() => router.back()}
+            />
+          }
+          right={
+            <SheetHeaderIconButton
+              icon="checkmark"
+              accent={c.accent}
+              accessibilityLabel="Import"
+              prominent
+              disabled={!canImport}
+              onPress={onImport}
+            />
+          }
         />
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="checkmark"
-          accessibilityLabel="Import"
-          variant="prominent"
-          tintColor={c.accent}
-          disabled={!canImport}
-          onPress={onImport}
-        />
-      </Stack.Toolbar>
+      ) : (
+        <>
+          <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
+          <Stack.Title>Paste JSON</Stack.Title>
+          <Stack.Toolbar placement="left">
+            <Stack.Toolbar.Button
+              icon="xmark"
+              accessibilityLabel="Cancel"
+              tintColor={c.accent}
+              onPress={() => router.back()}
+            />
+          </Stack.Toolbar>
+          <Stack.Toolbar placement="right">
+            <Stack.Toolbar.Button
+              icon="checkmark"
+              accessibilityLabel="Import"
+              variant="prominent"
+              tintColor={c.accent}
+              disabled={!canImport}
+              onPress={onImport}
+            />
+          </Stack.Toolbar>
+        </>
+      )}
 
       <View
         style={[
           styles.body,
           {
-            paddingTop: NAV_BAR_HEIGHT,
+            paddingTop: Platform.OS === 'android' ? 0 : NAV_BAR_HEIGHT,
             paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 16,
           },
         ]}
