@@ -6,6 +6,7 @@ import { useTripStore } from '@/lib/store';
 import { saveWallpaper, wallpaperDisplayUri } from '@/lib/storage';
 import { reconcileDays, type DateEditMode } from '@/lib/trip-days';
 import { beginDateEdit } from '@/lib/date-edit-store';
+import { t } from '@/lib/i18n';
 import { TripForm, TripFormResult } from '@/components/trip-form';
 
 export default function EditTripScreen() {
@@ -54,7 +55,7 @@ export default function EditTripScreen() {
       });
       router.back();
     } catch {
-      Alert.alert('Error', 'Failed to save trip. Please try again.');
+      Alert.alert(t('tripForm.saveErrorTitle'), t('tripForm.saveErrorBody'));
     } finally {
       setSubmitting(false);
     }
@@ -75,8 +76,8 @@ export default function EditTripScreen() {
         <ActivityIndicator style={styles.loader} size="large" />
       ) : (
         <TripForm
-          heading="Edit Trip"
-          submitLabel="Save"
+          heading={t('tripForm.editHeading')}
+          submitLabel={t('common.save')}
           initialTitle={trip.title}
           initialStartDate={span.startDate}
           initialEndDate={span.endDate}

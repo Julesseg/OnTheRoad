@@ -4,6 +4,7 @@ import { View, Text, Pressable, Linking, StyleSheet } from 'react-native';
 import { formatItem, linkify, itemTime, sortItemsByTime } from '@/lib/item-display';
 import { useThemeColors } from '@/constants/theme';
 import type { Day, Item } from '@/lib/schema';
+import { t } from '@/lib/i18n';
 
 function itemBody(item: Item): string | undefined {
   return item.notes;
@@ -21,7 +22,7 @@ function CompanionItem({ item, highlighted }: { item: Item; highlighted: boolean
 
   return (
     <View style={[styles.card, highlighted && { backgroundColor: c.accentFaint }]}>
-      {highlighted ? <Text style={[styles.nextUp, { color: c.accent }]}>Next up</Text> : null}
+      {highlighted ? <Text style={[styles.nextUp, { color: c.accent }]}>{t('companion.nextUp')}</Text> : null}
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: text }]}>{title}</Text>
         {time ? <Text style={[styles.time, { color: c.accent }]}>{time}</Text> : null}
@@ -29,7 +30,7 @@ function CompanionItem({ item, highlighted }: { item: Item; highlighted: boolean
       {body ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Notes for ${title}`}
+          accessibilityLabel={t('companion.notesFor', { title })}
           aria-expanded={expanded}
           onPress={() => setExpanded((e) => !e)}
         >

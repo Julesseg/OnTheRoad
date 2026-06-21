@@ -10,6 +10,7 @@ import {
   tint,
 } from '@expo/ui/swift-ui/modifiers';
 
+import { t } from '@/lib/i18n';
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { ProgressiveBlurView } from '@/components/progressive-blur';
@@ -19,9 +20,9 @@ import type { AppearanceMode, MapsApp } from '@/lib/schema';
 const ALL_MAPS_APPS: MapsApp[] = ['apple', 'google', 'waze'];
 const APPEARANCE_MODES: AppearanceMode[] = ['system', 'light', 'dark'];
 const APPEARANCE_LABELS: Record<AppearanceMode, string> = {
-  system: 'System',
-  light: 'Light',
-  dark: 'Dark',
+  system: t('settings.appearanceSystem'),
+  light: t('settings.appearanceLight'),
+  dark: t('settings.appearanceDark'),
 };
 // Height of the progressive-blur band behind the transparent nav bar (mirrors
 // the trips and days sheets).
@@ -44,16 +45,16 @@ export default function SettingsSheet() {
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Settings</Stack.Title>
+      <Stack.Title>{t('trips.settings')}</Stack.Title>
 
       {/* tint() seeds the SwiftUI accent for everything in the Host — SwiftUI
           otherwise falls back to system blue. The Form swaps its system grouped
           background for the warm theme bg; Sections paint rows with the surface. */}
       <Host style={styles.host} colorScheme={isDark ? 'dark' : 'light'} modifiers={[tint(c.accent)]}>
         <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
-          <Section title="Maps app" modifiers={[listRowBackground(c.surface)]}>
+          <Section title={t('settings.mapsApp')} modifiers={[listRowBackground(c.surface)]}>
             <Picker
-              label="Preferred app"
+              label={t('settings.preferredApp')}
               selection={preferredMapsApp}
               onSelectionChange={(app) => setPreferredMapsApp(app as MapsApp)}
               modifiers={[pickerStyle('menu')]}
@@ -66,9 +67,9 @@ export default function SettingsSheet() {
             </Picker>
           </Section>
 
-          <Section title="Appearance" modifiers={[listRowBackground(c.surface)]}>
+          <Section title={t('settings.appearance')} modifiers={[listRowBackground(c.surface)]}>
             <Picker
-              label="Appearance"
+              label={t('settings.appearance')}
               selection={appearance}
               onSelectionChange={(mode) => setAppearance(mode as AppearanceMode)}
               modifiers={[pickerStyle('menu')]}

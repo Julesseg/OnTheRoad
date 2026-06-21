@@ -37,6 +37,7 @@ import {
   clampRange,
 } from '@/lib/trip-form';
 import { formatDateRange } from '@/lib/date-utils';
+import { t } from '@/lib/i18n';
 import { useThemeColors } from '@/constants/theme';
 
 /** The trip's cover photo as the form currently holds it. `existing` is an
@@ -153,8 +154,8 @@ export function TripForm({
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
-        'Permission needed',
-        'Allow photo library access to add a cover photo for this trip.',
+        t('tripForm.permissionTitle'),
+        t('tripForm.permissionMessage'),
       );
       return;
     }
@@ -173,7 +174,7 @@ export function TripForm({
       <Stack.Title>{heading}</Stack.Title>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          accessibilityLabel="Cancel"
+          accessibilityLabel={t('common.cancel')}
           icon="xmark"
           tintColor={c.accent}
           onPress={onCancel}
@@ -211,7 +212,7 @@ export function TripForm({
           >
             <TextField
               text={titleState}
-              placeholder="Title"
+              placeholder={t('tripForm.titlePlaceholder')}
               autoFocus={autoFocusTitle}
               onTextChange={(t) => setValue('title', t)}
             />
@@ -219,21 +220,21 @@ export function TripForm({
               // Edit path: a single "Trip dates" row opens the Shift / Adjust
               // screen; the inline pickers are reserved for trip creation.
               <Button
-                label={`Trip dates · ${formatDateRange(startDate, endDate)}`}
+                label={t('tripForm.datesLabel', { range: formatDateRange(startDate, endDate) })}
                 systemImage="calendar"
                 onPress={() => onEditDates({ startDate, endDate })}
               />
             ) : (
               <>
                 <DatePicker
-                  title="Start"
+                  title={t('common.start')}
                   selection={parseLocalDate(startDate)}
                   displayedComponents={['date']}
                   onDateChange={(d) => changeDate('start', d)}
                   modifiers={[datePickerStyle('compact')]}
                 />
                 <DatePicker
-                  title="End"
+                  title={t('common.end')}
                   selection={parseLocalDate(endDate)}
                   displayedComponents={['date']}
                   onDateChange={(d) => changeDate('end', d)}
@@ -244,7 +245,7 @@ export function TripForm({
           </Section>
 
           <Section
-            header={<SectionHeader>Cover photo</SectionHeader>}
+            header={<SectionHeader>{t('tripForm.coverPhoto')}</SectionHeader>}
             modifiers={[listRowBackground(c.surface)]}
           >
             {coverPreviewUri ? (
@@ -263,9 +264,9 @@ export function TripForm({
                     clipped(),
                   ]}
                 />
-                <Button label="Change" systemImage="photo" onPress={pickCover} />
+                <Button label={t('tripForm.change')} systemImage="photo" onPress={pickCover} />
                 <Button
-                  label="Remove"
+                  label={t('tripForm.remove')}
                   systemImage="trash"
                   role="destructive"
                   onPress={() => setCover({ kind: 'none' })}
@@ -273,7 +274,7 @@ export function TripForm({
                 />
               </>
             ) : (
-              <Button label="Add cover photo" systemImage="photo.badge.plus" onPress={pickCover} />
+              <Button label={t('tripForm.addCoverPhoto')} systemImage="photo.badge.plus" onPress={pickCover} />
             )}
           </Section>
         </Form>

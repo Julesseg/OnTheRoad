@@ -123,6 +123,10 @@ export const en = {
     copied: 'Copied',
     copyPrompt: 'Copy Prompt',
     resolving: 'Resolving locations…',
+    failedTitle: 'Import failed',
+    failedBody: 'Could not import this trip.',
+    copyFailedTitle: 'Couldn’t copy',
+    copyFailedBody: 'Something went wrong copying the prompt. Please try again.',
   },
 
   share: {
@@ -144,6 +148,8 @@ export const en = {
     addCoverPhoto: 'Add cover photo',
     permissionTitle: 'Permission needed',
     permissionMessage: 'Allow photo library access to add a cover photo for this trip.',
+    saveErrorTitle: 'Error',
+    saveErrorBody: 'Failed to save trip. Please try again.',
   },
 
   // The Trip dates screen (dates.tsx).

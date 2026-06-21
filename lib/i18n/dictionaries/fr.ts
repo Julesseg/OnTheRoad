@@ -120,6 +120,10 @@ export const fr: Messages = {
     copied: 'Copié',
     copyPrompt: 'Copier l’instruction',
     resolving: 'Résolution des lieux…',
+    failedTitle: 'Échec de l’import',
+    failedBody: 'Impossible d’importer ce voyage.',
+    copyFailedTitle: 'Échec de la copie',
+    copyFailedBody: 'Une erreur s’est produite lors de la copie de l’instruction. Veuillez réessayer.',
   },
 
   share: {
@@ -141,6 +145,8 @@ export const fr: Messages = {
     permissionTitle: 'Autorisation requise',
     permissionMessage:
       'Autorisez l’accès à la photothèque pour ajouter une photo de couverture à ce voyage.',
+    saveErrorTitle: 'Erreur',
+    saveErrorBody: 'Échec de l’enregistrement du voyage. Veuillez réessayer.',
   },
 
   dates: {

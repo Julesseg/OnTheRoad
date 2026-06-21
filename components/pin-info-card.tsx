@@ -8,6 +8,7 @@ import { formatItem } from '@/lib/item-display';
 import { itemIdentity } from '@/lib/item-identity';
 import { checklistProgress } from '@/lib/checklist';
 import { useThemeColors } from '@/constants/theme';
+import { t } from '@/lib/i18n';
 
 const WHITE = '#ffffff';
 
@@ -53,9 +54,9 @@ export function PinInfoCard({
       glassEffectStyle="regular"
       tintColor={c.backgroundGlass}
       style={styles.card}
-      accessibilityLabel="Pin info card"
+      accessibilityLabel={t('pinCard.title')}
     >
-      <Pressable onPress={onOpen} accessibilityLabel="Open item" style={styles.body}>
+      <Pressable onPress={onOpen} accessibilityLabel={t('pinCard.openItem')} style={styles.body}>
         <View style={styles.typeRow}>
           <SymbolView
             name={identity.symbol as SymbolViewProps['name']}
@@ -80,8 +81,8 @@ export function PinInfoCard({
           <View style={styles.spacer} />
           {hasMapsTarget ? (
             <ActionPill
-              label="Directions"
-              accessibilityLabel="Open in maps"
+              label={t('pinCard.directions')}
+              accessibilityLabel={t('pinCard.openInMaps')}
               symbol="map"
               tint={c.secondaryAction}
               onPress={onNavigate}

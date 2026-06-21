@@ -4,6 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
 import { newId } from '@/lib/id';
+import { t } from '@/lib/i18n';
 import { ItemEditor } from '@/components/item-editor';
 import type { ItemCategory, Item } from '@/lib/schema';
 import { ItemCategorySchema } from '@/lib/schema';
@@ -47,10 +48,10 @@ export default function ItemEditorScreen() {
 
   function handleDelete() {
     if (!existing) return;
-    Alert.alert('Delete item', `Delete "${existing.name}"? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('common.deleteItemTitle'), t('common.deleteItemConfirm', { name: existing.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
           deleteItem(id, dayId, existing.id);
@@ -66,7 +67,7 @@ export default function ItemEditorScreen() {
   if (!day) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>This item could not be found.</Text>
+        <Text style={styles.emptyText}>{t('itemEditor.notFound')}</Text>
       </View>
     );
   }
