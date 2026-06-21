@@ -1,5 +1,6 @@
 import type { SFSymbol } from 'sf-symbols-typescript';
 import { EmberPalette } from '@/constants/theme';
+import { t, locale as resolvedLocale, type Locale } from './i18n';
 import type { ItemCategory } from './schema';
 
 /**
@@ -29,4 +30,20 @@ export const ITEM_IDENTITY: Record<ItemCategory, ItemIdentity> = {
 
 export function itemIdentity(category: ItemCategory): ItemIdentity {
   return ITEM_IDENTITY[category];
+}
+
+const CATEGORY_KEY: Record<
+  ItemCategory,
+  'category.activity' | 'category.location' | 'category.stay' | 'category.meal' | 'category.note'
+> = {
+  activity: 'category.activity',
+  location: 'category.location',
+  stay: 'category.stay',
+  meal: 'category.meal',
+  note: 'category.note',
+};
+
+/** The localized display label for an item category, e.g. "Place" / "Lieu". */
+export function itemCategoryLabel(category: ItemCategory, loc: Locale = resolvedLocale): string {
+  return t(CATEGORY_KEY[category], undefined, loc);
 }

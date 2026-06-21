@@ -88,8 +88,8 @@ export default function TripsSheet() {
 
   function onDelete(summary: TripSummary) {
     Alert.alert(t('trips.deleteTitle'), t('trips.deleteConfirm', { title: summary.title }), [
-      { text: t('trips.cancel'), style: 'cancel' },
-      { text: t('trips.delete'), style: 'destructive', onPress: () => removeTrip(summary.id) },
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: () => removeTrip(summary.id) },
     ]);
   }
 
@@ -191,7 +191,7 @@ export default function TripsSheet() {
         <SwipeActions.Actions edge="leading">
           <Button
             systemImage="pencil"
-            label={t('trips.edit')}
+            label={t('common.edit')}
             onPress={() => onEdit(summary)}
             modifiers={[tint(c.accent)]}
           />
@@ -214,7 +214,7 @@ export default function TripsSheet() {
               the auto-removal; the row stays until removeTrip actually runs. */}
           <Button
             systemImage="trash"
-            label={t('trips.delete')}
+            label={t('common.delete')}
             onPress={() => onDelete(summary)}
             modifiers={[tint(c.destructive)]}
           />
