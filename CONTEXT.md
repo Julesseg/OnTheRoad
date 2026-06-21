@@ -210,7 +210,10 @@ the Displayed Trip; the app reverts to the resolved default on a cold start. See
 
 A trip's position relative to today, derived from its dates (`tripStatus` in
 `lib/date-utils.ts`): **In progress** (today is within the span), **Upcoming**
-(starts in the future), or **Past** (already ended). Shown as a badge on the
+(starts in the future), or **Past** (already ended). The status is a stable
+*kind*; its on-screen text is a localized label resolved separately, so the
+displayed words ("In progress" / "En cours") never feed back into logic or
+comparisons. Shown as a badge on the
 Trips list. Past trips are the same date-derived set the UI surfaces as
 **Archived** (`endDate < today`; `partitionTrips` in `lib/trip-partition.ts`) on
 the Archived screen — there is no separate archive flag. Prefer **Past** for the
