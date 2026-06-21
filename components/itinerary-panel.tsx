@@ -344,7 +344,7 @@ export function ItineraryPanel({
                         foregroundStyle(day.date === today ? c.accent : subtext),
                       ]}
                     >
-                      {`Day ${dayPosition.get(day.id) ?? '?'}`}
+                      {t('itinerary.dayHeader', { n: dayPosition.get(day.id) ?? '?' })}
                     </Text>
                     <Text modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
                       {formatDayLabel(day.date)}

@@ -171,6 +171,7 @@ export const fr: Messages = {
     editHeading: 'Modifier : {category}',
     openLink: 'Ouvrir {label}',
     time: 'Heure',
+    toggleEntry: 'Basculer l’élément {position}',
     checklistEntry: 'Élément de liste',
     addEntry: 'Ajouter un élément',
     addLocation: 'Ajouter un lieu',
@@ -187,6 +188,7 @@ export const fr: Messages = {
 
   itinerary: {
     nextUp: 'À SUIVRE',
+    dayHeader: 'Jour {n}',
     edit: 'Modifier',
     navigate: 'Itinéraire',
   },

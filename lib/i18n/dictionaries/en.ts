@@ -175,6 +175,7 @@ export const en = {
     editHeading: 'Edit {category}',
     openLink: 'Open {label}',
     time: 'Time',
+    toggleEntry: 'Toggle entry {position}',
     checklistEntry: 'Checklist entry',
     addEntry: 'Add entry',
     addLocation: 'Add location',
@@ -192,6 +193,7 @@ export const en = {
   // The itinerary list (itinerary-panel.tsx).
   itinerary: {
     nextUp: 'NEXT UP',
+    dayHeader: 'Day {n}',
     edit: 'Edit',
     navigate: 'Navigate',
   },

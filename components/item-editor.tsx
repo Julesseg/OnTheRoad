@@ -231,7 +231,7 @@ function ChecklistEntryRow({
         modifiers={[
           contentTransition('interpolate'),
           animation(Animation.default, entry.checked ? 1 : 0),
-          accessibilityLabel(entry.label || `Toggle entry ${position}`),
+          accessibilityLabel(entry.label || t('itemEditor.toggleEntry', { position })),
           onTapGesture(onToggle),
         ]}
       />
