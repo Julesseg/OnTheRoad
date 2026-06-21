@@ -1,3 +1,26 @@
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt
+index 7aee121..b811120 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreenStackFragment.kt
+@@ -549,10 +549,17 @@ class ScreenStackFragment :
+         }
+         lastInsetsCompat = insetsCompat
+ 
++        // on-the-road patch: window insets can be dispatched to a bottom-sheet
++        // screen whose `sheetBehavior` is still null (during setup/teardown of a
++        // `formSheet` presentation). The upstream `!!` then throws an NPE and crashes
++        // the whole app on Android. Bail out early instead — the next inset pass
++        // re-runs once the behavior exists. See app/_layout.tsx formSheet usage.
++        val sheetBehavior = screen.sheetBehavior ?: return
++
+         // Reconfigure BottomSheetBehavior with the same state and updated maxHeight.
+         // When insets are available, we can factor them in to update the maximum height accordingly.
+         val sheetDelegate = requireSheetDelegate()
+-        sheetDelegate.updateBottomSheetMetrics(screen.sheetBehavior!!)
++        sheetDelegate.updateBottomSheetMetrics(sheetBehavior)
+ 
+         screen.container?.let { container ->
+             // Needs to be highlighted that nothing changes at the container level.
 diff --git a/node_modules/react-native-screens/ios/RNSScreen.mm b/node_modules/react-native-screens/ios/RNSScreen.mm
 index 69d4d9a..eae93cb 100644
 --- a/node_modules/react-native-screens/ios/RNSScreen.mm

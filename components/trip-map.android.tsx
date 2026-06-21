@@ -136,21 +136,36 @@ export const TripMap = forwardRef<
     // Re-fit whenever the effective viewport values change: trip load after the
     // first null render, itinerary edits, or the today filter reframing the route.
     const mapRef = useRef<GoogleMaps.MapView | null>(null);
+    // The native CameraUpdateFactory isn't initialized until the map finishes
+    // loading; calling setCameraPosition before then rejects with a one-shot
+    // "CameraUpdateFactory is not initialized" error at launch. Gate the re-fit
+    // on onMapLoaded — the initial frame is already set by the cameraPosition prop.
+    const [mapLoaded, setMapLoaded] = useState(false);
+
+    // setCameraPosition resolves a promise that rejects with a CancellationException
+    // when a newer camera move supersedes it (e.g. the load-time re-fit being
+    // overtaken by the trip's viewport resolving). That cancellation is expected —
+    // swallow it so it doesn't surface as an unhandled-rejection toast at launch.
+    const moveCamera = (config: Parameters<GoogleMaps.MapView['setCameraPosition']>[0]) => {
+      void Promise.resolve(mapRef.current?.setCameraPosition(config) as unknown).catch(() => {});
+    };
+
     const key = JSON.stringify(viewport);
     useEffect(() => {
-      mapRef.current?.setCameraPosition(viewport);
-    }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (!mapLoaded) return;
+      moveCamera(viewport);
+    }, [key, mapLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Keep viewport in a ref so recenter() always reads the latest prop value.
     const viewportRef = useRef(viewport);
     viewportRef.current = viewport;
 
     useImperativeHandle(ref, () => ({
-      recenter: () => mapRef.current?.setCameraPosition(viewportRef.current),
+      recenter: () => moveCamera(viewportRef.current),
       centerOn: (coordinates, options) => {
         const zoom = options?.zoom ?? CENTER_ON_ZOOM;
         const latShift = panelLatShift(zoom, options?.panelFraction ?? 0);
-        mapRef.current?.setCameraPosition({
+        moveCamera({
           coordinates: { latitude: coordinates.latitude - latShift, longitude: coordinates.longitude },
           zoom,
         });
@@ -162,6 +177,7 @@ export const TripMap = forwardRef<
         ref={mapRef}
         style={styles.map}
         cameraPosition={initialViewport}
+        onMapLoaded={() => setMapLoaded(true)}
         markers={markers}
         polylines={polylines}
         // The map is a view onto the trip, not a place browser, so POI selection

@@ -4,7 +4,7 @@
 // exposing pin coords via `clientX`/`clientY` so tests can drive the picker. The
 // ref exposes `setCameraPosition` so consumers that drive the camera imperatively
 // (the native API treats `cameraPosition` as initial-only) can be unit-tested.
-import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 
 type Coords = { latitude?: number; longitude?: number };
 type Camera = { coordinates?: Coords; zoom?: number };
@@ -38,6 +38,7 @@ interface MapViewProps {
   uiSettings?: MapUiSettings;
   onMapClick?: (event: { coordinates: { latitude: number; longitude: number } }) => void;
   onMarkerClick?: (event: { id?: string }) => void;
+  onMapLoaded?: () => void;
   style?: unknown;
 }
 
@@ -62,6 +63,13 @@ const View = forwardRef<AppleMapsViewHandle, MapViewProps>(function View(props, 
   useImperativeHandle(ref, () => ({
     setCameraPosition: (config?: Camera) => setCamera(config),
   }));
+
+  // Mirror the native GoogleMaps.View, which fires onMapLoaded once the map is
+  // ready. Consumers gate imperative setCameraPosition on this (the native
+  // CameraUpdateFactory isn't initialized until load). AppleMaps doesn't pass it.
+  useEffect(() => {
+    props.onMapLoaded?.();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const center = camera?.coordinates;
   const zoom = camera?.zoom;
