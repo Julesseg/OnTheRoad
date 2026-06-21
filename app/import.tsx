@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Clipboard from 'expo-clipboard';
 
+import { t } from '@/lib/i18n';
 import { GlassButton } from '@/components/glass-button';
 import { useThemeColors } from '@/constants/theme';
 import { buildSchemaPrompt } from '@/lib/schema-prompt';
@@ -68,7 +69,7 @@ export default function ImportSheet() {
       setDisplayedTrip(trip.id);
       router.dismissAll();
     } catch (e) {
-      Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
+      Alert.alert(t('import.failedTitle'), e instanceof Error ? e.message : t('import.failedBody'));
     } finally {
       setResolving(false);
     }
@@ -89,29 +90,28 @@ export default function ImportSheet() {
       if (copiedTimer.current) clearTimeout(copiedTimer.current);
       copiedTimer.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
     } else {
-      Alert.alert('Couldn’t copy', 'Something went wrong copying the prompt. Please try again.');
+      Alert.alert(t('import.copyFailedTitle'), t('import.copyFailedBody'));
     }
   }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Import Trip</Stack.Title>
+      <Stack.Title>{t('trips.import')}</Stack.Title>
 
       <View
         style={[styles.body, { paddingTop: NAV_BAR_HEIGHT, paddingBottom: insets.bottom + 24 }]}
       >
         {/* Primary: add a trip from a file or pasted JSON. */}
         <View style={styles.section}>
-          <Text style={[styles.heading, { color: c.text }]}>Import a trip</Text>
+          <Text style={[styles.heading, { color: c.text }]}>{t('import.heading')}</Text>
           <Text style={[styles.detail, { color: c.textSubtle }]}>
-            Open the <Text style={styles.mono}>.json</Text> file your AI produced, or paste its
-            JSON directly.
+            {t('import.openPrefix')}<Text style={styles.mono}>.json</Text>{t('import.openSuffix')}
           </Text>
           <View style={styles.buttonRow}>
-            <GlassButton label="Choose File" icon="folder" accent={c.accent} onPress={onPickFile} />
+            <GlassButton label={t('import.chooseFile')} icon="folder" accent={c.accent} onPress={onPickFile} />
             <GlassButton
-              label="Paste JSON"
+              label={t('import.pasteJson')}
               icon="doc.on.clipboard"
               accent={c.accent}
               onPress={() => router.push('/import-paste')}
@@ -123,25 +123,25 @@ export default function ImportSheet() {
 
         {/* Secondary: the external-LLM round trip for an unstructured trip plan. */}
         <View style={styles.section}>
-          <Text style={[styles.heading, { color: c.text }]}>Have a trip plan instead?</Text>
+          <Text style={[styles.heading, { color: c.text }]}>{t('import.planHeading')}</Text>
           <Text style={[styles.detail, { color: c.textSubtle }]}>
-            Turn a free-text plan into a trip with any AI, then import the result:
+            {t('import.planDetail')}
           </Text>
           {/* Half-width step column so the lines wrap evenly rather than running
               the full sheet width. */}
           <View style={[styles.steps, { width: width * 0.5 }]}>
             <Step n={1} color={c.text} accent={c.accent}>
-              Copy the prompt.
+              {t('import.step1')}
             </Step>
             <Step n={2} color={c.text} accent={c.accent}>
-              Paste it into your favorite AI chat with your trip plan.
+              {t('import.step2')}
             </Step>
             <Step n={3} color={c.text} accent={c.accent}>
-              Download the file it produces and import it here.
+              {t('import.step3')}
             </Step>
           </View>
           <GlassButton
-            label={copied ? 'Copied' : 'Copy Prompt'}
+            label={copied ? t('import.copied') : t('import.copyPrompt')}
             icon={copied ? 'checkmark' : 'doc.on.doc'}
             accent={c.accent}
             onPress={onCopyPrompt}
@@ -155,7 +155,7 @@ export default function ImportSheet() {
         <View style={styles.resolvingOverlay}>
           <View style={[styles.resolvingCard, { backgroundColor: c.surface }]}>
             <ActivityIndicator color={c.accent} />
-            <Text style={[styles.resolvingText, { color: c.text }]}>Resolving locations…</Text>
+            <Text style={[styles.resolvingText, { color: c.text }]}>{t('import.resolving')}</Text>
           </View>
         </View>
       ) : null}

@@ -1,5 +1,6 @@
 import type { TripSummary } from './schema';
 import { daysBetween } from './today';
+import { t, locale as resolvedLocale, type Locale } from './i18n';
 
 /**
  * The countdown badge shown beside a trip's title:
@@ -39,9 +40,26 @@ export function approximateDuration(days: number): Duration {
   return { value: Math.round(days / 365), unit: 'year' };
 }
 
-/** The unit word for a duration, pluralised: 1 → "day", 3 → "days". */
-export function durationUnitWord(duration: Duration): string {
-  return duration.value === 1 ? duration.unit : `${duration.unit}s`;
+const UNIT_KEY: Record<DurationUnit, 'unit.day' | 'unit.week' | 'unit.month' | 'unit.year'> = {
+  day: 'unit.day',
+  week: 'unit.week',
+  month: 'unit.month',
+  year: 'unit.year',
+};
+
+const UNIT_ABBR_KEY: Record<
+  DurationUnit,
+  'unitAbbr.day' | 'unitAbbr.week' | 'unitAbbr.month' | 'unitAbbr.year'
+> = {
+  day: 'unitAbbr.day',
+  week: 'unitAbbr.week',
+  month: 'unitAbbr.month',
+  year: 'unitAbbr.year',
+};
+
+/** The localized, pluralised unit word for a duration: 1 → "day"/"jour", 3 → "days"/"jours". */
+export function durationUnitWord(duration: Duration, loc: Locale = resolvedLocale): string {
+  return t(UNIT_KEY[duration.unit], { count: duration.value }, loc);
 }
 
 /**
@@ -55,14 +73,13 @@ export function durationUnitWord(duration: Duration): string {
 export function countdownPill(
   summary: Pick<TripSummary, 'startDate' | 'endDate'>,
   today: string,
+  loc: Locale = resolvedLocale,
 ): string {
   const badge = tripCountdownBadge(summary, today);
-  if (badge.kind === 'now') return 'Now';
+  if (badge.kind === 'now') return t('countdown.now', undefined, loc);
   const duration = approximateDuration(badge.days);
-  const unit = durationUnitWord(duration);
-  return badge.kind === 'before'
-    ? `in ${duration.value} ${unit}`
-    : `${duration.value} ${unit} ago`;
+  const params = { value: duration.value, unit: durationUnitWord(duration, loc) };
+  return t(badge.kind === 'before' ? 'countdown.before' : 'countdown.after', params, loc);
 }
 
 /**
@@ -71,24 +88,20 @@ export function countdownPill(
  * begins, and "Ended N units ago" after it ends, with the day count coarsened
  * to the most legible unit.
  */
-export function countdownPillLabel(badge: TripBadge): string {
-  if (badge.kind === 'now') return 'In progress';
+export function countdownPillLabel(badge: TripBadge, loc: Locale = resolvedLocale): string {
+  if (badge.kind === 'now') return t('countdown.inProgress', undefined, loc);
   const duration = approximateDuration(badge.days);
-  const unit = durationUnitWord(duration);
-  return badge.kind === 'before'
-    ? `Starts in ${duration.value} ${unit}`
-    : `Ended ${duration.value} ${unit} ago`;
+  const params = { value: duration.value, unit: durationUnitWord(duration, loc) };
+  return t(badge.kind === 'before' ? 'countdown.startsIn' : 'countdown.endedAgo', params, loc);
 }
-
-const UNIT_ABBR: Record<DurationUnit, string> = { day: 'd', week: 'w', month: 'mo', year: 'y' };
 
 /**
  * The shortened countdown pill for the collapsed inline title, where horizontal
  * room between the button groups is tight: "In progress", "in 6d", "3w ago".
  */
-export function compactCountdownPillLabel(badge: TripBadge): string {
-  if (badge.kind === 'now') return 'In progress';
+export function compactCountdownPillLabel(badge: TripBadge, loc: Locale = resolvedLocale): string {
+  if (badge.kind === 'now') return t('countdown.inProgress', undefined, loc);
   const duration = approximateDuration(badge.days);
-  const abbr = `${duration.value}${UNIT_ABBR[duration.unit]}`;
-  return badge.kind === 'before' ? `in ${abbr}` : `${abbr} ago`;
+  const abbr = `${duration.value}${t(UNIT_ABBR_KEY[duration.unit], undefined, loc)}`;
+  return t(badge.kind === 'before' ? 'countdown.compactBefore' : 'countdown.compactAfter', { abbr }, loc);
 }

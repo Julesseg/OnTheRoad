@@ -25,6 +25,7 @@ import { formatDayLabel } from '@/lib/date-utils';
 import type { DateEditMode } from '@/lib/trip-days';
 import { useDateEditStore } from '@/lib/date-edit-store';
 import { useTripStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { useThemeColors } from '@/constants/theme';
 
 function SectionHeader({ children }: { children: string }) {
@@ -85,11 +86,11 @@ export default function TripDatesScreen() {
     }
     if (itemsToMove > 0) {
       Alert.alert(
-        'Move items to fit?',
-        'Some days fall outside the new dates. Their plans are kept, not deleted — anything before the new start moves to the end of the first day, and anything after the new end moves to the end of the last day.',
+        t('dates.moveTitle'),
+        t('dates.moveMessage'),
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Adjust dates', onPress: stageAdjust },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('dates.adjust'), onPress: stageAdjust },
         ],
       );
       return;
@@ -104,24 +105,24 @@ export default function TripDatesScreen() {
   return (
     <>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Trip dates</Stack.Title>
+      <Stack.Title>{t('dates.title')}</Stack.Title>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          accessibilityLabel="Cancel"
+          accessibilityLabel={t('common.cancel')}
           tintColor={c.accent}
           onPress={() => router.back()}
         >
-          Cancel
+          {t('common.cancel')}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          accessibilityLabel="Done"
+          accessibilityLabel={t('common.done')}
           variant="prominent"
           tintColor={c.accent}
           onPress={onDone}
         >
-          Done
+          {t('common.done')}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
 
@@ -132,12 +133,10 @@ export default function TripDatesScreen() {
       >
         <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>
           <Section
-            header={<SectionHeader>How are these dates changing?</SectionHeader>}
+            header={<SectionHeader>{t('dates.changingHeader')}</SectionHeader>}
             footer={
               <Text modifiers={[font({ size: 13 }), foregroundStyle(c.textSubtle)]}>
-                {mode === 'shift'
-                  ? 'Move the whole trip — every day keeps its plans, only the dates change.'
-                  : 'Redefine the span — plans on days that fall outside move to the nearest day, never lost.'}
+                {mode === 'shift' ? t('dates.shiftFooter') : t('dates.adjustFooter')}
               </Text>
             }
             modifiers={[listRowBackground(c.surface)]}
@@ -147,39 +146,39 @@ export default function TripDatesScreen() {
               onSelectionChange={(v) => setMode(v as DateEditMode)}
               modifiers={[pickerStyle('segmented')]}
             >
-              <Text modifiers={[tag('shift')]}>Shift the trip</Text>
-              <Text modifiers={[tag('adjust')]}>Adjust dates</Text>
+              <Text modifiers={[tag('shift')]}>{t('dates.shift')}</Text>
+              <Text modifiers={[tag('adjust')]}>{t('dates.adjust')}</Text>
             </Picker>
           </Section>
 
           {mode === 'shift' ? (
             <Section
-              header={<SectionHeader>New start date</SectionHeader>}
+              header={<SectionHeader>{t('dates.newStartHeader')}</SectionHeader>}
               modifiers={[listRowBackground(c.surface)]}
             >
               <DatePicker
-                title="Start"
+                title={t('common.start')}
                 selection={parseLocalDate(shiftStart)}
                 displayedComponents={['date']}
                 onDateChange={(d) => setShiftStart(formatLocalDate(d))}
                 modifiers={[datePickerStyle('compact')]}
               />
-              <Text modifiers={[foregroundStyle(c.textSubtle)]}>{`Ends ${formatDayLabel(shiftEnd)}`}</Text>
+              <Text modifiers={[foregroundStyle(c.textSubtle)]}>{t('dates.endsOn', { date: formatDayLabel(shiftEnd) })}</Text>
             </Section>
           ) : (
             <Section
-              header={<SectionHeader>New dates</SectionHeader>}
+              header={<SectionHeader>{t('dates.newDatesHeader')}</SectionHeader>}
               modifiers={[listRowBackground(c.surface)]}
             >
               <DatePicker
-                title="Start"
+                title={t('common.start')}
                 selection={parseLocalDate(span.startDate)}
                 displayedComponents={['date']}
                 onDateChange={(d) => changeAdjust('start', d)}
                 modifiers={[datePickerStyle('compact')]}
               />
               <DatePicker
-                title="End"
+                title={t('common.end')}
                 selection={parseLocalDate(span.endDate)}
                 displayedComponents={['date']}
                 onDateChange={(d) => changeAdjust('end', d)}

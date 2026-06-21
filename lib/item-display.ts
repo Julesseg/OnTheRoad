@@ -1,5 +1,6 @@
 import type { Item } from './schema';
-import { itemIdentity } from './item-identity';
+import { itemCategoryLabel } from './item-identity';
+import { t, locale as resolvedLocale, type Locale } from './i18n';
 
 export type ItemDisplay = {
   typeLabel: string;
@@ -7,13 +8,13 @@ export type ItemDisplay = {
   lines: string[];
 };
 
-export function formatItem(item: Item): ItemDisplay {
+export function formatItem(item: Item, loc: Locale = resolvedLocale): ItemDisplay {
   const lines: string[] = [];
   if (item.location?.address) lines.push(item.location.address);
-  if (item.time) lines.push(`At ${item.time}`);
+  if (item.time) lines.push(t('itemDisplay.at', { time: item.time }, loc));
   if (item.notes) lines.push(item.notes);
   return {
-    typeLabel: itemIdentity(item.category).label,
+    typeLabel: itemCategoryLabel(item.category, loc),
     title: item.name,
     lines,
   };

@@ -19,8 +19,16 @@
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
           "waze"
+        ],
+        "CFBundleLocalizations": [
+          "en",
+          "fr"
         ]
       }
+    },
+    "locales": {
+      "en": "./locales/en.json",
+      "fr": "./locales/fr.json"
     },
     "android": {
       "adaptiveIcon": {

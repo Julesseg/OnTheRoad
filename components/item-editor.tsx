@@ -50,7 +50,8 @@ import {
   formToItem,
 } from '@/lib/item-form';
 import { useThemeColors } from '@/constants/theme';
-import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
+import { itemIdentity, itemCategoryLabel, ITEM_IDENTITY } from '@/lib/item-identity';
+import { t } from '@/lib/i18n';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
 import type { ChecklistItem, Item, ItemCategory } from '@/lib/schema';
@@ -120,7 +121,7 @@ function NoteLinks({ text }: { text: string }) {
           spacing={6}
           modifiers={[
             frame({ maxWidth: Infinity, alignment: 'leading' }),
-            accessibilityLabel(`Open ${link.label}`),
+            accessibilityLabel(t('itemEditor.openLink', { label: link.label })),
             onTapGesture(() => {
               void Linking.openURL(link.url).catch(() => {});
             }),
@@ -173,7 +174,7 @@ function TimeRow({
       >
         <Image systemName="clock" color={textSubtle} size={20} />
         <VStack alignment="leading" spacing={2} modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
-          <Text>Time</Text>
+          <Text>{t('itemEditor.time')}</Text>
           {/* The value shows whenever the toggle is on — collapsed or expanded —
               in the coral accent. Only switching off (on === false) hides it. */}
           {on ? (
@@ -183,12 +184,12 @@ function TimeRow({
         <Toggle
           isOn={on}
           onIsOnChange={onToggle}
-          modifiers={[labelsHidden(), accessibilityLabel('Time')]}
+          modifiers={[labelsHidden(), accessibilityLabel(t('itemEditor.time'))]}
         />
       </HStack>
       {on && expanded ? (
         <DatePicker
-          title="Time"
+          title={t('itemEditor.time')}
           selection={timeToDate(value)}
           displayedComponents={['hourAndMinute']}
           onDateChange={(d) => onChange(dateToTime(d))}
@@ -230,11 +231,11 @@ function ChecklistEntryRow({
         modifiers={[
           contentTransition('interpolate'),
           animation(Animation.default, entry.checked ? 1 : 0),
-          accessibilityLabel(entry.label || `Toggle entry ${position}`),
+          accessibilityLabel(entry.label || t('itemEditor.toggleEntry', { position })),
           onTapGesture(onToggle),
         ]}
       />
-      <TextField text={labelState} placeholder="Checklist entry" onTextChange={onRename} />
+      <TextField text={labelState} placeholder={t('itemEditor.checklistEntry')} onTextChange={onRename} />
     </HStack>
   );
 }
@@ -264,7 +265,7 @@ function ChecklistComposerRow({
       <TextField
         ref={fieldRef}
         text={textState}
-        placeholder="Add entry"
+        placeholder={t('itemEditor.addEntry')}
         axis="vertical"
         onTextChange={onChange}
       />
@@ -273,12 +274,12 @@ function ChecklistComposerRow({
 }
 
 function locationLabel(loc: Item['location'] | null): string {
-  if (!loc) return 'Add location';
+  if (!loc) return t('itemEditor.addLocation');
   if (loc.address) return loc.address;
   // Coords-only: show the pair truncated to 3 decimals (the stored value keeps
   // full precision).
   if (loc.lat != null && loc.lng != null) return `${loc.lat.toFixed(3)}, ${loc.lng.toFixed(3)}`;
-  return 'Add location';
+  return t('itemEditor.addLocation');
 }
 
 function LocationRow({
@@ -314,7 +315,7 @@ function LocationRow({
           systemName="xmark.circle.fill"
           color={textSubtle}
           size={20}
-          modifiers={[accessibilityLabel('Clear location'), onTapGesture(onClear)]}
+          modifiers={[accessibilityLabel(t('itemEditor.clearLocation')), onTapGesture(onClear)]}
         />
       ) : null}
     </HStack>
@@ -404,7 +405,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
     onSubmit(formToItem(values, itemId, initialItem, location, sanitizeChecklist(full)), date);
   }
 
-  const heading = `${initialItem ? 'Edit' : 'New'} ${identity.label}`;
+  const heading = initialItem ? t('itemEditor.editHeading', { category: itemCategoryLabel(identity.category) }) : t('itemEditor.newHeading', { category: itemCategoryLabel(identity.category) });
 
   function openLocationPicker() {
     // The picker opens blank every time (ADR-0012): it does not read the item's
@@ -444,7 +445,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
       {onCancel ? (
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
-            accessibilityLabel="Cancel"
+            accessibilityLabel={t('common.cancel')}
             icon="xmark"
             tintColor={c.accent}
             onPress={onCancel}
@@ -455,7 +456,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
         {/* Name-required validation is enforced here: the Save button is disabled
             while Name is empty, so there is no section-footer error. */}
         <Stack.Toolbar.Button
-          accessibilityLabel="Save"
+          accessibilityLabel={t('common.save')}
           icon="checkmark"
           variant="prominent"
           tintColor={c.accent}
@@ -486,7 +487,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           {tripOptions ? (
             <Section modifiers={[listRowBackground(c.surface)]}>
               <Picker
-                label="Trip"
+                label={t('itemEditor.tripLabel')}
                 selection={selectedTripId ?? ''}
                 onSelectionChange={(v) => onSelectTrip?.(v as string)}
                 modifiers={[pickerStyle('menu')]}
@@ -496,7 +497,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                     key={option.id}
                     modifiers={option.past ? [tag(option.id), foregroundStyle(c.textSubtle)] : [tag(option.id)]}
                   >
-                    {option.past ? `${option.label} · Past` : option.label}
+                    {option.past ? t('itemEditor.pastSuffix', { label: option.label }) : option.label}
                   </Text>
                 ))}
               </Picker>
@@ -509,13 +510,13 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
             <VStack alignment="leading" spacing={8}>
               <TextField
                 text={nameState}
-                placeholder="Title"
+                placeholder={t('itemEditor.titlePlaceholder')}
                 onTextChange={setName}
                 modifiers={[font({ size: 24, weight: 'semibold' })]}
               />
               <TextField
                 text={notesState}
-                placeholder="Notes"
+                placeholder={t('itemEditor.notesPlaceholder')}
                 onTextChange={setNotes}
                 axis="vertical"
               />
@@ -527,7 +528,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               icon; Date / Time / Location each carry a monochrome leading glyph. */}
           <Section modifiers={[listRowBackground(c.surface)]}>
             <Picker
-              label="Category"
+              label={t('itemEditor.categoryLabel')}
               selection={category}
               onSelectionChange={(v) => setCategory(v as ItemCategory)}
               modifiers={[pickerStyle('segmented')]}
@@ -537,7 +538,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                   key={cat}
                   systemName={itemIdentity(cat).symbol}
                   size={20}
-                  modifiers={[tag(cat), accessibilityLabel(itemIdentity(cat).label)]}
+                  modifiers={[tag(cat), accessibilityLabel(itemCategoryLabel(cat))]}
                 />
               ))}
             </Picker>
@@ -546,7 +547,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               <HStack spacing={12}>
                 <Image systemName="calendar" color={c.textSubtle} size={20} />
                 <DatePicker
-                  title="Date"
+                  title={t('itemEditor.dateTitle')}
                   selection={parseLocalDate(date)}
                   displayedComponents={['date']}
                   range={{
@@ -574,7 +575,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
             />
           </Section>
 
-          <Section header={<Text>Checklist</Text>} modifiers={[listRowBackground(c.surface)]}>
+          <Section header={<Text>{t('itemEditor.checklistHeader')}</Text>} modifiers={[listRowBackground(c.surface)]}>
             {/* List.ForEach gives the rows the system swipe-to-delete (onDelete)
                 and long-press drag-to-reorder (onMove), matching the itinerary. */}
             <List.ForEach
@@ -613,7 +614,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           {initialItem && onDelete ? (
             <Section modifiers={[listRowBackground(c.surface)]}>
               <Button
-                label="Delete"
+                label={t('common.delete')}
                 systemImage="trash"
                 role="destructive"
                 onPress={onDelete}

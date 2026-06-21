@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
+import { t } from '@/lib/i18n';
 import { useTripStore } from '@/lib/store';
 import type { Coords } from '@/lib/coords';
 import { TripMap, type TripMapHandle } from '@/components/trip-map';
@@ -197,7 +198,7 @@ export default function HomeScreen() {
       {trip && (
         <MapControlButton
           name="scope"
-          accessibilityLabel="Recenter"
+          accessibilityLabel={t('map.recenter')}
           color={c.accent}
           style={[styles.mapButton, { top: insets.top + 12 }]}
           onPress={() => tripMapRef.current?.recenter()}
@@ -210,7 +211,7 @@ export default function HomeScreen() {
           top slot rather than leaving a gap. */}
       <MapControlButton
         name="location.fill"
-        accessibilityLabel="Center on my location"
+        accessibilityLabel={t('map.centerOnLocation')}
         color={c.accent}
         style={[styles.mapButton, { top: insets.top + 12 + (trip ? 44 + 12 : 0) }]}
         onPress={onCenterOnUser}

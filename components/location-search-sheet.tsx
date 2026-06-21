@@ -25,6 +25,7 @@ import {
 import { parseLatLng, resolveMapsUrl } from '@/lib/coords';
 import { searchPlaces } from '@/lib/photon';
 import { useThemeColors } from '@/constants/theme';
+import { t } from '@/lib/i18n';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -165,7 +166,7 @@ export function LocationSearchSheet() {
       {atPeek ? null : (
         <Stack.SearchBar
           ref={searchBarRef}
-          placeholder="Search or paste a location"
+          placeholder={t('locationSearch.placeholder')}
           autoCapitalize="none"
           // Keep the navigation bar (and its Cancel/Select buttons) on screen while
           // the search field is active — by default the search controller hides it.
@@ -179,7 +180,7 @@ export function LocationSearchSheet() {
           armed whenever there's something committable. */}
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          accessibilityLabel="Cancel"
+          accessibilityLabel={t('common.cancel')}
           icon="xmark"
           tintColor={accent}
           onPress={onCancel}
@@ -187,7 +188,7 @@ export function LocationSearchSheet() {
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          accessibilityLabel="Select"
+          accessibilityLabel={t('locationSearch.select')}
           icon="checkmark"
           variant="prominent"
           tintColor={accent}
@@ -232,7 +233,7 @@ export function LocationSearchSheet() {
                   );
                 }
                 if (row.kind === 'resolving') {
-                  return <Text key="resolving">Resolving…</Text>;
+                  return <Text key="resolving">{t('locationSearch.resolving')}</Text>;
                 }
                 if (row.kind === 'poi') {
                   const key: SelectionKey = { kind: 'poi' };
@@ -279,7 +280,7 @@ export function LocationSearchSheet() {
                 return (
                   <Button key={`address-${i}`} onPress={() => onPickRow(key)}>
                     <HStack>
-                      <Text>{`Use '${row.text}' as a plain address`}</Text>
+                      <Text>{t('locationSearch.plainAddress', { text: row.text })}</Text>
                       <Spacer />
                       {selected ? <Text modifiers={[foregroundStyle(accent)]}>✓</Text> : null}
                     </HStack>

@@ -43,6 +43,7 @@ import { partitionTrips } from '@/lib/trip-partition';
 import { tripCountdownBadge, countdownPillLabel } from '@/lib/trip-badge';
 import { todayString, formatDateRange } from '@/lib/date-utils';
 import { wallpaperDisplayUri, exportTripAsFile } from '@/lib/storage';
+import { t } from '@/lib/i18n';
 import type { TripSummary } from '@/lib/schema';
 
 const FAVORITE_GOLD = '#FFD60A';
@@ -75,20 +76,20 @@ export default function TripsSheet() {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/json',
           UTI: 'public.json',
-          dialogTitle: `Export ${summary.title}`,
+          dialogTitle: t('trips.exportTitle', { title: summary.title }),
         });
       } else {
-        Alert.alert('Sharing unavailable', 'Sharing is not available on this device.');
+        Alert.alert(t('trips.sharingUnavailableTitle'), t('trips.sharingUnavailableBody'));
       }
     } catch {
-      Alert.alert('Export failed', 'Could not export this trip.');
+      Alert.alert(t('trips.exportFailedTitle'), t('trips.exportFailedBody'));
     }
   }
 
   function onDelete(summary: TripSummary) {
-    Alert.alert('Delete trip', `Delete "${summary.title}"? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => removeTrip(summary.id) },
+    Alert.alert(t('trips.deleteTitle'), t('trips.deleteConfirm', { title: summary.title }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: () => removeTrip(summary.id) },
     ]);
   }
 
@@ -190,7 +191,7 @@ export default function TripsSheet() {
         <SwipeActions.Actions edge="leading">
           <Button
             systemImage="pencil"
-            label="Edit"
+            label={t('common.edit')}
             onPress={() => onEdit(summary)}
             modifiers={[tint(c.accent)]}
           />
@@ -199,7 +200,7 @@ export default function TripsSheet() {
           {muted ? null : (
             <Button
               systemImage={isFavorite ? 'star.slash.fill' : 'star.fill'}
-              label={isFavorite ? 'Unfavorite' : 'Favorite'}
+              label={isFavorite ? t('trips.unfavorite') : t('trips.favorite')}
               onPress={() => onToggleFavorite(summary)}
               modifiers={[tint(FAVORITE_GOLD)]}
             />
@@ -213,13 +214,13 @@ export default function TripsSheet() {
               the auto-removal; the row stays until removeTrip actually runs. */}
           <Button
             systemImage="trash"
-            label="Delete"
+            label={t('common.delete')}
             onPress={() => onDelete(summary)}
             modifiers={[tint(c.destructive)]}
           />
           <Button
             systemImage="square.and.arrow.up"
-            label="Export"
+            label={t('trips.export')}
             onPress={() => onExport(summary)}
             modifiers={[tint(c.secondaryAction)]}
           />
@@ -236,25 +237,25 @@ export default function TripsSheet() {
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Trips</Stack.Title>
+      <Stack.Title>{t('trips.title')}</Stack.Title>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           icon="gearshape"
-          accessibilityLabel="Settings"
+          accessibilityLabel={t('trips.settings')}
           tintColor={c.accent}
           onPress={() => router.push('/settings')}
         />
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu icon="plus" accessibilityLabel="Add trip" tintColor={c.accent}>
+        <Stack.Toolbar.Menu icon="plus" accessibilityLabel={t('trips.addTrip')} tintColor={c.accent}>
           <Stack.Toolbar.MenuAction icon="plus" onPress={() => router.push('/trip/new')}>
-            New Trip
+            {t('trips.new')}
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction
             icon="square.and.arrow.down"
             onPress={() => router.push('/import')}
           >
-            Import Trip
+            {t('trips.import')}
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
@@ -262,7 +263,7 @@ export default function TripsSheet() {
       {!hasTrips ? (
         <View style={styles.empty}>
           <RNText style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
-            No trips yet
+            {t('trips.empty')}
           </RNText>
         </View>
       ) : (
@@ -287,7 +288,7 @@ export default function TripsSheet() {
               </Section>
             ) : null}
             {pastTrips.length > 0 ? (
-              <Section title="Past trips" modifiers={[listRowBackground(c.surface)]}>
+              <Section title={t('trips.pastSection')} modifiers={[listRowBackground(c.surface)]}>
                 {pastTrips.map((summary) => renderRow(summary, true))}
               </Section>
             ) : null}

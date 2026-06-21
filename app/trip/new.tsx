@@ -7,6 +7,7 @@ import { saveWallpaper, deleteTrip } from '@/lib/storage';
 import { reconcileDays } from '@/lib/trip-days';
 import { Trip } from '@/lib/schema';
 import { newId } from '@/lib/id';
+import { t } from '@/lib/i18n';
 import { TripForm, TripFormResult } from '@/components/trip-form';
 
 export default function NewTripScreen() {
@@ -37,7 +38,7 @@ export default function NewTripScreen() {
     } catch {
       // If the copied wallpaper outlived a failed save, drop the orphaned folder.
       if (wallpaperSaved) deleteTrip(id);
-      Alert.alert('Error', 'Failed to save trip. Please try again.');
+      Alert.alert(t('tripForm.saveErrorTitle'), t('tripForm.saveErrorBody'));
     } finally {
       setSubmitting(false);
     }
@@ -45,8 +46,8 @@ export default function NewTripScreen() {
 
   return (
     <TripForm
-      heading="New Trip"
-      submitLabel="Create"
+      heading={t('trips.new')}
+      submitLabel={t('tripForm.create')}
       autoFocusTitle
       submitting={submitting}
       onSubmit={handleSubmit}

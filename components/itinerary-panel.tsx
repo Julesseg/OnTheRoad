@@ -42,6 +42,7 @@ import { checklistProgress } from '@/lib/checklist';
 import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, MAPS_APP_LABELS, type MapsTarget } from '@/lib/maps';
+import { t } from '@/lib/i18n';
 const WHITE = '#ffffff';
 const TRANSPARENT = '#00000000';
 
@@ -122,9 +123,9 @@ export function ItineraryPanel({
 
   function confirmDelete(dayId: string, item: Item) {
     const label = item.name;
-    Alert.alert('Delete item', `Delete "${label}"? This can't be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteItem(trip.id, dayId, item.id) },
+    Alert.alert(t('common.deleteItemTitle'), t('common.deleteItemConfirm', { name: label }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: () => deleteItem(trip.id, dayId, item.id) },
     ]);
   }
 
@@ -225,7 +226,7 @@ export function ItineraryPanel({
               background(WHITE, shapes.capsule()),
             ]}
           >
-            NEXT UP
+            {t('itinerary.nextUp')}
           </Text>
         </HStack>
         {checklistRows({ tick: WHITE, idle: WHITE, label: WHITE })}
@@ -266,18 +267,18 @@ export function ItineraryPanel({
         {rowContent}
 
         <SwipeActions.Actions edge="leading">
-          <Button systemImage="pencil" label="Edit" onPress={edit} modifiers={[tint(c.accent)]} />
+          <Button systemImage="pencil" label={t('common.edit')} onPress={edit} modifiers={[tint(c.accent)]} />
         </SwipeActions.Actions>
         <SwipeActions.Actions edge="trailing" allowsFullSwipe={!!openMaps}>
           {openMaps ? (
             <Button
               systemImage="map"
-              label="Navigate"
+              label={t('itinerary.navigate')}
               onPress={openMaps}
               modifiers={[tint(c.accent)]}
             />
           ) : null}
-          <Button systemImage="trash" label="Delete" onPress={remove} modifiers={[tint(c.destructive)]} />
+          <Button systemImage="trash" label={t('common.delete')} onPress={remove} modifiers={[tint(c.destructive)]} />
         </SwipeActions.Actions>
       </SwipeActions>
     );
@@ -343,7 +344,7 @@ export function ItineraryPanel({
                         foregroundStyle(day.date === today ? c.accent : subtext),
                       ]}
                     >
-                      {`Day ${dayPosition.get(day.id) ?? '?'}`}
+                      {t('itinerary.dayHeader', { n: dayPosition.get(day.id) ?? '?' })}
                     </Text>
                     <Text modifiers={[font({ size: 14 }), foregroundStyle(subtext)]}>
                       {formatDayLabel(day.date)}

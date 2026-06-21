@@ -18,6 +18,7 @@ import {
   useScrollGeometryChange,
 } from '@expo/ui/swift-ui/modifiers';
 
+import { t } from '@/lib/i18n';
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
 import { ItineraryPanel } from '@/components/itinerary-panel';
@@ -163,23 +164,23 @@ export default function DaysSheet() {
           <Stack.Toolbar.Button
             icon="list.bullet"
             tintColor={c.accent}
-            accessibilityLabel="Trips"
+            accessibilityLabel={t('trips.title')}
             onPress={() => router.push('/trips')}
           />
         </Stack.Toolbar>
-        <Text style={[styles.emptyTitle, { color: text }]}>On the Road</Text>
+        <Text style={[styles.emptyTitle, { color: text }]}>{t('home.appName')}</Text>
         <Text style={[styles.emptyHint, { color: subtext }]}>
-          Start a new trip or import one you already have.
+          {t('home.subtitle')}
         </Text>
         <View style={styles.emptyButtons}>
           <GlassButton
-            label="New Trip"
+            label={t('trips.new')}
             icon="plus"
             accent={c.accent}
             onPress={() => router.push('/trip/new')}
           />
           <GlassButton
-            label="Import Trip"
+            label={t('trips.import')}
             icon="square.and.arrow.down"
             accent={c.accent}
             onPress={() => router.push('/import')}
@@ -211,7 +212,7 @@ export default function DaysSheet() {
         {showBackArrow ? (
           <Stack.Toolbar.Button
             icon="chevron.backward"
-            accessibilityLabel="Back to default trip"
+            accessibilityLabel={t('home.backToDefault')}
             tintColor={c.accent}
             // separateBackground gives each its own liquid-glass capsule instead of
             // sharing one with the adjacent filter button (maps to the iOS 26 bar
@@ -240,7 +241,7 @@ export default function DaysSheet() {
           {trip ? (
             <Stack.Toolbar.Button
               icon="line.3.horizontal.decrease"
-              accessibilityLabel="Filter day"
+              accessibilityLabel={t('home.filterDay')}
               tintColor={c.accent}
               selected={filterModel.active}
               hidden={!showFilter}
@@ -252,7 +253,7 @@ export default function DaysSheet() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon="list.bullet"
-          accessibilityLabel="Trips"
+          accessibilityLabel={t('trips.title')}
           tintColor={c.accent}
           onPress={() => router.push('/trips')}
         />

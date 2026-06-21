@@ -95,6 +95,14 @@ describe('durationUnitWord', () => {
   it('pluralises other values', () => {
     expect(durationUnitWord({ value: 3, unit: 'month' })).toBe('months');
   });
+
+  it('localizes the unit word in French, with French plural rules', () => {
+    expect(durationUnitWord({ value: 1, unit: 'week' }, 'fr')).toBe('semaine');
+    expect(durationUnitWord({ value: 3, unit: 'week' }, 'fr')).toBe('semaines');
+    // "mois" is invariant in French.
+    expect(durationUnitWord({ value: 3, unit: 'month' }, 'fr')).toBe('mois');
+    expect(durationUnitWord({ value: 2, unit: 'year' }, 'fr')).toBe('ans');
+  });
 });
 
 describe('countdownPillLabel', () => {
@@ -126,5 +134,31 @@ describe('compactCountdownPillLabel', () => {
   it('abbreviates the elapsed countdown', () => {
     expect(compactCountdownPillLabel({ kind: 'after', days: 21 })).toBe('3w ago');
     expect(compactCountdownPillLabel({ kind: 'after', days: 400 })).toBe('1y ago');
+  });
+});
+
+describe('French countdown labels', () => {
+  const trip = { startDate: '2026-06-10', endDate: '2026-06-20' };
+
+  it('reads the in-progress and counted pill in French', () => {
+    expect(countdownPill(trip, '2026-06-15', 'fr')).toBe('Maintenant');
+    expect(countdownPill(trip, '2026-06-09', 'fr')).toBe('dans 1 jour');
+    expect(countdownPill(trip, '2026-06-04', 'fr')).toBe('dans 6 jours');
+    expect(countdownPill(trip, '2026-05-27', 'fr')).toBe('dans 2 semaines');
+    expect(countdownPill(trip, '2026-06-25', 'fr')).toBe('il y a 5 jours');
+  });
+
+  it('reads the expanded pill label in French with French plurals', () => {
+    expect(countdownPillLabel({ kind: 'now' }, 'fr')).toBe('En cours');
+    expect(countdownPillLabel({ kind: 'before', days: 1 }, 'fr')).toBe('Commence dans 1 jour');
+    expect(countdownPillLabel({ kind: 'before', days: 60 }, 'fr')).toBe('Commence dans 2 mois');
+    expect(countdownPillLabel({ kind: 'after', days: 21 }, 'fr')).toBe('Terminé il y a 3 semaines');
+  });
+
+  it('reads the compact pill label in French', () => {
+    expect(compactCountdownPillLabel({ kind: 'now' }, 'fr')).toBe('En cours');
+    expect(compactCountdownPillLabel({ kind: 'before', days: 6 }, 'fr')).toBe('dans 6j');
+    expect(compactCountdownPillLabel({ kind: 'before', days: 60 }, 'fr')).toBe('dans 2mois');
+    expect(compactCountdownPillLabel({ kind: 'after', days: 21 }, 'fr')).toBe('il y a 3sem');
   });
 });

@@ -3,6 +3,7 @@ import { View, TextInput, Keyboard, StyleSheet, Alert } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { t } from '@/lib/i18n';
 import { useThemeColors } from '@/constants/theme';
 import { useTripStore } from '@/lib/store';
 
@@ -54,7 +55,7 @@ export default function ImportPasteSheet() {
       setDisplayedTrip(trip.id);
       router.dismissAll();
     } catch (e) {
-      Alert.alert('Import failed', e instanceof Error ? e.message : 'Could not import this trip.');
+      Alert.alert(t('import.failedTitle'), e instanceof Error ? e.message : t('import.failedBody'));
       setBusy(false);
     }
   }, [text, busy, importTripText, setDisplayedTrip]);
@@ -62,11 +63,11 @@ export default function ImportPasteSheet() {
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <Stack.Header style={{ backgroundColor: 'transparent', shadowColor: 'transparent' }} />
-      <Stack.Title>Paste JSON</Stack.Title>
+      <Stack.Title>{t('importPaste.title')}</Stack.Title>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           icon="xmark"
-          accessibilityLabel="Cancel"
+          accessibilityLabel={t('common.cancel')}
           tintColor={c.accent}
           onPress={() => router.back()}
         />
@@ -74,7 +75,7 @@ export default function ImportPasteSheet() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon="checkmark"
-          accessibilityLabel="Import"
+          accessibilityLabel={t('importPaste.import')}
           variant="prominent"
           tintColor={c.accent}
           disabled={!canImport}
@@ -104,7 +105,7 @@ export default function ImportPasteSheet() {
           smartInsertDelete={false}
           value={text}
           onChangeText={setText}
-          placeholder="Paste your trip JSON…"
+          placeholder={t('importPaste.placeholder')}
           placeholderTextColor={c.textSubtle}
           style={[
             styles.input,

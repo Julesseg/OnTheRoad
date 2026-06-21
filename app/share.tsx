@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
+import { t } from '@/lib/i18n';
 import { useTripStore } from '@/lib/store';
 import { newId } from '@/lib/id';
 import { ItemEditor, type TripOption } from '@/components/item-editor';
@@ -116,16 +117,16 @@ export default function ShareEditorScreen() {
   if (trips.length === 0) {
     return (
       <View style={[styles.empty, { backgroundColor: c.background }]}>
-        <Text style={[styles.emptyTitle, { color: c.text }]}>Create a trip first</Text>
+        <Text style={[styles.emptyTitle, { color: c.text }]}>{t('share.createTripFirst')}</Text>
         <Text style={[styles.emptyHint, { color: c.textSubtle }]}>
-          A shared place or link needs a trip to live on. Create one, then share again.
+          {t('share.createTripHint')}
         </Text>
         <Pressable
           accessibilityRole="button"
           style={styles.newTripButton}
           onPress={() => router.replace('/trip/new')}
         >
-          <Text style={[styles.newTripLabel, { color: c.accent }]}>New Trip</Text>
+          <Text style={[styles.newTripLabel, { color: c.accent }]}>{t('trips.new')}</Text>
         </Pressable>
       </View>
     );
