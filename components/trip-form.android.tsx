@@ -180,7 +180,11 @@ export function TripForm({
         }
       />
 
-      <Host style={{ flex: 1 }} matchContents>
+      {/* matchContents is vertical-only: full `matchContents` measures the
+          ComposeView with unbounded width, which crashes the DateTimePicker's
+          internal LazyRow ("infinity maximum width"). Matching height alone keeps
+          the content auto-sizing while the width stays bounded by the flex layout. */}
+      <Host style={{ flex: 1 }} matchContents={{ vertical: true }}>
         <Column modifiers={[padding(16, 12, 16, 12)]}>
           <Card modifiers={[paddingAll(12)]}>
             <Column>

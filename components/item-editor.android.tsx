@@ -357,7 +357,15 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
         }
       />
 
-      <Host style={styles.host} colorScheme={colorScheme === 'dark' ? 'dark' : 'light'} matchContents>
+      {/* matchContents is vertical-only: full `matchContents` measures the
+          ComposeView with unbounded width, which crashes the DateTimePicker's
+          internal LazyRow ("infinity maximum width"). Matching height alone keeps
+          the content auto-sizing while the width stays bounded by the flex layout. */}
+      <Host
+        style={styles.host}
+        colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        matchContents={{ vertical: true }}
+      >
         <Column modifiers={[padding(16, 12, 16, 12)]}>
           {/* Share editor only: the destination Trip picker sits at the very top. */}
           {tripOptions ? (
