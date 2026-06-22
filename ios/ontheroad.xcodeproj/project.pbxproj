@@ -15,6 +15,7 @@
 		DDD50E4C3FEECEE974F237EC /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB9A43AE8E29182EE57390E8 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		XX7BB892E121AB1ABF71B4XX /* share.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XXFB7BDE85E076D7002565XX /* share.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		89FD3257D7B34383BAB126F5 /* ontheroad.icon in Resources */ = {isa = PBXBuildFile; fileRef = CD9B6F36341C4D16A274AB41 /* ontheroad.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		F11748442D0722820044C1D9 /* ontheroad-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.c.h; name = "ontheroad-Bridging-Header.h"; path = "ontheroad/ontheroad-Bridging-Header.h"; sourceTree = "<group>"; };
 		FB9A43AE8E29182EE57390E8 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-ontheroad/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		XXFB7BDE85E076D7002565XX /* share.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = 4; includeInIndex = 0; path = share.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CD9B6F36341C4D16A274AB41 /* ontheroad.icon */ = {isa = PBXFileReference; name = "ontheroad.icon"; path = "ontheroad/ontheroad.icon"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -106,6 +108,7 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				B147511DF2D2AC2E9FA2D389 /* PrivacyInfo.xcprivacy */,
+				CD9B6F36341C4D16A274AB41 /* ontheroad.icon */,
 			);
 			name = ontheroad;
 			sourceTree = "<group>";
@@ -287,6 +290,7 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				B7CE2AD1F4C3EC0FA9FE5DA1 /* PrivacyInfo.xcprivacy in Resources */,
+				89FD3257D7B34383BAB126F5 /* ontheroad.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -456,7 +460,7 @@
 			baseConfigurationReference = 12882D37DAF0E2D32D0E3926 /* Pods-ontheroad.debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ontheroad;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ontheroad/ontheroad.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
@@ -494,7 +498,7 @@
 			baseConfigurationReference = 9C8ECC1DD8FA09D3101D8121 /* Pods-ontheroad.release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ontheroad;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = ontheroad/ontheroad.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
