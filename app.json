@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "OnTheRoad",
+    "name": "on-the-road",
     "slug": "on-the-road",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,6 +17,7 @@
         ]
       },
       "infoPlist": {
+        "CFBundleDisplayName": "OnTheRoad",
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
           "waze"
