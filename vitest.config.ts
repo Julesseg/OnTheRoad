@@ -5,6 +5,10 @@ const alias = {
   'react-native': 'react-native-web',
   'expo-maps': path.resolve(__dirname, '__mocks__/expo-maps.tsx'),
   'expo-location': path.resolve(__dirname, '__mocks__/expo-location.ts'),
+  'react-native-safe-area-context': path.resolve(
+    __dirname,
+    '__mocks__/react-native-safe-area-context.tsx',
+  ),
   '@bacons/apple-targets': path.resolve(__dirname, '__mocks__/bacons-apple-targets.ts'),
   // The Android (Compose) form variants render through these stubs in jsdom; the
   // native @expo/ui/jetpack-compose runtime can't load in tests. No iOS test

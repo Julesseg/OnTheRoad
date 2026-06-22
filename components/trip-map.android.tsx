@@ -150,9 +150,17 @@ export const TripMap = forwardRef<
       void Promise.resolve(mapRef.current?.setCameraPosition(config) as unknown).catch(() => {});
     };
 
+    // The cameraPosition prop already frames `initialViewport` (an expo-maps-internal
+    // camera animation). Re-fitting to that SAME frame the moment the map loads only
+    // cancels that internal animation, which expo-maps surfaces as an uncaught
+    // "GoogleMapsView.setCameraPosition … Animation cancelled" rejection — our
+    // moveCamera catch can't wrap expo-maps' own promise. Skip the redundant initial
+    // fit; only drive the camera once the viewport actually changes (trip load, edits,
+    // today-filter), where moveCamera's catch handles any later cancellation.
+    const initialKey = useRef(JSON.stringify(initialViewport)).current;
     const key = JSON.stringify(viewport);
     useEffect(() => {
-      if (!mapLoaded) return;
+      if (!mapLoaded || key === initialKey) return;
       moveCamera(viewport);
     }, [key, mapLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 

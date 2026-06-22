@@ -1,11 +1,12 @@
 import { View, Text as RNText, StyleSheet, Alert, useColorScheme, Image } from 'react-native';
 import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { Host, Column, Card, Surface, Row, Text, Button } from '@expo/ui/jetpack-compose';
-import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
+import { Host, Column, Card, Surface, Row, Text, TextButton } from '@expo/ui/jetpack-compose';
+import { padding, paddingAll, alpha, fillMaxWidth, weight, clip, Shapes } from '@expo/ui/jetpack-compose/modifiers';
 
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
+import { androidMaterial, androidHostTheme } from '@/constants/android-material';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { SheetHeader, SheetHeaderIconButton, SheetHeaderMenu } from '@/components/ui/sheet-header';
 import { partitionTrips } from '@/lib/trip-partition';
@@ -27,8 +28,10 @@ export default function TripsSheet() {
   const today = todayString();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const scheme = isDark ? 'dark' : 'light';
   const c = useThemeColors();
   const subtext = c.textSubtle;
+  const m = androidMaterial(c);
 
   // Flat, scannable list: in-progress trips first, then upcoming, each already
   // sorted by start date. Past (archived) trips follow in their own greyed-out
@@ -91,48 +94,62 @@ export default function TripsSheet() {
     const isFavorite = activeTripId === summary.id;
 
     return (
-      <Card key={summary.id} modifiers={[paddingAll(8)]}>
-        <Surface onClick={() => onTap(summary)}>
-          <Row modifiers={[paddingAll(8)]}>
+      // Past trips recede: dim the whole row (mirrors the iOS opacity(0.55) on the
+      // archived section) so finished trips read as inactive.
+      <Card
+        key={summary.id}
+        modifiers={muted ? [fillMaxWidth(), paddingAll(8), alpha(0.55)] : [fillMaxWidth(), paddingAll(8)]}
+        colors={m.card}
+      >
+        {/* Transparent so the tappable row blends into the Card rather than
+            drawing its own inset box. */}
+        <Surface onClick={() => onTap(summary)} color="#00000000" modifiers={[fillMaxWidth()]}>
+          <Row modifiers={[fillMaxWidth(), paddingAll(8)]} horizontalArrangement={{ spacedBy: 12 }} verticalAlignment="center">
             {wallpaperUri ? (
               <Image source={{ uri: wallpaperUri }} style={styles.thumb} accessibilityLabel="wallpaper" />
             ) : (
-              <View style={[styles.thumb, styles.thumbFallback, { backgroundColor: isDark ? '#3a3a3c' : '#e5e5ea' }]}>
-                <IconSymbol name="map" size={26} color="#8e8e93" />
+              <View style={[styles.thumb, styles.thumbFallback, { backgroundColor: c.separator }]}>
+                <IconSymbol name="map" size={26} color={c.textSubtle} />
               </View>
             )}
-            <Column>
-              <Row>
+            <Column modifiers={[weight(1)]} verticalArrangement={{ spacedBy: 4 }}>
+              <Row horizontalArrangement={{ spacedBy: 6 }} verticalAlignment="center">
                 {isFavorite ? <Text color={c.accent}>★</Text> : null}
-                <Text style={{ typography: 'titleMedium' }}>{summary.title}</Text>
+                <Text color={c.text} style={{ typography: 'titleMedium' }}>{summary.title}</Text>
               </Row>
-              <Row>
+              <Row horizontalArrangement={{ spacedBy: 8 }} verticalAlignment="center">
                 <Text color={subtext} style={{ typography: 'bodySmall' }}>
                   {formatDateRange(summary.startDate, summary.endDate)}
                 </Text>
-                <Text style={{ typography: 'labelSmall' }}>{pill}</Text>
+                {pill ? (
+                  <Surface color={c.accentFaint} modifiers={[clip(Shapes.RoundedCorner(999))]}>
+                    <Text color={c.accent} style={{ typography: 'labelSmall' }} modifiers={[padding(8, 3, 8, 3)]}>
+                      {pill}
+                    </Text>
+                  </Surface>
+                ) : null}
               </Row>
             </Column>
           </Row>
         </Surface>
 
-        <Row modifiers={[paddingAll(4)]}>
-          <Button onClick={() => onEdit(summary)}>
+        <Row modifiers={[fillMaxWidth(), paddingAll(4)]} horizontalArrangement={{ spacedBy: 4 }} verticalAlignment="center">
+          <TextButton onClick={() => onEdit(summary)} colors={m.textButton}>
             <Text>Edit</Text>
-          </Button>
+          </TextButton>
           {/* Favoriting picks the default Displayed Trip — meaningless for a
               finished trip, so the Past trips section drops the action. */}
           {muted ? null : (
-            <Button onClick={() => onToggleFavorite(summary)}>
+            <TextButton onClick={() => onToggleFavorite(summary)} colors={m.textButton}>
               <Text>{isFavorite ? 'Unfavorite' : 'Favorite'}</Text>
-            </Button>
+            </TextButton>
           )}
-          <Button onClick={() => onExport(summary)}>
+          <TextButton onClick={() => onExport(summary)} colors={m.textButton}>
             <Text>Export</Text>
-          </Button>
-          <Button onClick={() => onDelete(summary)}>
+          </TextButton>
+          <TextButton onClick={() => onDelete(summary)} colors={m.destructiveButton}>
             <Text>Delete</Text>
-          </Button>
+          </TextButton>
         </Row>
       </Card>
     );
@@ -172,16 +189,18 @@ export default function TripsSheet() {
 
       {!hasTrips ? (
         <View style={styles.empty}>
-          <RNText style={[styles.emptyText, { color: isDark ? '#8e8e93' : '#6d6d72' }]}>
+          <RNText style={[styles.emptyText, { color: c.textSubtle }]}>
             No trips yet
           </RNText>
         </View>
       ) : (
-        <Host style={styles.host} matchContents>
-          <Column modifiers={[padding(16, 12, 16, 12)]}>
+        // vertical-only matchContents: full `matchContents` wraps width too, shrinking
+        // each trip Card to its content; matching height only lets width fill the sheet.
+        <Host style={styles.host} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+          <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 12 }}>
             {visibleTrips.map((summary) => renderRow(summary))}
             {pastTrips.length > 0 ? (
-              <Column>
+              <Column verticalArrangement={{ spacedBy: 12 }}>
                 <Text color={subtext} style={{ typography: 'titleSmall' }}>Past trips</Text>
                 {pastTrips.map((summary) => renderRow(summary, true))}
               </Column>

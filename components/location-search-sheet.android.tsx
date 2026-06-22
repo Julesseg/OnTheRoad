@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useColorScheme, View } from 'react-native';
 import { router, useNavigation } from 'expo-router';
-import { Host, Column, Surface, Row, Spacer, Text, TextField, useNativeState } from '@expo/ui/jetpack-compose';
+import { Host, Column, Surface, Row, Spacer, Text, OutlinedTextField, useNativeState } from '@expo/ui/jetpack-compose';
 import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -177,27 +177,30 @@ export function LocationSearchSheet() {
         }
       />
 
+      {/* vertical-only matchContents: full `matchContents` wraps width too, which
+          shrinks the search field and result rows to their content. Matching height
+          only lets width fill the sheet so rows span the full width. */}
       <Host
         style={{ flex: 1 }}
         colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
-        matchContents
+        matchContents={{ vertical: true }}
       >
         <Column modifiers={[padding(16, 12, 16, 12)]}>
           {/* Hidden at the peek detent, where the sheet title shows the selection
               instead. The field is controlled by the picker store's query. */}
           {atPeek ? null : (
-            <TextField
+            <OutlinedTextField
               autoFocus
               value={queryState}
               onValueChange={(text) => dispatch({ type: 'queryChanged', text })}
             >
-              <TextField.Label>
+              <OutlinedTextField.Label>
                 <Text>Search or paste a location</Text>
-              </TextField.Label>
-              <TextField.Placeholder>
+              </OutlinedTextField.Label>
+              <OutlinedTextField.Placeholder>
                 <Text>Search or paste a location</Text>
-              </TextField.Placeholder>
-            </TextField>
+              </OutlinedTextField.Placeholder>
+            </OutlinedTextField>
           )}
 
           {rowList.map((row, i) => {
@@ -229,7 +232,11 @@ export function LocationSearchSheet() {
                   <Row modifiers={[paddingAll(12)]}>
                     <Column>
                       <Text>{row.result.title}</Text>
-                      {row.result.address ? <Text>{row.result.address}</Text> : null}
+                      {row.result.address ? (
+                        <Text color={c.textSubtle} style={{ typography: 'bodySmall' }}>
+                          {row.result.address}
+                        </Text>
+                      ) : null}
                     </Column>
                     <Spacer />
                     {selected ? <IconSymbol name="checkmark" size={20} color={accent} /> : null}
@@ -245,7 +252,11 @@ export function LocationSearchSheet() {
                   <Row modifiers={[paddingAll(12)]}>
                     <Column>
                       <Text>{row.result.title}</Text>
-                      {row.result.address ? <Text>{row.result.address}</Text> : null}
+                      {row.result.address ? (
+                        <Text color={c.textSubtle} style={{ typography: 'bodySmall' }}>
+                          {row.result.address}
+                        </Text>
+                      ) : null}
                     </Column>
                     <Spacer />
                     {selected ? <IconSymbol name="checkmark" size={20} color={accent} /> : null}

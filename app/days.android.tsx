@@ -331,7 +331,12 @@ const styles = StyleSheet.create({
   inlineTitleText: { fontSize: 16, fontWeight: '700' },
   inlineSubtitle: { fontSize: 11, marginTop: 1, alignSelf: 'flex-start' },
 
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  // Anchor the empty state near the top of the sheet, not vertically centred: on
+  // Android a formSheet's content view is laid out at its *expanded* height (taller
+  // than the screen), so centring pushed the title — and the New/Import buttons
+  // below it — off the bottom at the resting (50%) detent. Top-anchoring keeps every
+  // affordance visible at any detent (Material bottom sheets fill from the top).
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: 32, paddingTop: 32 },
   emptyTitle: { fontSize: 34, fontWeight: '700' },
   emptyHint: { marginTop: 8, fontSize: 15, textAlign: 'center' },
   // The two trip affordances sit side by side, wrapping on a narrow screen —

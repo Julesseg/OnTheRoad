@@ -48,11 +48,11 @@
             "manifestQueries": {
               "intent": [
                 {
-                  "action": "android.intent.action.VIEW",
+                  "action": "VIEW",
                   "data": { "scheme": "comgooglemaps" }
                 },
                 {
-                  "action": "android.intent.action.VIEW",
+                  "action": "VIEW",
                   "data": { "scheme": "waze" }
                 }
               ]

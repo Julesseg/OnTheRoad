@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, View } from 'react-native';
+import { Alert, Image, View, useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,8 +10,7 @@ import {
   Card,
   Text,
   TextField,
-  DateTimePicker,
-  Button,
+  FilledTonalButton,
   OutlinedButton,
   useNativeState,
 } from '@expo/ui/jetpack-compose';
@@ -24,6 +24,8 @@ import {
 } from '@/lib/trip-form';
 import { formatDateRange } from '@/lib/date-utils';
 import { useThemeColors } from '@/constants/theme';
+import { androidMaterial, androidHostTheme } from '@/constants/android-material';
+import { DateField, ymdToLocalDate } from '@/components/ui/date-field.android';
 import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
 
 // Android (Material 3) twin of trip-form.tsx. Same props, react-hook-form usage,
@@ -90,6 +92,13 @@ export function TripForm({
 }: TripFormProps) {
   const today = formatLocalDate(new Date());
   const c = useThemeColors();
+  const m = androidMaterial(c);
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  // This form is presented as a full-screen `modal` (app/trip/_layout.tsx), so on
+  // Android it renders edge-to-edge from y=0 — the in-content header would sit
+  // under the status bar without this top inset. iOS keeps the native modal nav
+  // bar (trip-form.tsx), so this is Android-only.
+  const insets = useSafeAreaInsets();
   // Native two-way binding seeds the field's initial text (edit path); the
   // mirror into react-hook-form below keeps validation in sync.
   const titleState = useNativeState(initialTitle);
@@ -155,7 +164,7 @@ export function TripForm({
     cover.kind === 'existing' ? cover.displayUri : cover.kind === 'picked' ? cover.uri : null;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingTop: insets.top }}>
       {/* In-content Material header (react-native-screens drops the native
           header/Stack.Toolbar on Android formSheets). See SheetHeader. */}
       <SheetHeader
@@ -180,40 +189,52 @@ export function TripForm({
         }
       />
 
-      {/* matchContents is vertical-only: full `matchContents` measures the
-          ComposeView with unbounded width, which crashes the DateTimePicker's
-          internal LazyRow ("infinity maximum width"). Matching height alone keeps
-          the content auto-sizing while the width stays bounded by the flex layout. */}
-      <Host style={{ flex: 1 }} matchContents={{ vertical: true }}>
-        <Column modifiers={[padding(16, 12, 16, 12)]}>
-          <Card modifiers={[paddingAll(12)]}>
-            <Column>
+      <Host style={{ flex: 1 }} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
+          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: 12 }}>
               <TextField
                 value={titleState}
                 autoFocus={autoFocusTitle}
                 isError={!!errors.title}
+                colors={m.textField}
                 onValueChange={(t) => setValue('title', t)}
                 modifiers={[fillMaxWidth()]}
               >
-                <TextField.Placeholder>Title</TextField.Placeholder>
+                {/* Both slots' content must be wrapped in <Text> — a bare string
+                    child renders outside a Text node and throws "Text strings must
+                    be rendered within a <Text> component". The floating Label is the
+                    Material 3 text-field convention (matches location-search-sheet). */}
+                <TextField.Label>
+                  <Text>Title</Text>
+                </TextField.Label>
+                <TextField.Placeholder>
+                  <Text>Title</Text>
+                </TextField.Placeholder>
               </TextField>
               {onEditDates ? (
                 // Edit path: a single "Trip dates" row opens the Shift / Adjust
                 // screen; the inline pickers are reserved for trip creation.
-                <Button onClick={() => onEditDates({ startDate, endDate })}>
+                <FilledTonalButton
+                  onClick={() => onEditDates({ startDate, endDate })}
+                  colors={m.tonalButton}
+                  modifiers={[fillMaxWidth()]}
+                >
                   <Text>{`Trip dates · ${formatDateRange(startDate, endDate)}`}</Text>
-                </Button>
+                </FilledTonalButton>
               ) : (
+                // Create path: compact native date fields (tap → AOSP dialog),
+                // replacing the full-height inline calendars.
                 <>
-                  <DateTimePicker
-                    initialDate={startDate}
-                    displayedComponents="date"
-                    onDateSelected={(d) => changeDate('start', d)}
+                  <DateField
+                    label="Start date"
+                    value={ymdToLocalDate(startDate)}
+                    onChange={(d) => changeDate('start', d)}
                   />
-                  <DateTimePicker
-                    initialDate={endDate}
-                    displayedComponents="date"
-                    onDateSelected={(d) => changeDate('end', d)}
+                  <DateField
+                    label="End date"
+                    value={ymdToLocalDate(endDate)}
+                    onChange={(d) => changeDate('end', d)}
                   />
                 </>
               )}
@@ -222,27 +243,27 @@ export function TripForm({
             </Column>
           </Card>
 
-          <Card modifiers={[paddingAll(12)]}>
-            <Column>
-              <Text style={{ typography: 'titleSmall' }}>Cover photo</Text>
+          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: 10 }}>
+              <Text color={c.text} style={{ typography: 'titleSmall' }}>Cover photo</Text>
               {coverPreviewUri ? (
                 <>
                   <Image
                     source={{ uri: coverPreviewUri }}
-                    style={{ height: 160, width: '100%' }}
+                    style={{ height: 160, width: '100%', borderRadius: 12 }}
                     resizeMode="cover"
                   />
-                  <Button onClick={pickCover}>
+                  <FilledTonalButton onClick={pickCover} colors={m.tonalButton} modifiers={[fillMaxWidth()]}>
                     <Text>Change</Text>
-                  </Button>
-                  <OutlinedButton onClick={() => setCover({ kind: 'none' })}>
-                    <Text color={c.destructive}>Remove</Text>
+                  </FilledTonalButton>
+                  <OutlinedButton onClick={() => setCover({ kind: 'none' })} colors={m.destructiveButton} modifiers={[fillMaxWidth()]}>
+                    <Text>Remove</Text>
                   </OutlinedButton>
                 </>
               ) : (
-                <Button onClick={pickCover}>
+                <FilledTonalButton onClick={pickCover} colors={m.tonalButton} modifiers={[fillMaxWidth()]}>
                   <Text>Add cover photo</Text>
-                </Button>
+                </FilledTonalButton>
               )}
             </Column>
           </Card>

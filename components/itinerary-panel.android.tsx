@@ -1,11 +1,12 @@
 import { useMemo, type ReactNode } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
-import { Host, Column, Card, Row, Text, IconButton, Surface, Checkbox, Button } from '@expo/ui/jetpack-compose';
-import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
+import { Host, Column, Card, Row, Text, IconButton, Surface, Checkbox, TextButton } from '@expo/ui/jetpack-compose';
+import { padding, paddingAll, weight, fillMaxWidth, clip, Shapes } from '@expo/ui/jetpack-compose/modifiers';
 import type { Trip, Item } from '@/lib/schema';
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
+import { androidMaterial, androidHostTheme } from '@/constants/android-material';
 import { formatDayLabel } from '@/lib/date-utils';
 import { formatItem } from '@/lib/item-display';
 import { itemIdentity } from '@/lib/item-identity';
@@ -14,8 +15,6 @@ import { resolveNextUp } from '@/lib/next-up';
 import { localDateString } from '@/lib/today';
 import { openInMaps, type MapsTarget } from '@/lib/maps';
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
-
-const WHITE = '#ffffff';
 
 // The map destination an item exposes, if any — coordinates and/or an address.
 // Any category can carry a location sub-object. Mirrors itinerary-panel.tsx (iOS).
@@ -57,6 +56,8 @@ export function ItineraryPanel({
 }) {
   const c = useThemeColors();
   const subtext = c.textSubtle;
+  const m = androidMaterial(c);
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
 
   const deleteItem = useTripStore((s) => s.deleteItem);
   const toggleChecklistEntry = useTripStore((s) => s.toggleChecklistEntry);
@@ -119,72 +120,112 @@ export function ItineraryPanel({
       : null;
 
     const checklist = item.checklist ?? [];
-    const onColor = isNextUp ? WHITE : subtext;
-    const iconColor = isNextUp ? WHITE : identity.accent;
+    // Next-up rows fill with the coral accent; everything on them uses onAccent
+    // (the token paired for contrast). Plain rows blend into the warm Card.
+    const onColor = isNextUp ? c.onAccent : subtext;
+    const titleColor = isNextUp ? c.onAccent : c.text;
+    const iconColor = isNextUp ? c.onAccent : identity.accent;
+    const navColor = { containerColor: '#00000000', contentColor: isNextUp ? c.onAccent : c.accent };
+    const deleteColor = { containerColor: '#00000000', contentColor: isNextUp ? c.onAccent : c.destructive };
+    const checkboxColor = isNextUp
+      ? { checkedColor: c.onAccent, uncheckedColor: c.onAccent, checkmarkColor: c.accent }
+      : m.checkbox;
 
+    // Everything lives in ONE full-width Column so the Surface has a single child:
+    // a Surface with multiple direct children lays them out stacked/overlapping with
+    // no width, which collapsed the row (the type label wrapped one letter per line
+    // and only the action buttons showed). The Column fills the card width so the
+    // type Row reads horizontally and the actions sit full-width beneath the text.
     return (
-      <Surface key={item.id} onClick={edit}>
-        <Column modifiers={[paddingAll(8)]}>
+      <Surface
+        key={item.id}
+        onClick={edit}
+        color={isNextUp ? c.accent : '#00000000'}
+        modifiers={isNextUp ? [fillMaxWidth(), clip(Shapes.RoundedCorner(14))] : [fillMaxWidth()]}
+      >
+        <Column modifiers={[fillMaxWidth(), paddingAll(10)]} verticalArrangement={{ spacedBy: 4 }}>
+          {/* Plain <Row> (no arrangement): an embedded IconSymbol grabs the row's
+              width under a Compose Arrangement, collapsing the type label to one
+              letter per line. Default start-placement measures the icon tight. */}
           <Row>
             <IconSymbol name={identity.symbol as IconSymbolName} color={iconColor} size={12} />
-            <Text color={onColor}>{typeLabel.toUpperCase()}</Text>
+            <Text color={onColor} style={{ typography: 'labelMedium' }}> {typeLabel.toUpperCase()}</Text>
             {checklist.length > 0 ? (
               <Row>
                 <IconSymbol name="checklist" color={onColor} size={10} />
-                <Text color={onColor}>{checklistProgress(checklist)}</Text>
+                <Text color={onColor} style={{ typography: 'labelSmall' }}> {checklistProgress(checklist)}</Text>
               </Row>
             ) : null}
             {mapsTarget ? (
               <IconSymbol name="map" color={onColor} size={13} />
             ) : null}
-            {isNextUp ? <Text color={WHITE}>NEXT UP</Text> : null}
+            {isNextUp ? <Text color={c.onAccent} style={{ typography: 'labelMedium' }}>  NEXT UP</Text> : null}
           </Row>
-          <Text color={isNextUp ? WHITE : c.text}>{title}</Text>
+          <Text color={titleColor} style={{ typography: 'titleMedium' }}>{title}</Text>
           {lines.map((line, i) => (
-            <Text key={i} color={onColor}>
+            <Text key={i} color={onColor} style={{ typography: 'bodyMedium' }}>
               {line}
             </Text>
           ))}
-        </Column>
-        {checklist.map((entry) => (
-          <Row key={entry.id}>
-            <Checkbox
-              value={entry.checked}
-              onCheckedChange={() => toggleChecklistEntry(trip.id, dayId, item.id, entry.id)}
-            />
-            <Text color={isNextUp ? WHITE : c.text}>{entry.label}</Text>
+          {checklist.map((entry) => (
+            <Row key={entry.id} horizontalArrangement={{ spacedBy: 6 }} verticalAlignment="center">
+              <Checkbox
+                value={entry.checked}
+                colors={checkboxColor}
+                onCheckedChange={() => toggleChecklistEntry(trip.id, dayId, item.id, entry.id)}
+              />
+              <Text color={titleColor} style={{ typography: 'bodyMedium' }}>{entry.label}</Text>
+            </Row>
+          ))}
+          <Row horizontalArrangement={{ spacedBy: 4 }} verticalAlignment="center">
+            {openMaps ? (
+              <TextButton onClick={openMaps} colors={navColor}>
+                <Text>Navigate</Text>
+              </TextButton>
+            ) : null}
+            <TextButton onClick={remove} colors={deleteColor}>
+              <Text>Delete</Text>
+            </TextButton>
           </Row>
-        ))}
-        {openMaps ? (
-          <Button onClick={openMaps}>
-            <Text>Navigate</Text>
-          </Button>
-        ) : null}
-        <Button onClick={remove}>
-          <Text>Delete</Text>
-        </Button>
+        </Column>
       </Surface>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Host style={styles.host} matchContents>
-        <Column modifiers={[padding(16, 12, 16, 12)]}>
+      {/* vertical-only matchContents: full `matchContents` wraps width too, which
+          shrinks every day Card to its content and left-packs the list. Matching
+          height only lets width fill the sheet (MATCH_PARENT) so cards span it. */}
+      <Host style={styles.host} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 12 }}>
           {titleRow}
           {days.map((day) => (
-            <Card key={day.id} modifiers={[paddingAll(8)]}>
-              <Column>
-                <Row>
-                  <Surface onClick={onDayPress ? () => onDayPress(day.date) : undefined}>
-                    <Row>
-                      <Text color={day.date === today ? c.accent : subtext}>
+            <Card key={day.id} modifiers={[fillMaxWidth(), paddingAll(10)]} colors={m.card}>
+              <Column verticalArrangement={{ spacedBy: 8 }}>
+                <Row modifiers={[fillMaxWidth()]} verticalAlignment="center">
+                  {/* The day label takes the flexible weight so the add (+) button is
+                      pushed to the trailing edge — a Material list-header layout. The
+                      Surface is transparent so it blends into the Card instead of
+                      drawing its own grey box. */}
+                  <Surface
+                    color="#00000000"
+                    modifiers={[weight(1)]}
+                    onClick={onDayPress ? () => onDayPress(day.date) : undefined}
+                  >
+                    <Row horizontalArrangement={{ spacedBy: 8 }} verticalAlignment="center">
+                      <Text
+                        color={day.date === today ? c.accent : c.text}
+                        style={{ typography: 'titleMedium' }}
+                      >
                         {`Day ${dayPosition.get(day.id) ?? '?'}`}
                       </Text>
-                      <Text color={subtext}>{formatDayLabel(day.date)}</Text>
+                      <Text color={subtext} style={{ typography: 'bodyMedium' }}>
+                        {formatDayLabel(day.date)}
+                      </Text>
                     </Row>
                   </Surface>
-                  <IconButton onClick={() => addItemToDay(day.id)}>
+                  <IconButton onClick={() => addItemToDay(day.id)} colors={m.iconButton}>
                     <IconSymbol name="plus" color={c.accent} size={20} />
                   </IconButton>
                 </Row>

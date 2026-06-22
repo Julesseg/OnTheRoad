@@ -48,9 +48,10 @@ export function MapControlButton({
 
 const styles = StyleSheet.create({
   button: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    // Material 3 minimum touch target is 48dp.
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     // Material elevation: a real shadow on Android, soft fallback elsewhere.

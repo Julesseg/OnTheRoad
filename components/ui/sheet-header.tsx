@@ -168,7 +168,10 @@ export function SheetHeaderMenu({
         onRequestClose={() => setOpen(false)}
       >
         <Pressable style={styles.menuScrim} onPress={() => setOpen(false)}>
-          <View style={[styles.menuCard, { backgroundColor: c.surface }]}>
+          {/* Absorb taps that land on the card's own padding (between items) so they
+              don't fall through to the scrim and dismiss the menu — Material dropdowns
+              only dismiss on an outside tap. */}
+          <Pressable style={[styles.menuCard, { backgroundColor: c.surface }]} onPress={() => {}}>
             {actions.map((a) => (
               <Pressable
                 key={a.label}
@@ -184,7 +187,7 @@ export function SheetHeaderMenu({
                 <Text style={[styles.menuItemLabel, { color: c.text }]}>{a.label}</Text>
               </Pressable>
             ))}
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </>

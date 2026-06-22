@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, View, StyleSheet } from 'react-native';
+import { Alert, View, StyleSheet, useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   Host,
@@ -8,9 +9,8 @@ import {
   Text,
   SingleChoiceSegmentedButtonRow,
   SegmentedButton,
-  DateTimePicker,
 } from '@expo/ui/jetpack-compose';
-import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll, fillMaxWidth, weight } from '@expo/ui/jetpack-compose/modifiers';
 
 import { formatLocalDate, clampRange, addDays, daysBetween } from '@/lib/trip-form';
 import { formatDayLabel } from '@/lib/date-utils';
@@ -18,6 +18,8 @@ import type { DateEditMode } from '@/lib/trip-days';
 import { useDateEditStore } from '@/lib/date-edit-store';
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
+import { androidMaterial, androidHostTheme } from '@/constants/android-material';
+import { DateField, ymdToLocalDate } from '@/components/ui/date-field.android';
 import { SheetHeader, SheetHeaderTextButton } from '@/components/ui/sheet-header';
 
 // Android (Material 3) twin of trip/[id]/dates.tsx. Same store/router/date-edit
@@ -48,6 +50,12 @@ export default function TripDatesScreen() {
   const confirm = useDateEditStore((s) => s.confirm);
   const trip = useTripStore((s) => s.loadedTrips[id]);
   const c = useThemeColors();
+  const m = androidMaterial(c);
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  // Presented as a full-screen `modal` (app/trip/_layout.tsx) → renders edge-to-edge
+  // on Android, so the in-content header needs the status-bar inset. Android-only
+  // (iOS keeps the native modal nav bar via dates.tsx).
+  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<DateEditMode>('shift');
   // Shift locks the duration: only the start moves, the end follows by the offset.
@@ -100,7 +108,7 @@ export default function TripDatesScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: c.background }]}>
+    <View style={[styles.container, { backgroundColor: c.background, paddingTop: insets.top }]}>
       {/* In-content Material header (react-native-screens drops the native
           header/Stack.Toolbar on Android formSheets). See SheetHeader. */}
       <SheetHeader
@@ -115,25 +123,27 @@ export default function TripDatesScreen() {
           ComposeView with unbounded width, which crashes the DateTimePicker's
           internal LazyRow ("infinity maximum width"). Matching height alone keeps
           the content auto-sizing while the width stays bounded by the flex layout. */}
-      <Host style={styles.host} matchContents={{ vertical: true }}>
-        <Column modifiers={[padding(16, 12, 16, 12)]}>
-          <Card modifiers={[paddingAll(12)]}>
-            <Column>
-              <Text style={{ typography: 'titleSmall' }}>How are these dates changing?</Text>
-              <SingleChoiceSegmentedButtonRow>
-                {MODES.map((m) => (
+      <Host style={styles.host} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
+          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: 10 }}>
+              <Text color={c.text} style={{ typography: 'titleSmall' }}>How are these dates changing?</Text>
+              <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
+                {MODES.map((mo) => (
                   <SegmentedButton
-                    key={m}
-                    selected={mode === m}
-                    onClick={() => setMode(m)}
+                    key={mo}
+                    selected={mode === mo}
+                    colors={m.segmented}
+                    modifiers={[weight(1)]}
+                    onClick={() => setMode(mo)}
                   >
                     <SegmentedButton.Label>
-                      <Text>{MODE_LABELS[m]}</Text>
+                      <Text>{MODE_LABELS[mo]}</Text>
                     </SegmentedButton.Label>
                   </SegmentedButton>
                 ))}
               </SingleChoiceSegmentedButtonRow>
-              <Text>
+              <Text color={c.textSubtle} style={{ typography: 'bodySmall' }}>
                 {mode === 'shift'
                   ? 'Move the whole trip — every day keeps its plans, only the dates change.'
                   : 'Redefine the span — plans on days that fall outside move to the nearest day, never lost.'}
@@ -142,32 +152,29 @@ export default function TripDatesScreen() {
           </Card>
 
           {mode === 'shift' ? (
-            <Card modifiers={[paddingAll(12)]}>
-              <Column>
-                <Text style={{ typography: 'titleSmall' }}>New start date</Text>
-                <DateTimePicker
-                  initialDate={shiftStart}
-                  displayedComponents="date"
-                  onDateSelected={(d) => setShiftStart(formatLocalDate(d))}
+            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+              <Column verticalArrangement={{ spacedBy: 10 }}>
+                <DateField
+                  label="New start date"
+                  value={ymdToLocalDate(shiftStart)}
+                  onChange={(d) => setShiftStart(formatLocalDate(d))}
                 />
-                <Text>{`Ends ${formatDayLabel(shiftEnd)}`}</Text>
+                <Text color={c.textSubtle} style={{ typography: 'bodySmall' }}>{`Ends ${formatDayLabel(shiftEnd)}`}</Text>
               </Column>
             </Card>
           ) : (
-            <Card modifiers={[paddingAll(12)]}>
-              <Column>
-                <Text style={{ typography: 'titleSmall' }}>New dates</Text>
-                <Text>Start</Text>
-                <DateTimePicker
-                  initialDate={span.startDate}
-                  displayedComponents="date"
-                  onDateSelected={(d) => changeAdjust('start', d)}
+            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+              <Column verticalArrangement={{ spacedBy: 10 }}>
+                <Text color={c.text} style={{ typography: 'titleSmall' }}>New dates</Text>
+                <DateField
+                  label="Start"
+                  value={ymdToLocalDate(span.startDate)}
+                  onChange={(d) => changeAdjust('start', d)}
                 />
-                <Text>End</Text>
-                <DateTimePicker
-                  initialDate={span.endDate}
-                  displayedComponents="date"
-                  onDateSelected={(d) => changeAdjust('end', d)}
+                <DateField
+                  label="End"
+                  value={ymdToLocalDate(span.endDate)}
+                  onChange={(d) => changeAdjust('end', d)}
                 />
               </Column>
             </Card>

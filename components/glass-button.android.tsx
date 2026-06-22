@@ -61,12 +61,13 @@ const styles = StyleSheet.create({
   button: {
     alignSelf: 'center',
     paddingHorizontal: 22,
-    paddingVertical: 13,
+    // paddingVertical 16 brings the pill to the Material 3 minimum 48dp touch target.
+    paddingVertical: 16,
     marginTop: 4,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 2,
+    elevation: 1,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 2,

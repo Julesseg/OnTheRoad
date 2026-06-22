@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   Host,
@@ -9,19 +10,20 @@ import {
   Text,
   TextField,
   OutlinedTextField,
-  Button,
+  FilledTonalButton,
   TextButton,
   IconButton,
   Switch,
   Checkbox,
-  DateTimePicker,
   SingleChoiceSegmentedButtonRow,
   SegmentedButton,
   useNativeState,
 } from '@expo/ui/jetpack-compose';
-import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll, fillMaxWidth, weight } from '@expo/ui/jetpack-compose/modifiers';
 
 import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
+import { androidMaterial } from '@/constants/android-material';
+import { DateField } from '@/components/ui/date-field.android';
 import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
 import {
   type ItemFormValues,
@@ -94,14 +96,15 @@ function formatTime(t: string): string {
 }
 
 function NoteLinks({ text }: { text: string }) {
-  const { accent } = useThemeColors();
+  const c = useThemeColors();
+  const m = androidMaterial(c);
   const links = useMemo(() => extractLinks(text), [text]);
   if (links.length === 0) return null;
   return (
     <Column>
       {links.map((link) => (
-        <TextButton key={link.url} onClick={() => void Linking.openURL(link.url).catch(() => {})}>
-          <Text color={accent}>{link.label}</Text>
+        <TextButton key={link.url} colors={m.textButton} onClick={() => void Linking.openURL(link.url).catch(() => {})}>
+          <Text color={c.accent}>{link.label}</Text>
         </TextButton>
       ))}
     </Column>
@@ -123,21 +126,25 @@ function TimeRow({
   onToggle: (on: boolean) => void;
   onChange: (v: string) => void;
 }) {
-  const { accent } = useThemeColors();
+  const c = useThemeColors();
+  const m = androidMaterial(c);
   const on = value !== '';
   return (
-    <Column>
-      <Row>
-        <Text>Time</Text>
-        {/* The value shows whenever the toggle is on, in the coral accent. */}
-        {on ? <Text color={accent}>{formatTime(value)}</Text> : null}
-        <Switch value={on} onCheckedChange={onToggle} />
+    <Column verticalArrangement={{ spacedBy: 8 }}>
+      <Row modifiers={[fillMaxWidth()]} horizontalArrangement="spaceBetween" verticalAlignment="center">
+        <Row horizontalArrangement={{ spacedBy: 8 }} verticalAlignment="center">
+          <Text color={c.text}>Time</Text>
+          {/* The value shows whenever the toggle is on, in the coral accent. */}
+          {on ? <Text color={c.accent}>{formatTime(value)}</Text> : null}
+        </Row>
+        <Switch value={on} colors={m.switch} onCheckedChange={onToggle} />
       </Row>
       {on ? (
-        <DateTimePicker
-          initialDate={timeToDate(value).toISOString()}
-          displayedComponents="hourAndMinute"
-          onDateSelected={(d) => onChange(dateToTime(d))}
+        <DateField
+          label="At"
+          mode="time"
+          value={timeToDate(value)}
+          onChange={(d) => onChange(dateToTime(d))}
         />
       ) : null}
     </Column>
@@ -168,22 +175,24 @@ function ChecklistEntryRow({
   onMoveDown: () => void;
   onDelete: () => void;
 }) {
+  const c = useThemeColors();
+  const m = androidMaterial(c);
   const labelState = useNativeState(entry.label);
   return (
-    <Row>
-      <Checkbox value={entry.checked} onCheckedChange={onToggle} />
-      <TextField value={labelState} onValueChange={onRename}>
+    <Row modifiers={[fillMaxWidth()]} horizontalArrangement={{ spacedBy: 4 }} verticalAlignment="center">
+      <Checkbox value={entry.checked} colors={m.checkbox} onCheckedChange={onToggle} />
+      <TextField value={labelState} colors={m.textField} onValueChange={onRename} modifiers={[weight(1)]}>
         <TextField.Placeholder>
           <Text>Checklist entry</Text>
         </TextField.Placeholder>
       </TextField>
-      <IconButton onClick={onMoveUp} enabled={position > 1}>
+      <IconButton onClick={onMoveUp} enabled={position > 1} colors={m.iconButton}>
         <Text>Move up</Text>
       </IconButton>
-      <IconButton onClick={onMoveDown} enabled={position < count}>
+      <IconButton onClick={onMoveDown} enabled={position < count} colors={m.iconButton}>
         <Text>Move down</Text>
       </IconButton>
-      <IconButton onClick={onDelete}>
+      <IconButton onClick={onDelete} colors={m.iconButton}>
         <Text>Delete entry {position}</Text>
       </IconButton>
     </Row>
@@ -194,9 +203,10 @@ function ChecklistEntryRow({
 // remounts (re-seeding its native text blank) after each committed entry, the
 // Compose-idiomatic way to clear a native field without mutating the hook value.
 function ChecklistComposer({ onChange }: { onChange: (label: string) => void }) {
+  const m = androidMaterial(useThemeColors());
   const textState = useNativeState('');
   return (
-    <TextField value={textState} onValueChange={onChange}>
+    <TextField value={textState} colors={m.textField} onValueChange={onChange} modifiers={[weight(1)]}>
       <TextField.Placeholder>
         <Text>Add entry</Text>
       </TextField.Placeholder>
@@ -222,15 +232,18 @@ function LocationRow({
   onPick: () => void;
   onClear: () => void;
 }) {
-  const { accent, textSubtle } = useThemeColors();
+  const c = useThemeColors();
+  const m = androidMaterial(c);
+  // Plain <Row>: an embedded IconSymbol grabs the row width under a Compose
+  // Arrangement, so keep default start-placement here.
   return (
     <Row>
-      <IconSymbol name={'map' as IconSymbolName} size={20} color={textSubtle} />
-      <TextButton onClick={onPick}>
-        <Text color={accent}>{locationLabel(location)}</Text>
+      <IconSymbol name={'map' as IconSymbolName} size={20} color={c.textSubtle} />
+      <TextButton onClick={onPick} colors={m.textButton}>
+        <Text color={c.accent}> {locationLabel(location)}</Text>
       </TextButton>
       {location ? (
-        <IconButton onClick={onClear}>
+        <IconButton onClick={onClear} colors={m.iconButton}>
           <Text>Clear location</Text>
         </IconButton>
       ) : null}
@@ -241,6 +254,12 @@ function LocationRow({
 export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initialDate, tripOptions, selectedTripId, onSelectTrip, onSubmit, onDelete, onCancel }: ItemEditorProps) {
   const colorScheme = useColorScheme();
   const c = useThemeColors();
+  const m = androidMaterial(c);
+  // The item editor is a full-screen `modal` (app/trip/_layout.tsx), so on Android
+  // it renders edge-to-edge from y=0 — the in-content header would sit under the
+  // status bar without this top inset. iOS keeps the native modal nav bar
+  // (item-editor.tsx), so this is Android-only.
+  const insets = useSafeAreaInsets();
   const defaults = useMemo(
     () => (initialItem ? itemToForm(initialItem) : { ...emptyForm(), category: defaultCategory ?? 'activity' }),
     [initialItem, defaultCategory],
@@ -315,7 +334,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   }, [composerText]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* In-content Material header (react-native-screens drops the native
           header/Stack.Toolbar on Android formSheets). The title carries the
           category's accent + glyph, matching the iOS header. See SheetHeader. */}
@@ -364,19 +383,22 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
       <Host
         style={styles.host}
         colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        seedColor={c.accent}
         matchContents={{ vertical: true }}
       >
-        <Column modifiers={[padding(16, 12, 16, 12)]}>
+        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
           {/* Share editor only: the destination Trip picker sits at the very top. */}
           {tripOptions ? (
-            <Card modifiers={[paddingAll(12)]}>
-              <Column>
-                <Text>Trip</Text>
-                <SingleChoiceSegmentedButtonRow>
+            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+              <Column verticalArrangement={{ spacedBy: 10 }}>
+                <Text color={c.text}>Trip</Text>
+                <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
                   {tripOptions.map((option) => (
                     <SegmentedButton
                       key={option.id}
                       selected={(selectedTripId ?? '') === option.id}
+                      colors={m.segmented}
+                      modifiers={[weight(1)]}
                       onClick={() => onSelectTrip?.(option.id)}
                     >
                       <SegmentedButton.Label>
@@ -390,14 +412,14 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           ) : null}
 
           {/* Combined title/notes card: Name over Notes, with extracted note links. */}
-          <Card modifiers={[paddingAll(12)]}>
-            <Column>
-              <TextField value={nameState} onValueChange={setName}>
+          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: 10 }}>
+              <TextField value={nameState} colors={m.textField} onValueChange={setName} modifiers={[fillMaxWidth()]}>
                 <TextField.Placeholder>
                   <Text>Title</Text>
                 </TextField.Placeholder>
               </TextField>
-              <OutlinedTextField value={notesState} onValueChange={setNotes}>
+              <OutlinedTextField value={notesState} colors={m.textField} onValueChange={setNotes} modifiers={[fillMaxWidth()]}>
                 <OutlinedTextField.Placeholder>
                   <Text>Notes</Text>
                 </OutlinedTextField.Placeholder>
@@ -407,14 +429,16 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {/* Category + Date / Time / Location detail card. */}
-          <Card modifiers={[paddingAll(12)]}>
-            <Column>
-              <Text>Category</Text>
-              <SingleChoiceSegmentedButtonRow>
+          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: 12 }}>
+              <Text color={c.text}>Category</Text>
+              <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
                 {ALL_CATEGORIES.map((cat) => (
                   <SegmentedButton
                     key={cat}
                     selected={category === cat}
+                    colors={m.segmented}
+                    modifiers={[weight(1)]}
                     onClick={() => setCategory(cat)}
                   >
                     <SegmentedButton.Label>
@@ -425,14 +449,11 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
               </SingleChoiceSegmentedButtonRow>
 
               {trip && date ? (
-                <Row>
-                  <Text>Date</Text>
-                  <DateTimePicker
-                    initialDate={parseLocalDate(date).toISOString()}
-                    displayedComponents="date"
-                    onDateSelected={(d) => setDate(localDateString(d))}
-                  />
-                </Row>
+                <DateField
+                  label="Date"
+                  value={parseLocalDate(date)}
+                  onChange={(d) => setDate(localDateString(d))}
+                />
               ) : null}
 
               <TimeRow value={time} onToggle={onTimeToggle} onChange={setTime} />
@@ -446,9 +467,9 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {/* Checklist card. Each entry is a row; move buttons reuse moveEntries. */}
-          <Card modifiers={[paddingAll(12)]}>
-            <Column>
-              <Text>Checklist</Text>
+          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: 10 }}>
+              <Text color={c.text}>Checklist</Text>
               {checklist.map((entry, i) => (
                 <ChecklistEntryRow
                   key={entry.id}
@@ -470,20 +491,20 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                   }
                 />
               ))}
-              <Row>
+              <Row modifiers={[fillMaxWidth()]} horizontalArrangement={{ spacedBy: 8 }} verticalAlignment="center">
                 <ChecklistComposer key={composerKey} onChange={setComposerText} />
-                <Button onClick={onAddEntry}>
+                <FilledTonalButton onClick={onAddEntry} colors={m.tonalButton}>
                   <Text>Add item</Text>
-                </Button>
+                </FilledTonalButton>
               </Row>
             </Column>
           </Card>
 
           {initialItem && onDelete ? (
-            <Card modifiers={[paddingAll(12)]}>
-              <Button onClick={onDelete}>
-                <Text color={c.destructive}>Delete</Text>
-              </Button>
+            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+              <TextButton onClick={onDelete} colors={m.destructiveButton} modifiers={[fillMaxWidth()]}>
+                <Text>Delete</Text>
+              </TextButton>
             </Card>
           ) : null}
         </Column>

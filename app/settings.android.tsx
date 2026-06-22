@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, useColorScheme } from 'react-native';
 import {
   Host,
   Column,
@@ -7,10 +7,11 @@ import {
   SingleChoiceSegmentedButtonRow,
   SegmentedButton,
 } from '@expo/ui/jetpack-compose';
-import { padding, paddingAll } from '@expo/ui/jetpack-compose/modifiers';
+import { padding, paddingAll, fillMaxWidth, weight } from '@expo/ui/jetpack-compose/modifiers';
 
 import { useTripStore } from '@/lib/store';
 import { useThemeColors } from '@/constants/theme';
+import { androidMaterial, androidHostTheme } from '@/constants/android-material';
 import { SheetHeader } from '@/components/ui/sheet-header';
 import { MAPS_APP_LABELS } from '@/lib/maps';
 import type { AppearanceMode, MapsApp } from '@/lib/schema';
@@ -41,15 +42,19 @@ function ChoiceCard<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  const c = useThemeColors();
+  const m = androidMaterial(c);
   return (
-    <Card modifiers={[paddingAll(12)]}>
-      <Column>
-        <Text style={{ typography: 'titleSmall' }}>{title}</Text>
-        <SingleChoiceSegmentedButtonRow>
+    <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+      <Column verticalArrangement={{ spacedBy: 10 }}>
+        <Text color={c.text} style={{ typography: 'titleSmall' }}>{title}</Text>
+        <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
           {options.map((option) => (
             <SegmentedButton
               key={option}
               selected={value === option}
+              colors={m.segmented}
+              modifiers={[weight(1)]}
               onClick={() => onChange(option)}
             >
               <SegmentedButton.Label>
@@ -71,14 +76,18 @@ export default function SettingsSheet() {
   const setAppearance = useTripStore((s) => s.setAppearance);
 
   const c = useThemeColors();
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const mapsApps = ALL_MAPS_APPS.filter((app) => installedMapsApps.includes(app));
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <SheetHeader title="Settings" />
 
-      <Host style={styles.host} matchContents>
-        <Column modifiers={[padding(16, 12, 16, 12)]}>
+      {/* vertical-only matchContents: full `matchContents` wraps width too, shrinking
+          each settings Card to its content. Matching height only lets width fill the
+          sheet so the cards span the full width. */}
+      <Host style={styles.host} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
           <ChoiceCard
             title="Maps app"
             options={mapsApps}
