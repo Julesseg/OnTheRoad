@@ -5,10 +5,11 @@ import { Host, Column, Card, Surface, Row, Text, TextButton } from '@expo/ui/jet
 import { padding, paddingAll, alpha, fillMaxWidth, weight, clip, Shapes } from '@expo/ui/jetpack-compose/modifiers';
 
 import { useTripStore } from '@/lib/store';
-import { useThemeColors } from '@/constants/theme';
+import { useThemeColors, Spacing } from '@/constants/theme';
 import { androidMaterial, androidHostTheme } from '@/constants/android-material';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { SheetHeader, SheetHeaderIconButton, SheetHeaderMenu } from '@/components/ui/sheet-header';
+import { SheetScaffold } from '@/components/ui/sheet-scaffold';
 import { partitionTrips } from '@/lib/trip-partition';
 import { tripCountdownBadge, countdownPillLabel } from '@/lib/trip-badge';
 import { todayString, formatDateRange } from '@/lib/date-utils';
@@ -159,34 +160,37 @@ export default function TripsSheet() {
   // header/Stack.Toolbar on Android formSheets): Settings on the left, the title,
   // and a New trip / Import menu on the right. See SheetHeader.
   return (
-    <View style={[styles.container, { backgroundColor: c.background }]}>
-      <SheetHeader
-        title="Trips"
-        left={
-          <SheetHeaderIconButton
-            icon="gearshape"
-            accent={c.accent}
-            accessibilityLabel="Settings"
-            onPress={() => router.push('/settings')}
-          />
-        }
-        right={
-          <SheetHeaderMenu
-            icon="plus"
-            accent={c.accent}
-            accessibilityLabel="Add trip"
-            actions={[
-              { label: 'New Trip', icon: 'plus', onPress: () => router.push('/trip/new') },
-              {
-                label: 'Import Trip',
-                icon: 'square.and.arrow.down',
-                onPress: () => router.push('/import'),
-              },
-            ]}
-          />
-        }
-      />
-
+    <SheetScaffold
+      scroll={hasTrips}
+      header={
+        <SheetHeader
+          title="Trips"
+          left={
+            <SheetHeaderIconButton
+              icon="gearshape"
+              accent={c.accent}
+              accessibilityLabel="Settings"
+              onPress={() => router.push('/settings')}
+            />
+          }
+          right={
+            <SheetHeaderMenu
+              icon="plus"
+              accent={c.accent}
+              accessibilityLabel="Add trip"
+              actions={[
+                { label: 'New Trip', icon: 'plus', onPress: () => router.push('/trip/new') },
+                {
+                  label: 'Import Trip',
+                  icon: 'square.and.arrow.down',
+                  onPress: () => router.push('/import'),
+                },
+              ]}
+            />
+          }
+        />
+      }
+    >
       {!hasTrips ? (
         <View style={styles.empty}>
           <RNText style={[styles.emptyText, { color: c.textSubtle }]}>
@@ -196,11 +200,15 @@ export default function TripsSheet() {
       ) : (
         // vertical-only matchContents: full `matchContents` wraps width too, shrinking
         // each trip Card to its content; matching height only lets width fill the sheet.
-        <Host style={styles.host} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
-          <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 12 }}>
+        // The RN ScrollView in SheetScaffold scrolls the list.
+        <Host matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+          <Column
+            modifiers={[padding(Spacing.pageH, Spacing.pageV, Spacing.pageH, 0)]}
+            verticalArrangement={{ spacedBy: Spacing.sectionGap }}
+          >
             {visibleTrips.map((summary) => renderRow(summary))}
             {pastTrips.length > 0 ? (
-              <Column verticalArrangement={{ spacedBy: 12 }}>
+              <Column verticalArrangement={{ spacedBy: Spacing.sectionGap }}>
                 <Text color={subtext} style={{ typography: 'titleSmall' }}>Past trips</Text>
                 {pastTrips.map((summary) => renderRow(summary, true))}
               </Column>
@@ -208,14 +216,11 @@ export default function TripsSheet() {
           </Column>
         </Host>
       )}
-    </View>
+    </SheetScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  host: { flex: 1 },
-
   thumb: { width: 56, height: 56, borderRadius: 12 },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },
 

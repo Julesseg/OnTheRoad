@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text as RNText, View, useColorScheme } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   Host,
@@ -25,13 +24,14 @@ import { IconSymbol, type IconSymbolName } from '@/components/ui/icon-symbol';
 import { androidMaterial } from '@/constants/android-material';
 import { DateField } from '@/components/ui/date-field.android';
 import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
+import { SheetScaffold } from '@/components/ui/sheet-scaffold';
 import {
   type ItemFormValues,
   emptyForm,
   itemToForm,
   formToItem,
 } from '@/lib/item-form';
-import { useThemeColors } from '@/constants/theme';
+import { useThemeColors, Spacing } from '@/constants/theme';
 import { itemIdentity, ITEM_IDENTITY } from '@/lib/item-identity';
 import { extractLinks } from '@/lib/links';
 import { localDateString } from '@/lib/today';
@@ -234,19 +234,27 @@ function LocationRow({
 }) {
   const c = useThemeColors();
   const m = androidMaterial(c);
-  // Plain <Row>: an embedded IconSymbol grabs the row width under a Compose
-  // Arrangement, so keep default start-placement here.
+  // Label-left / value-right, mirroring the Date and Time rows. The map glyph is
+  // dropped on Android: an embedded RN IconSymbol inside a Compose Row grabs the
+  // whole row's space and collapses its siblings (leaving a dead vertical gap),
+  // so the label carries the meaning instead.
   return (
-    <Row>
-      <IconSymbol name={'map' as IconSymbolName} size={20} color={c.textSubtle} />
-      <TextButton onClick={onPick} colors={m.textButton}>
-        <Text color={c.accent}> {locationLabel(location)}</Text>
-      </TextButton>
-      {location ? (
-        <IconButton onClick={onClear} colors={m.iconButton}>
-          <Text>Clear location</Text>
-        </IconButton>
-      ) : null}
+    <Row
+      modifiers={[fillMaxWidth()]}
+      horizontalArrangement="spaceBetween"
+      verticalAlignment="center"
+    >
+      <Text color={c.text}>Location</Text>
+      <Row horizontalArrangement={{ spacedBy: Spacing.iconGap }} verticalAlignment="center">
+        <TextButton onClick={onPick} colors={m.textButton}>
+          <Text color={c.accent}>{locationLabel(location)}</Text>
+        </TextButton>
+        {location ? (
+          <IconButton onClick={onClear} colors={m.iconButton}>
+            <Text>Clear location</Text>
+          </IconButton>
+        ) : null}
+      </Row>
     </Row>
   );
 }
@@ -255,11 +263,6 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   const colorScheme = useColorScheme();
   const c = useThemeColors();
   const m = androidMaterial(c);
-  // The item editor is a full-screen `modal` (app/trip/_layout.tsx), so on Android
-  // it renders edge-to-edge from y=0 — the in-content header would sit under the
-  // status bar without this top inset. iOS keeps the native modal nav bar
-  // (item-editor.tsx), so this is Android-only.
-  const insets = useSafeAreaInsets();
   const defaults = useMemo(
     () => (initialItem ? itemToForm(initialItem) : { ...emptyForm(), category: defaultCategory ?? 'activity' }),
     [initialItem, defaultCategory],
@@ -334,63 +337,65 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
   }, [composerText]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* In-content Material header (react-native-screens drops the native
-          header/Stack.Toolbar on Android formSheets). The title carries the
-          category's accent + glyph, matching the iOS header. See SheetHeader. */}
-      <SheetHeader
-        titleNode={
-          <View style={styles.titleRow}>
-            <IconSymbol
-              name={identity.symbol as IconSymbolName}
-              color={identity.accent}
-              size={18}
-              style={styles.titleIcon}
-            />
-            <RNText style={[styles.titleText, { color: identity.accent }]} numberOfLines={1}>
-              {heading}
-            </RNText>
-          </View>
-        }
-        left={
-          onCancel ? (
+    <SheetScaffold
+      header={
+        // In-content Material header (react-native-screens drops the native
+        // header/Stack.Toolbar on Android formSheets). The title carries the
+        // category's accent + glyph, matching the iOS header. See SheetHeader.
+        <SheetHeader
+          titleNode={
+            <View style={styles.titleRow}>
+              <IconSymbol
+                name={identity.symbol as IconSymbolName}
+                color={identity.accent}
+                size={18}
+                style={styles.titleIcon}
+              />
+              <RNText style={[styles.titleText, { color: identity.accent }]} numberOfLines={1}>
+                {heading}
+              </RNText>
+            </View>
+          }
+          left={
+            onCancel ? (
+              <SheetHeaderIconButton
+                icon="xmark"
+                accent={c.accent}
+                accessibilityLabel="Cancel"
+                onPress={onCancel}
+              />
+            ) : undefined
+          }
+          right={
+            // Name-required validation is enforced here: Save is disabled while Name
+            // is empty, so there is no section-footer error.
             <SheetHeaderIconButton
-              icon="xmark"
+              icon="checkmark"
               accent={c.accent}
-              accessibilityLabel="Cancel"
-              onPress={onCancel}
+              accessibilityLabel="Save"
+              prominent
+              disabled={!canSave}
+              onPress={submit}
             />
-          ) : undefined
-        }
-        right={
-          // Name-required validation is enforced here: Save is disabled while Name
-          // is empty, so there is no section-footer error.
-          <SheetHeaderIconButton
-            icon="checkmark"
-            accent={c.accent}
-            accessibilityLabel="Save"
-            prominent
-            disabled={!canSave}
-            onPress={submit}
-          />
-        }
-      />
-
+          }
+        />
+      }
+    >
       {/* matchContents is vertical-only: full `matchContents` measures the
           ComposeView with unbounded width, which crashes the DateTimePicker's
           internal LazyRow ("infinity maximum width"). Matching height alone keeps
-          the content auto-sizing while the width stays bounded by the flex layout. */}
+          the content auto-sizing while the width stays bounded by the flex layout.
+          The RN ScrollView in SheetScaffold scrolls the overflow. */}
       <Host
-        style={styles.host}
         colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
         seedColor={c.accent}
         matchContents={{ vertical: true }}
       >
-        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
+        <Column modifiers={[padding(Spacing.pageH, Spacing.pageV, Spacing.pageH, 0)]} verticalArrangement={{ spacedBy: Spacing.sectionGap }}>
           {/* Share editor only: the destination Trip picker sits at the very top. */}
           {tripOptions ? (
-            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-              <Column verticalArrangement={{ spacedBy: 10 }}>
+            <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+              <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
                 <Text color={c.text}>Trip</Text>
                 <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
                   {tripOptions.map((option) => (
@@ -412,8 +417,8 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           ) : null}
 
           {/* Combined title/notes card: Name over Notes, with extracted note links. */}
-          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-            <Column verticalArrangement={{ spacedBy: 10 }}>
+          <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
               <TextField value={nameState} colors={m.textField} onValueChange={setName} modifiers={[fillMaxWidth()]}>
                 <TextField.Placeholder>
                   <Text>Title</Text>
@@ -429,8 +434,8 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {/* Category + Date / Time / Location detail card. */}
-          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-            <Column verticalArrangement={{ spacedBy: 12 }}>
+          <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
               <Text color={c.text}>Category</Text>
               <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
                 {ALL_CATEGORIES.map((cat) => (
@@ -467,8 +472,8 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {/* Checklist card. Each entry is a row; move buttons reuse moveEntries. */}
-          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-            <Column verticalArrangement={{ spacedBy: 10 }}>
+          <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
               <Text color={c.text}>Checklist</Text>
               {checklist.map((entry, i) => (
                 <ChecklistEntryRow
@@ -491,7 +496,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
                   }
                 />
               ))}
-              <Row modifiers={[fillMaxWidth()]} horizontalArrangement={{ spacedBy: 8 }} verticalAlignment="center">
+              <Row modifiers={[fillMaxWidth()]} horizontalArrangement={{ spacedBy: Spacing.iconGap }} verticalAlignment="center">
                 <ChecklistComposer key={composerKey} onChange={setComposerText} />
                 <FilledTonalButton onClick={onAddEntry} colors={m.tonalButton}>
                   <Text>Add item</Text>
@@ -501,7 +506,7 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           </Card>
 
           {initialItem && onDelete ? (
-            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
+            <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
               <TextButton onClick={onDelete} colors={m.destructiveButton} modifiers={[fillMaxWidth()]}>
                 <Text>Delete</Text>
               </TextButton>
@@ -509,13 +514,11 @@ export function ItemEditor({ itemId, initialItem, defaultCategory, trip, initial
           ) : null}
         </Column>
       </Host>
-    </View>
+    </SheetScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  host: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   titleIcon: { width: 18, height: 18 },
   titleText: { fontSize: 17, fontWeight: '600' },

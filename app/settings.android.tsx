@@ -1,4 +1,5 @@
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import { useColorScheme } from 'react-native';
+import { router } from 'expo-router';
 import {
   Host,
   Column,
@@ -10,9 +11,10 @@ import {
 import { padding, paddingAll, fillMaxWidth, weight } from '@expo/ui/jetpack-compose/modifiers';
 
 import { useTripStore } from '@/lib/store';
-import { useThemeColors } from '@/constants/theme';
+import { useThemeColors, Spacing } from '@/constants/theme';
 import { androidMaterial, androidHostTheme } from '@/constants/android-material';
-import { SheetHeader } from '@/components/ui/sheet-header';
+import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
+import { SheetScaffold } from '@/components/ui/sheet-scaffold';
 import { MAPS_APP_LABELS } from '@/lib/maps';
 import type { AppearanceMode, MapsApp } from '@/lib/schema';
 
@@ -45,8 +47,8 @@ function ChoiceCard<T extends string>({
   const c = useThemeColors();
   const m = androidMaterial(c);
   return (
-    <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-      <Column verticalArrangement={{ spacedBy: 10 }}>
+    <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+      <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
         <Text color={c.text} style={{ typography: 'titleSmall' }}>{title}</Text>
         <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
           {options.map((option) => (
@@ -80,14 +82,30 @@ export default function SettingsSheet() {
   const mapsApps = ALL_MAPS_APPS.filter((app) => installedMapsApps.includes(app));
 
   return (
-    <View style={[styles.container, { backgroundColor: c.background }]}>
-      <SheetHeader title="Settings" />
-
+    <SheetScaffold
+      header={
+        <SheetHeader
+          title="Settings"
+          left={
+            <SheetHeaderIconButton
+              icon="xmark"
+              accent={c.accent}
+              accessibilityLabel="Close"
+              onPress={() => router.back()}
+            />
+          }
+        />
+      }
+    >
       {/* vertical-only matchContents: full `matchContents` wraps width too, shrinking
           each settings Card to its content. Matching height only lets width fill the
-          sheet so the cards span the full width. */}
-      <Host style={styles.host} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
-        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
+          sheet so the cards span the full width. The RN ScrollView in SheetScaffold
+          scrolls any overflow. */}
+      <Host matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+        <Column
+          modifiers={[padding(Spacing.pageH, Spacing.pageV, Spacing.pageH, 0)]}
+          verticalArrangement={{ spacedBy: Spacing.sectionGap }}
+        >
           <ChoiceCard
             title="Maps app"
             options={mapsApps}
@@ -104,11 +122,6 @@ export default function SettingsSheet() {
           />
         </Column>
       </Host>
-    </View>
+    </SheetScaffold>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  host: { flex: 1 },
-});

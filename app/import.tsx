@@ -96,7 +96,18 @@ export default function ImportSheet() {
   }, []);
 
   return (
-    <View style={[styles.container, { backgroundColor: c.background }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: c.background,
+          // Android presents this full-screen (modal), edge-to-edge from y=0, so the
+          // in-content SheetHeader needs the status-bar inset. iOS keeps its formSheet
+          // (which starts below the status bar) + native header — no inset there.
+          paddingTop: Platform.OS === 'android' ? insets.top : 0,
+        },
+      ]}
+    >
       {/* react-native-screens drops the native header/Stack.Toolbar on Android
           formSheets, so Android uses the in-content SheetHeader; iOS keeps the
           native header. */}

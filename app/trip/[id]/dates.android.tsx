@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, View, StyleSheet, useColorScheme } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, useColorScheme } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   Host,
@@ -17,10 +16,11 @@ import { formatDayLabel } from '@/lib/date-utils';
 import type { DateEditMode } from '@/lib/trip-days';
 import { useDateEditStore } from '@/lib/date-edit-store';
 import { useTripStore } from '@/lib/store';
-import { useThemeColors } from '@/constants/theme';
+import { useThemeColors, Spacing } from '@/constants/theme';
 import { androidMaterial, androidHostTheme } from '@/constants/android-material';
 import { DateField, ymdToLocalDate } from '@/components/ui/date-field.android';
 import { SheetHeader, SheetHeaderTextButton } from '@/components/ui/sheet-header';
+import { SheetScaffold } from '@/components/ui/sheet-scaffold';
 
 // Android (Material 3) twin of trip/[id]/dates.tsx. Same store/router/date-edit
 // wiring and the same Shift/Adjust mode logic (ADR-0013, ADR-0015); the SwiftUI
@@ -52,10 +52,6 @@ export default function TripDatesScreen() {
   const c = useThemeColors();
   const m = androidMaterial(c);
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  // Presented as a full-screen `modal` (app/trip/_layout.tsx) → renders edge-to-edge
-  // on Android, so the in-content header needs the status-bar inset. Android-only
-  // (iOS keeps the native modal nav bar via dates.tsx).
-  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<DateEditMode>('shift');
   // Shift locks the duration: only the start moves, the end follows by the offset.
@@ -108,25 +104,30 @@ export default function TripDatesScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: c.background, paddingTop: insets.top }]}>
-      {/* In-content Material header (react-native-screens drops the native
-          header/Stack.Toolbar on Android formSheets). See SheetHeader. */}
-      <SheetHeader
-        title="Trip dates"
-        left={
-          <SheetHeaderTextButton label="Cancel" accent={c.accent} onPress={() => router.back()} />
-        }
-        right={<SheetHeaderTextButton label="Done" accent={c.accent} prominent onPress={onDone} />}
-      />
-
+    <SheetScaffold
+      header={
+        // In-content Material header (react-native-screens drops the native
+        // header/Stack.Toolbar on Android formSheets). See SheetHeader.
+        <SheetHeader
+          title="Trip dates"
+          left={
+            <SheetHeaderTextButton label="Cancel" accent={c.accent} onPress={() => router.back()} />
+          }
+          right={<SheetHeaderTextButton label="Done" accent={c.accent} prominent onPress={onDone} />}
+        />
+      }
+    >
       {/* matchContents is vertical-only: full `matchContents` measures the
           ComposeView with unbounded width, which crashes the DateTimePicker's
           internal LazyRow ("infinity maximum width"). Matching height alone keeps
           the content auto-sizing while the width stays bounded by the flex layout. */}
-      <Host style={styles.host} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
-        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
-          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-            <Column verticalArrangement={{ spacedBy: 10 }}>
+      <Host matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+        <Column
+          modifiers={[padding(Spacing.pageH, Spacing.pageV, Spacing.pageH, 0)]}
+          verticalArrangement={{ spacedBy: Spacing.sectionGap }}
+        >
+          <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
               <Text color={c.text} style={{ typography: 'titleSmall' }}>How are these dates changing?</Text>
               <SingleChoiceSegmentedButtonRow modifiers={[fillMaxWidth()]}>
                 {MODES.map((mo) => (
@@ -152,8 +153,8 @@ export default function TripDatesScreen() {
           </Card>
 
           {mode === 'shift' ? (
-            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-              <Column verticalArrangement={{ spacedBy: 10 }}>
+            <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+              <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
                 <DateField
                   label="New start date"
                   value={ymdToLocalDate(shiftStart)}
@@ -163,8 +164,8 @@ export default function TripDatesScreen() {
               </Column>
             </Card>
           ) : (
-            <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-              <Column verticalArrangement={{ spacedBy: 10 }}>
+            <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+              <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
                 <Text color={c.text} style={{ typography: 'titleSmall' }}>New dates</Text>
                 <DateField
                   label="Start"
@@ -181,11 +182,6 @@ export default function TripDatesScreen() {
           )}
         </Column>
       </Host>
-    </View>
+    </SheetScaffold>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  host: { flex: 1 },
-});

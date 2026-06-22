@@ -85,6 +85,35 @@ export function useThemeColors(): ThemeTokens {
   return scheme === 'dark' ? DarkTokens : LightTokens;
 }
 
+/**
+ * Spacing scale shared by every Android (Material 3) surface so margins read as
+ * one coherent rhythm instead of the per-screen 8/10/12/16/20/24 drift that the
+ * forms had grown. Values are dp; apply through these tokens, never inline.
+ *  - pageH/pageV: the screen's content gutter (left/right and top/bottom of the
+ *    scroll content; the in-content header reserves its own band above pageV).
+ *  - sectionGap: vertical gap between cards/sections.
+ *  - cardPad: a Card's interior padding.
+ *  - rowGap: gap between rows inside a card.
+ *  - iconGap: gap between an icon/label and its sibling within a row.
+ */
+export const Spacing = {
+  pageH: 16,
+  pageV: 16,
+  sectionGap: 16,
+  cardPad: 16,
+  rowGap: 12,
+  // interior padding of an item Surface nested inside a card (insets it from the
+  // card edge so rows read as distinct).
+  itemPad: 12,
+  iconGap: 8,
+} as const;
+
+/** Corner radii for the Android surfaces (Material 3, not the iOS 28pt cards). */
+export const Radius = {
+  card: 12,
+  pill: 999,
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
     sans:    'system-ui',

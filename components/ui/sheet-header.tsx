@@ -199,7 +199,9 @@ const styles = StyleSheet.create({
     height: SHEET_HEADER_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    // 12 (not 8) so the 40dp icon-button touch targets land their glyph edge at
+    // ~16dp — flush with the 16dp (Spacing.pageH) card gutter below the header.
+    paddingHorizontal: 12,
     gap: 4,
   },
   group: { flexDirection: 'row', alignItems: 'center', gap: 4 },

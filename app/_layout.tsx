@@ -1,10 +1,11 @@
+import type { ComponentProps } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import { LightTokens, DarkTokens } from '@/constants/theme';
 import { useTripStore } from '@/lib/store';
 import {
@@ -12,6 +13,23 @@ import {
   INITIAL_SHEET_DETENT_INDEX,
   MIN_SHEET_DETENT_INDEX,
 } from '@/lib/sheet-detents';
+
+// trips / settings / import / import-paste are single-destination screens, not
+// resizable sheets. On Android a formSheet pinned to one 1.0 detent renders as a
+// full-screen panel that still wears a bottom-sheet grabber + rounded corners over
+// the map peeking above — non-native. So Android presents them as a full-screen
+// `modal` (no grabber, no map-peek; the in-content SheetHeader is the top app bar),
+// while iOS keeps the formSheet it was designed around.
+type ScreenOptions = ComponentProps<typeof Stack.Screen>['options'];
+const fullScreenSheet: ScreenOptions =
+  Platform.OS === 'android'
+    ? { presentation: 'modal', headerShown: false }
+    : {
+        presentation: 'formSheet',
+        headerShown: true,
+        sheetGrabberVisible: true,
+        sheetAllowedDetents: [1.0],
+      };
 
 const EmberLightTheme = {
   ...DefaultTheme,
@@ -79,42 +97,10 @@ export default function RootLayout() {
               routes here on cold-start or warm launch (ADR-0008). Presented as a
               modal like the item editor it wraps. */}
           <Stack.Screen name="share" options={{ presentation: 'modal' }} />
-          <Stack.Screen
-            name="trips"
-            options={{
-              presentation: 'formSheet',
-              headerShown: true,
-              sheetGrabberVisible: true,
-              sheetAllowedDetents: [1.0],
-            }}
-          />
-          <Stack.Screen
-            name="settings"
-            options={{
-              presentation: 'formSheet',
-              headerShown: true,
-              sheetGrabberVisible: true,
-              sheetAllowedDetents: [1.0],
-            }}
-          />
-          <Stack.Screen
-            name="import"
-            options={{
-              presentation: 'formSheet',
-              headerShown: true,
-              sheetGrabberVisible: true,
-              sheetAllowedDetents: [1.0],
-            }}
-          />
-          <Stack.Screen
-            name="import-paste"
-            options={{
-              presentation: 'formSheet',
-              headerShown: true,
-              sheetGrabberVisible: true,
-              sheetAllowedDetents: [1.0],
-            }}
-          />
+          <Stack.Screen name="trips" options={fullScreenSheet} />
+          <Stack.Screen name="settings" options={fullScreenSheet} />
+          <Stack.Screen name="import" options={fullScreenSheet} />
+          <Stack.Screen name="import-paste" options={fullScreenSheet} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

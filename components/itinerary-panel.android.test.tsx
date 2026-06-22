@@ -90,10 +90,11 @@ describe('ItineraryPanel (Android)', () => {
     expect(screen.getByText('Lunch')).toBeInTheDocument();
   });
 
-  it('renders the category glyph for an item row via the Material icon resolver', () => {
-    const { container } = render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
-    // activity → figure.hiking → Material "hiking"
-    expect(container.querySelector('[data-icon="hiking"]')).toBeInTheDocument();
+  it('labels an item row with its uppercased category (the tinted type label, no embedded icon)', () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    // The category is conveyed by the accent-tinted type label rather than an
+    // embedded IconSymbol (which collapsed the Compose row). activity → "Activity".
+    expect(screen.getByText('ACTIVITY')).toBeInTheDocument();
   });
 
   it('does not render a NEXT UP pill when the trip is not In progress', () => {
@@ -119,11 +120,11 @@ describe('ItineraryPanel (Android)', () => {
     fireEvent.click(del);
   });
 
-  it('the add (+) button opens the editor on the create path for its day, with no category', () => {
-    const { container } = render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
-    const addButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
-      b.querySelector('[data-icon="add"]'),
-    );
+  it('the "+ Add" button opens the editor on the create path for its day, with no category', () => {
+    render(<ItineraryPanel trip={TRIP} now={BEFORE_TRIP} />);
+    // The add control is now a labelled "+ Add" TextButton (an IconButton wrapping
+    // an embedded IconSymbol rendered as a tiny/broken glyph in Compose).
+    const addButtons = screen.getAllByText('+ Add');
     expect(addButtons).toHaveLength(2); // one per day
     fireEvent.click(addButtons[0]); // Day 1
     expect(router.push).toHaveBeenCalledWith({
@@ -143,7 +144,9 @@ describe('ItineraryPanel (Android)', () => {
 
   it('shows checklist entries as checkboxes (checked reflects state) with a progress count', () => {
     render(<ItineraryPanel trip={tripWithChecklist()} now={BEFORE_TRIP} />);
-    expect(screen.getByText('1/3')).toBeInTheDocument();
+    // Progress reads "☑ 1/3" — the count carries a leading check glyph (Compose
+    // Text, not an embedded IconSymbol).
+    expect(screen.getByText('☑ 1/3')).toBeInTheDocument();
     const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
     expect(boxes).toHaveLength(3);
     expect(boxes.map((b) => b.checked)).toEqual([false, true, false]);

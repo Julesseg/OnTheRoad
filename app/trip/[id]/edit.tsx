@@ -3,6 +3,7 @@ import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { useTripStore } from '@/lib/store';
+import { useThemeColors } from '@/constants/theme';
 import { saveWallpaper, wallpaperDisplayUri } from '@/lib/storage';
 import { reconcileDays, type DateEditMode } from '@/lib/trip-days';
 import { beginDateEdit } from '@/lib/date-edit-store';
@@ -10,6 +11,7 @@ import { TripForm, TripFormResult } from '@/components/trip-form';
 
 export default function EditTripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const c = useThemeColors();
   const { loadedTrips, loadTripById, updateTrip } = useTripStore();
   const [submitting, setSubmitting] = useState(false);
   // The staged span + mode from the date screen — null until the user actually
@@ -70,7 +72,7 @@ export default function EditTripScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       {!trip || !span ? (
         <ActivityIndicator style={styles.loader} size="large" />
       ) : (
@@ -94,6 +96,6 @@ export default function EditTripScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   loader: { flex: 1 },
 });

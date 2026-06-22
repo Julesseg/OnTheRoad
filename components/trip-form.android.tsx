@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, View, useColorScheme } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, Image, useColorScheme } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,10 +22,11 @@ import {
   clampRange,
 } from '@/lib/trip-form';
 import { formatDateRange } from '@/lib/date-utils';
-import { useThemeColors } from '@/constants/theme';
+import { useThemeColors, Spacing } from '@/constants/theme';
 import { androidMaterial, androidHostTheme } from '@/constants/android-material';
 import { DateField, ymdToLocalDate } from '@/components/ui/date-field.android';
 import { SheetHeader, SheetHeaderIconButton } from '@/components/ui/sheet-header';
+import { SheetScaffold } from '@/components/ui/sheet-scaffold';
 
 // Android (Material 3) twin of trip-form.tsx. Same props, react-hook-form usage,
 // zod schema, and handlers (changeDate / submit / pickCover) as the iOS source —
@@ -94,11 +94,6 @@ export function TripForm({
   const c = useThemeColors();
   const m = androidMaterial(c);
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  // This form is presented as a full-screen `modal` (app/trip/_layout.tsx), so on
-  // Android it renders edge-to-edge from y=0 — the in-content header would sit
-  // under the status bar without this top inset. iOS keeps the native modal nav
-  // bar (trip-form.tsx), so this is Android-only.
-  const insets = useSafeAreaInsets();
   // Native two-way binding seeds the field's initial text (edit path); the
   // mirror into react-hook-form below keeps validation in sync.
   const titleState = useNativeState(initialTitle);
@@ -164,35 +159,40 @@ export function TripForm({
     cover.kind === 'existing' ? cover.displayUri : cover.kind === 'picked' ? cover.uri : null;
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top }}>
-      {/* In-content Material header (react-native-screens drops the native
-          header/Stack.Toolbar on Android formSheets). See SheetHeader. */}
-      <SheetHeader
-        title={heading}
-        left={
-          <SheetHeaderIconButton
-            icon="xmark"
-            accent={c.accent}
-            accessibilityLabel="Cancel"
-            onPress={onCancel}
-          />
-        }
-        right={
-          <SheetHeaderIconButton
-            icon="checkmark"
-            accent={c.accent}
-            accessibilityLabel={submitLabel}
-            prominent
-            disabled={submitting}
-            onPress={submit}
-          />
-        }
-      />
-
-      <Host style={{ flex: 1 }} matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
-        <Column modifiers={[padding(16, 12, 16, 12)]} verticalArrangement={{ spacedBy: 16 }}>
-          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-            <Column verticalArrangement={{ spacedBy: 12 }}>
+    <SheetScaffold
+      header={
+        // In-content Material header (react-native-screens drops the native
+        // header/Stack.Toolbar on Android formSheets). See SheetHeader.
+        <SheetHeader
+          title={heading}
+          left={
+            <SheetHeaderIconButton
+              icon="xmark"
+              accent={c.accent}
+              accessibilityLabel="Cancel"
+              onPress={onCancel}
+            />
+          }
+          right={
+            <SheetHeaderIconButton
+              icon="checkmark"
+              accent={c.accent}
+              accessibilityLabel={submitLabel}
+              prominent
+              disabled={submitting}
+              onPress={submit}
+            />
+          }
+        />
+      }
+    >
+      <Host matchContents={{ vertical: true }} {...androidHostTheme(c, scheme)}>
+        <Column
+          modifiers={[padding(Spacing.pageH, Spacing.pageV, Spacing.pageH, 0)]}
+          verticalArrangement={{ spacedBy: Spacing.sectionGap }}
+        >
+          <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
               <TextField
                 value={titleState}
                 autoFocus={autoFocusTitle}
@@ -201,16 +201,14 @@ export function TripForm({
                 onValueChange={(t) => setValue('title', t)}
                 modifiers={[fillMaxWidth()]}
               >
-                {/* Both slots' content must be wrapped in <Text> — a bare string
-                    child renders outside a Text node and throws "Text strings must
-                    be rendered within a <Text> component". The floating Label is the
-                    Material 3 text-field convention (matches location-search-sheet). */}
+                {/* The floating Label is the Material 3 text-field convention; it
+                    doubles as the resting placeholder, so no separate Placeholder
+                    slot (a duplicate "Title" once the label floats). Content must be
+                    wrapped in <Text> — a bare string throws "Text strings must be
+                    rendered within a <Text> component". */}
                 <TextField.Label>
                   <Text>Title</Text>
                 </TextField.Label>
-                <TextField.Placeholder>
-                  <Text>Title</Text>
-                </TextField.Placeholder>
               </TextField>
               {onEditDates ? (
                 // Edit path: a single "Trip dates" row opens the Shift / Adjust
@@ -243,8 +241,8 @@ export function TripForm({
             </Column>
           </Card>
 
-          <Card modifiers={[fillMaxWidth(), paddingAll(12)]} colors={m.card}>
-            <Column verticalArrangement={{ spacedBy: 10 }}>
+          <Card modifiers={[fillMaxWidth(), paddingAll(Spacing.cardPad)]} colors={m.card}>
+            <Column verticalArrangement={{ spacedBy: Spacing.rowGap }}>
               <Text color={c.text} style={{ typography: 'titleSmall' }}>Cover photo</Text>
               {coverPreviewUri ? (
                 <>
@@ -269,6 +267,6 @@ export function TripForm({
           </Card>
         </Column>
       </Host>
-    </View>
+    </SheetScaffold>
   );
 }

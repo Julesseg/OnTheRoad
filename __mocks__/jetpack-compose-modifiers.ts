@@ -5,7 +5,11 @@
 // test render (which ignores modifiers entirely).
 const noop = (..._args: unknown[]) => ({});
 
-export const Shapes = {} as Record<string, unknown>;
+// `Shapes.RoundedCorner(radius)` builds a shape config in the real module; in
+// jsdom it's visual-only, so it resolves to a no-op like every other modifier.
+export const Shapes = {
+  RoundedCorner: (..._args: unknown[]) => ({}),
+} as Record<string, unknown>;
 export const align = noop;
 export const alpha = noop;
 export const animateContentSize = noop;
