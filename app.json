@@ -10,12 +10,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.julesseguin.ontheroad",
+      "icon": "./assets/icons/ontheroad.icon",
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.julesseguin.ontheroad"
         ]
       },
       "infoPlist": {
+        "CFBundleDisplayName": "OnTheRoad",
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
           "waze"
@@ -60,9 +62,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#e6dac4",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#1c1b19"
           }
         }
       ],
