@@ -1,0 +1,8 @@
+First release of OnTheRoad.
+
+- Plan road trips day by day with places, stays, meals, activities, and notes.
+- See your whole route on a map with road-following directions.
+- Search for places or share them in from Maps and Safari.
+- Open any address in Apple Maps, Google Maps, or Waze.
+- Cover photos, per-item checklists, light/dark, English and French.
+- Local-first: everything stays on your device. No account, works offline.

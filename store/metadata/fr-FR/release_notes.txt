@@ -1,0 +1,8 @@
+Première version d'OnTheRoad.
+
+- Planifiez vos road trips jour par jour : lieux, hébergements, repas, activités et notes.
+- Visualisez tout votre trajet sur une carte avec un itinéraire qui suit les routes.
+- Recherchez des lieux ou partagez-les depuis Plans et Safari.
+- Ouvrez n'importe quelle adresse dans Plans, Google Maps ou Waze.
+- Photos de couverture, listes par étape, clair/sombre, français et anglais.
+- Local-first : tout reste sur votre appareil. Sans compte, fonctionne hors ligne.
