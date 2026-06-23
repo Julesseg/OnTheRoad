@@ -1,0 +1,21 @@
+OnTheRoad is a calm, local-first planner for the trips you take by car. Lay out your journey day by day, keep every stop in order, and carry the whole itinerary in your pocket — no account, no sign-up, and it works on the road even without a signal.
+
+PLAN DAY BY DAY
+Build a trip from a start and end date and OnTheRoad lays out one day per date automatically. Fill each day with the stops that matter — a place to visit, a hotel for the night, a meal, an activity, or a quick note — and reorder them by time. Need to leave a day earlier or extend the trip? Shift or adjust the dates and nothing you planned ever gets dropped.
+
+SEE THE WHOLE ROUTE ON A MAP
+Every stop with a location becomes a pin, joined into a route that follows real roads between them. Focus a single day to highlight it while the rest of the journey stays in view. Tap any address to open it in Apple Maps, Google Maps, or Waze — whichever you prefer.
+
+ADD PLACES THE EASY WAY
+Search for a place and drop it straight onto your trip, or share a spot from Google Maps, Apple Maps, or Safari directly into OnTheRoad and it becomes a stop on the day you choose.
+
+KNOW WHAT'S NEXT
+The Upcoming tab spotlights the trip you're on now (or the next one coming up) and highlights the very next item on your schedule, so you always know where you're headed.
+
+MAKE IT YOURS
+Give each trip a cover photo, tick off per-item checklists as you pack or go, and switch between light and dark. Available in English and French.
+
+YOUR DATA STAYS YOURS
+OnTheRoad is local-first by design. Your trips, photos, and notes are saved as files on your iPhone — there is no account and no server. We don't track you, run ads, or collect analytics. Export any trip as a file to back it up or share it, and import it back whenever you like.
+
+Pack the car. The plan comes with you.

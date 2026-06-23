@@ -1,0 +1,21 @@
+OnTheRoad est un planificateur paisible et local-first pour les voyages que vous faites en voiture. Organisez votre périple jour par jour, gardez chaque étape dans l'ordre et emportez tout l'itinéraire dans votre poche — sans compte, sans inscription, et même sur la route quand le réseau manque.
+
+JOUR PAR JOUR
+Créez un voyage à partir d'une date de début et de fin, et OnTheRoad génère automatiquement un jour par date. Remplissez chaque journée avec ce qui compte — un lieu à visiter, un hôtel pour la nuit, un repas, une activité ou une simple note — et réorganisez le tout par horaire. Besoin de partir plus tôt ou de prolonger le voyage ? Décalez ou ajustez les dates : rien de ce que vous avez prévu n'est jamais perdu.
+
+TOUT L'ITINÉRAIRE SUR UNE CARTE
+Chaque étape avec un lieu devient un point sur la carte, relié en un trajet qui suit les vraies routes. Mettez en avant une seule journée tout en gardant le reste du voyage visible. Touchez une adresse pour l'ouvrir dans Plans, Google Maps ou Waze, selon votre préférence.
+
+AJOUTEZ DES LIEUX FACILEMENT
+Recherchez un lieu et ajoutez-le directement à votre voyage, ou partagez un endroit depuis Google Maps, Plans ou Safari vers OnTheRoad : il devient une étape de la journée de votre choix.
+
+SACHEZ CE QUI VOUS ATTEND
+L'onglet À venir met en avant le voyage en cours (ou le prochain à venir) et souligne la toute prochaine étape de votre programme, pour toujours savoir où vous allez.
+
+PERSONNALISEZ
+Donnez une photo de couverture à chaque voyage, cochez les listes de chaque étape au fil de vos préparatifs, et basculez entre clair et sombre. Disponible en français et en anglais.
+
+VOS DONNÉES VOUS APPARTIENNENT
+OnTheRoad est local-first par conception. Vos voyages, photos et notes sont enregistrés sous forme de fichiers sur votre iPhone — aucun compte, aucun serveur. Pas de pistage, pas de publicité, pas de statistiques. Exportez n'importe quel voyage en fichier pour le sauvegarder ou le partager, et réimportez-le quand vous le souhaitez.
+
+Chargez la voiture. Le plan vous accompagne.

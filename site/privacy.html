@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — OnTheRoad</title>
+    <meta
+      name="description"
+      content="Privacy policy for OnTheRoad, a local-first road-trip itinerary app for iOS. No accounts, no servers, no tracking."
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #e6dac4;
+        --card: #fffdf8;
+        --ink: #2a2722;
+        --muted: #6b6457;
+        --accent: #b5562a;
+        --rule: #e3d9c6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c1b19;
+          --card: #26241f;
+          --ink: #ece6da;
+          --muted: #a7a08f;
+          --accent: #e08a4f;
+          --rule: #3a382f;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 22px 80px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--rule);
+        border-radius: 18px;
+        padding: 36px 32px;
+      }
+      h1 { font-size: 1.9rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+      h2 {
+        font-size: 1.2rem;
+        margin: 2em 0 0.4em;
+        padding-top: 0.6em;
+        border-top: 1px solid var(--rule);
+      }
+      h2:first-of-type { border-top: 0; }
+      .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.8rem; }
+      .effective { color: var(--muted); margin: 0 0 1.5em; font-size: 0.95rem; }
+      a { color: var(--accent); }
+      ul { padding-left: 1.2em; }
+      li { margin: 0.35em 0; }
+      footer { color: var(--muted); font-size: 0.9rem; margin-top: 2.5em; text-align: center; }
+      code { background: var(--rule); padding: 0.1em 0.35em; border-radius: 5px; font-size: 0.9em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <p class="eyebrow">OnTheRoad</p>
+        <h1>Privacy Policy</h1>
+        <p class="effective">Effective date: 23 June 2026</p>
+
+        <p>
+          OnTheRoad ("the app") is a personal road-trip itinerary planner for
+          iOS. It is built to be <strong>local-first</strong>: your trips live on
+          your device, not on our servers. This policy explains what that means
+          in practice and the few moments the app talks to the network.
+        </p>
+
+        <h2>The short version</h2>
+        <ul>
+          <li>
+            <strong>We don't have a server, an account system, or a
+            database.</strong> There is nothing to sign up for and nothing of
+            yours stored off your device by us.
+          </li>
+          <li>
+            <strong>We don't collect, sell, or share your personal
+            data</strong>, and we don't run analytics, advertising, or tracking
+            of any kind.
+          </li>
+          <li>
+            <strong>Your trips, photos, and notes stay on your iPhone</strong>,
+            saved as files inside the app's private storage. They are included in
+            your encrypted iPhone/iCloud device backups (controlled by you in iOS
+            Settings), and nowhere else.
+          </li>
+        </ul>
+
+        <h2>What stays on your device</h2>
+        <p>
+          Everything you create in the app is stored locally as files in the
+          app's private document directory:
+        </p>
+        <ul>
+          <li>Your trips, days, and items (places, stays, meals, activities, notes).</li>
+          <li>Item details such as times, addresses, coordinates, checklists, and notes.</li>
+          <li>
+            A cover photo ("wallpaper") you optionally add to a trip — copied into
+            the app's storage so it survives even if you later delete the
+            original.
+          </li>
+          <li>App settings (preferred maps app, appearance).</li>
+        </ul>
+        <p>
+          We never transmit these to us or to anyone else. You can export a trip
+          as a JSON file and share it yourself; that is an action you take
+          deliberately, to a destination you choose.
+        </p>
+
+        <h2>When the app uses the network</h2>
+        <p>
+          The app works offline. It reaches the network only at these moments,
+          each one started by you, and none of them are tied to your identity:
+        </p>
+        <ul>
+          <li>
+            <strong>Location search.</strong> When you search for a place while
+            adding or editing an item's location, the text you type is sent to
+            <strong>Photon</strong>, a public geocoding service operated by komoot
+            (<code>photon.komoot.io</code>), to return matching places and
+            coordinates. The query is sent without any account, name, device
+            identifier, or advertising ID — only the search text and a generic
+            client label. We do not log or store these queries; komoot's handling
+            is governed by komoot's own privacy practices.
+          </li>
+          <li>
+            <strong>Resolving a shared map link.</strong> When you share a Google
+            Maps or Apple Maps link into the app (via the iOS share sheet), the
+            app may follow that link's redirect to read the coordinates it points
+            to. This contacts the link's own host (e.g. Google) only for that
+            lookup.
+          </li>
+          <li>
+            <strong>Map directions.</strong> Road-following routes between your
+            stops are drawn using Apple's on-device <strong>MapKit /
+            MKDirections</strong>. This is provided by iOS itself and is covered by
+            <a href="https://www.apple.com/legal/privacy/">Apple's privacy
+            policy</a>.
+          </li>
+        </ul>
+        <p>
+          If you are offline, search and link-resolution simply fall back
+          gracefully (for example, an item is saved with its address but without a
+          map pin).
+        </p>
+
+        <h2>Permissions the app may request</h2>
+        <ul>
+          <li>
+            <strong>Photos</strong> — only when you choose to add a cover photo to
+            a trip. The selected image is copied into the app's local storage and
+            is never uploaded.
+          </li>
+          <li>
+            <strong>Location (While Using the App)</strong> — only to show your
+            current position as the blue dot on the map and to center the map on
+            you. Your location stays on the device; it is not collected or
+            transmitted by us.
+          </li>
+        </ul>
+        <p>
+          You can grant or revoke either permission at any time in
+          <strong>iOS Settings → OnTheRoad</strong>.
+        </p>
+
+        <h2>Opening other apps</h2>
+        <p>
+          When you tap an address to navigate, the app hands off to your chosen
+          maps app — <strong>Apple Maps</strong>, <strong>Google Maps</strong>, or
+          <strong>Waze</strong>. Once you leave OnTheRoad, that app's own privacy
+          policy applies.
+        </p>
+
+        <h2>Children's privacy</h2>
+        <p>
+          The app is not directed at children and collects no personal information
+          from anyone, including children under 13.
+        </p>
+
+        <h2>Changes to this policy</h2>
+        <p>
+          If this policy changes, the updated version will be posted at this URL
+          with a new effective date.
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          Questions about this policy can be sent to
+          <a href="mailto:julessseguin@gmail.com">julessseguin@gmail.com</a>.
+        </p>
+
+        <footer>OnTheRoad · personal road-trip itinerary app for iOS</footer>
+      </div>
+    </main>
+  </body>
+</html>

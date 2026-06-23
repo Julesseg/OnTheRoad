@@ -1,0 +1,45 @@
+# GitHub Pages deploy workflow for the privacy site.
+#
+# This file lives under store/ because the automated push could not create files
+# under .github/workflows/ (the token lacks `workflow` scope). To activate it,
+# copy this file to `.github/workflows/pages.yml` on the default branch — easiest
+# via the GitHub web UI (Add file → Create new file → paste path
+# `.github/workflows/pages.yml` and these contents), which has the needed scope.
+#
+# Then set Settings → Pages → Source: "GitHub Actions". It deploys ONLY the
+# `site/` directory, so internal docs (docs/, ADRs) are never published, and the
+# policy goes live at https://julesseg.github.io/OnTheRoad/privacy.html
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; let an in-progress run finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
