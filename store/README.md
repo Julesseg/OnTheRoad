@@ -85,9 +85,8 @@ All current values are within limits (verified at authoring time).
 - [ ] Copy `store/github-pages-workflow.yml` to `.github/workflows/pages.yml`,
       enable GitHub Pages (Settings → Pages → Source: GitHub Actions), and confirm
       the privacy URL loads.
-- [ ] Decide `supportsTablet` (see `screenshots/README.md`); if staying true,
-      capture 13" iPad screenshots too.
-- [ ] Capture iPhone screenshots per `screenshots/README.md` (EN + FR).
+- [ ] Capture iPhone screenshots per `screenshots/README.md` (EN + FR). v1 is
+      iPhone-only (`supportsTablet: false`), so no iPad screenshots are needed.
 - [ ] Create the app record in App Store Connect (bundle id
       `com.julesseguin.ontheroad`).
 - [ ] Paste metadata from `metadata/en-US` and `metadata/fr-FR`.

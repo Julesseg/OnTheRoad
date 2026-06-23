@@ -8,7 +8,7 @@
     "scheme": "ontheroad",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.julesseguin.ontheroad",
       "icon": "./assets/icons/ontheroad.icon",
       "entitlements": {

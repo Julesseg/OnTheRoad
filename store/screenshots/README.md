@@ -24,12 +24,8 @@ largest iPhone size:
 
 ### iPad note
 
-`app.json` currently sets `ios.supportsTablet: true`. If that stays true, App
-Store Connect will **also require 13" iPad screenshots** (2064 × 2752). Since v1
-is described as iPhone-focused, the simplest path is to set
-`supportsTablet: false` before submission so only iPhone screenshots are needed.
-Decide this before capturing. (This is a recommendation, not yet changed in the
-config.)
+`app.json` sets `ios.supportsTablet: false`, so v1 is iPhone-only and **no iPad
+screenshots are required** — capture only the iPhone sizes below.
 
 ## Shots to capture (in order)
 
