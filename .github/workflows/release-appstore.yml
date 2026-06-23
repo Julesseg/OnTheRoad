@@ -1,11 +1,11 @@
-# App Store release pipeline — builds and uploads to TestFlight / App Store
-# Connect when you push a branch named `release/X.X.X`.
+# UPDATED App Store release pipeline — copy this over
+# `.github/workflows/release-appstore.yml` (the automated push can't write
+# workflow files; do it in the GitHub web UI, same as the first time). Changes
+# vs. the installed version: triggers on vX.X.X tags instead of release/**
+# branches, and sends an ntfy notification on success/failure.
 #
-# ── INSTALL ──────────────────────────────────────────────────────────────────
-# This file lives under ci/ because the automated push lacks `workflow` scope.
-# Copy it to `.github/workflows/release-appstore.yml` on the default branch
-# (easiest in the GitHub web UI: Add file → Create new file → paste that path
-# and these contents).
+# Builds and uploads to TestFlight / App Store Connect when you push a version
+# tag named `vX.X.X`.
 #
 # ── ONE-TIME SETUP ───────────────────────────────────────────────────────────
 # 1. App Store Connect → Users and Access → Integrations → App Store Connect API
@@ -18,23 +18,26 @@
 # 3. The app record must already exist in App Store Connect for bundle id
 #    com.julesseguin.ontheroad (see store/README.md checklist).
 #
-# Then: `git switch -c release/1.0.0 && git push -u origin release/1.0.0`
-# builds 1.0.0, signs it for the App Store via the API key (automatic signing,
-# no manual profiles), and uploads it to TestFlight. Build number = CI run
-# number, so every upload is unique and increasing.
+# Then: `git tag v1.0.0 && git push origin v1.0.0` builds 1.0.0, signs it for the
+# App Store via the API key (automatic signing, no manual profiles), and uploads
+# it to TestFlight. Build number = CI run number, so every upload is unique and
+# increasing.
+#
+# Optionally set NTFY_TOPIC (already used by release.yml) to get a push
+# notification when the upload finishes or fails.
 name: Release (App Store)
 
 on:
   push:
-    branches:
-      - 'release/**'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       version:
         description: 'Marketing version to release (X.X.X)'
         required: true
 
-# One release build per branch; a newer push supersedes an older in-flight one.
+# One release build per ref; a newer push supersedes an older in-flight one.
 concurrency:
   group: release-appstore-${{ github.ref }}
   cancel-in-progress: true
@@ -50,7 +53,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Marketing version from the branch name (release/1.2.3 -> 1.2.3), or the
+      # Marketing version from the tag name (v1.2.3 -> 1.2.3), or the
       # manual-dispatch input. Build number from the run number so each upload is
       # unique and increasing, as App Store Connect requires.
       - name: Resolve version and build number
@@ -58,10 +61,10 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION="${GITHUB_REF_NAME#release/}"
+            VERSION="${GITHUB_REF_NAME#v}"
           fi
           if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Version '$VERSION' is not X.X.X — name the branch release/1.2.3 (or pass the version on manual dispatch)."
+            echo "::error::Version '$VERSION' is not X.X.X — tag the commit v1.2.3 (or pass the version on manual dispatch)."
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -193,3 +196,32 @@ jobs:
           path: /tmp/ipa/ontheroad.ipa
           if-no-files-found: warn
           retention-days: 7
+
+      # Push notification on success/failure, mirroring release.yml. No-op unless
+      # the NTFY_TOPIC secret is set.
+      - name: Send ntfy notification
+        if: always()
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "NTFY_TOPIC secret not set — skipping notification."
+            exit 0
+          fi
+          if [ "${{ job.status }}" = "success" ]; then
+            curl -fsS \
+              -H "Title: TestFlight upload ready" \
+              -H "Tags: white_check_mark" \
+              -H "Click: https://appstoreconnect.apple.com/apps" \
+              -d "On the Road ${VERSION} (build ${BUILD_NUMBER}) uploaded — processing in TestFlight" \
+              "https://ntfy.sh/${NTFY_TOPIC}"
+          else
+            curl -fsS \
+              -H "Title: TestFlight upload failed" \
+              -H "Tags: x" \
+              -H "Priority: high" \
+              -H "Click: ${RUN_URL}" \
+              -d "On the Road ${VERSION:-?} release — tap for logs" \
+              "https://ntfy.sh/${NTFY_TOPIC}"
+          fi
