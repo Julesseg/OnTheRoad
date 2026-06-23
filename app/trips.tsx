@@ -17,7 +17,7 @@ import {
   listStyle,
   font,
   foregroundStyle,
-  fixedSize,
+  layoutPriority,
   frame,
   aspectRatio,
   resizable,
@@ -156,7 +156,12 @@ export default function TripsSheet() {
             />
           )}
 
-          <VStack alignment="leading" spacing={4}>
+          {/* Outrank the trailing Spacer so the row sizes this text block to its
+              ideal width first; otherwise the Spacer and the truncatable date
+              text split the slack, cropping the date early and leaving a gap on
+              the right. With the full width available the date no longer crops
+              and the pill stays on one line without needing a fixed size. */}
+          <VStack alignment="leading" spacing={4} modifiers={[layoutPriority(1)]}>
             <HStack spacing={5}>
               {isFavorite ? <Image systemName="star.fill" size={12} color={FAVORITE_GOLD} /> : null}
               <Text modifiers={[font({ size: 17, weight: 'semibold' }), lineLimit(1)]}>
@@ -171,11 +176,9 @@ export default function TripsSheet() {
                 modifiers={[
                   font({ size: 12, weight: 'semibold' }),
                   foregroundStyle(WHITE),
-                  // Keep the countdown on one line at its intrinsic width — the
-                  // date range beside it (lineLimit 1) truncates first, so the
-                  // pill never wraps to a second line.
+                  // Guard against a wrap in the rare case the date range + pill
+                  // still overflow the row; the date (lineLimit 1) truncates first.
                   lineLimit(1),
-                  fixedSize({ horizontal: true }),
                   padding({ horizontal: 10, vertical: 2 }),
                   glassEffect({ glass: { variant: 'regular', tint: c.accent }, shape: 'capsule' }),
                   clipShape('capsule'),
