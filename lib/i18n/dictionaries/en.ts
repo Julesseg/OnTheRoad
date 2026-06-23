@@ -42,7 +42,7 @@ export const en = {
     inProgress: 'In progress',
     before: 'in {value} {unit}',
     after: '{value} {unit} ago',
-    startsIn: 'in {value} {unit}',
+    startsIn: 'In {value} {unit}',
     endedAgo: '{value} {unit} ago',
     compactBefore: 'in {abbr}',
     compactAfter: '{abbr} ago',

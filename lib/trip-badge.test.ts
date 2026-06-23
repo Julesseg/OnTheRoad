@@ -111,8 +111,8 @@ describe('countdownPillLabel', () => {
   });
 
   it('counts down to the start with a coarsened, pluralised unit', () => {
-    expect(countdownPillLabel({ kind: 'before', days: 1 })).toBe('in 1 day');
-    expect(countdownPillLabel({ kind: 'before', days: 60 })).toBe('in 2 months');
+    expect(countdownPillLabel({ kind: 'before', days: 1 })).toBe('In 1 day');
+    expect(countdownPillLabel({ kind: 'before', days: 60 })).toBe('In 2 months');
   });
 
   it('counts up from the end with a coarsened, pluralised unit', () => {
@@ -150,9 +150,9 @@ describe('French countdown labels', () => {
 
   it('reads the expanded pill label in French with French plurals', () => {
     expect(countdownPillLabel({ kind: 'now' }, 'fr')).toBe('En cours');
-    expect(countdownPillLabel({ kind: 'before', days: 1 }, 'fr')).toBe('dans 1 jour');
-    expect(countdownPillLabel({ kind: 'before', days: 60 }, 'fr')).toBe('dans 2 mois');
-    expect(countdownPillLabel({ kind: 'after', days: 21 }, 'fr')).toBe('il y a 3 semaines');
+    expect(countdownPillLabel({ kind: 'before', days: 1 }, 'fr')).toBe('Dans 1 jour');
+    expect(countdownPillLabel({ kind: 'before', days: 60 }, 'fr')).toBe('Dans 2 mois');
+    expect(countdownPillLabel({ kind: 'after', days: 21 }, 'fr')).toBe('Il y a 3 semaines');
   });
 
   it('reads the compact pill label in French', () => {
