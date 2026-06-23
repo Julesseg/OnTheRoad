@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Export options for App Store distribution (the release/X.X.X pipeline).
+  Distinct from ci/ExportOptions.plist (ad-hoc, for PR test builds): this one
+  uses the App Store method with automatic signing driven by the App Store
+  Connect API key, so Xcode resolves the App Store provisioning profiles for
+  both the app and the share extension at build time (-allowProvisioningUpdates).
+  $(APPLE_TEAM_ID) is substituted in CI before use.
+-->
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store-connect</string>
+    <key>destination</key>
+    <string>export</string>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>teamID</key>
+    <string>$(APPLE_TEAM_ID)</string>
+    <key>compileBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <!-- We set the version/build ourselves from the branch + run number. -->
+    <key>manageAppVersionAndBuildNumber</key>
+    <false/>
+</dict>
+</plist>

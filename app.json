@@ -18,6 +18,7 @@
       },
       "infoPlist": {
         "CFBundleDisplayName": "OnTheRoad",
+        "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "comgooglemaps",
           "waze"
