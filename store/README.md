@@ -58,9 +58,11 @@ All current values are within limits (verified at authoring time).
   [`site/privacy.html`](../site/privacy.html) is the styled page published to
   GitHub Pages.
 - **Public URL (required by Apple):** `https://julesseg.github.io/OnTheRoad/privacy.html`
-  To make it live: in the repo **Settings → Pages**, set the source to **GitHub
-  Actions**. The `.github/workflows/pages.yml` workflow publishes only the `site/`
-  directory (internal `docs/` are never exposed).
+  To make it live: (1) copy [`github-pages-workflow.yml`](github-pages-workflow.yml)
+  to `.github/workflows/pages.yml` on `main` (do this in the GitHub web UI — the
+  automated push lacks `workflow` scope), then (2) in the repo **Settings →
+  Pages**, set the source to **GitHub Actions**. The workflow publishes only the
+  `site/` directory (internal `docs/` are never exposed).
 - **App Privacy "nutrition label":** **Data Not Collected.** The app has no
   account, no server, no analytics, and no tracking; everything stays on-device.
   Full answers and the network-touchpoint reasoning are in
@@ -80,7 +82,8 @@ All current values are within limits (verified at authoring time).
 
 ## Pre-submission checklist
 
-- [ ] Enable GitHub Pages (Settings → Pages → Source: GitHub Actions) and confirm
+- [ ] Copy `store/github-pages-workflow.yml` to `.github/workflows/pages.yml`,
+      enable GitHub Pages (Settings → Pages → Source: GitHub Actions), and confirm
       the privacy URL loads.
 - [ ] Decide `supportsTablet` (see `screenshots/README.md`); if staying true,
       capture 13" iPad screenshots too.
