@@ -287,12 +287,12 @@ describe('TripsSheet', () => {
     await renderSheet();
 
     // The pill mirrors the days sheet's countdownPillLabel: "In progress" while
-    // live, then "Starts in N <unit>" counting down in coarse units.
+    // live, then "in N <unit>" counting down in coarse units.
     expect(screen.getByText('Coast Run')).toBeInTheDocument();
     expect(screen.getByText('May 30 – Jun 10, 2026')).toBeInTheDocument();
     expect(screen.getByText('In progress')).toBeInTheDocument();
-    expect(screen.getByText('Starts in 3 days')).toBeInTheDocument(); // Desert Loop, 2026-06-05
-    expect(screen.getByText('Starts in 2 weeks')).toBeInTheDocument(); // Mountain Pass, 2026-06-16
+    expect(screen.getByText('in 3 days')).toBeInTheDocument(); // Desert Loop, 2026-06-05
+    expect(screen.getByText('in 2 weeks')).toBeInTheDocument(); // Mountain Pass, 2026-06-16
   });
 
   it('marks the favorited trip with a star and an Unfavorite action', async () => {
