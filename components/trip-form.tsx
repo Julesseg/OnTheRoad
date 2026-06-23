@@ -198,6 +198,11 @@ export function TripForm({
       <Host
         style={{ flex: 1 }}
         colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
+        // Let the SwiftUI content (and its themed Form background below) extend
+        // through the keyboard safe area. Otherwise the hosting view shrinks to
+        // above the keyboard when the title field is focused and its uncovered
+        // system backing shows as a white band behind the keys.
+        ignoreSafeArea="keyboard"
         modifiers={[tint(c.accent)]}
       >
         <Form modifiers={[scrollContentBackground('hidden'), background(c.background)]}>

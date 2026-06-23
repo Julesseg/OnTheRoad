@@ -70,6 +70,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   clipShape: () => ({}),
   padding: () => ({}),
   lineLimit: () => ({}),
+  fixedSize: () => ({}),
   tint: () => ({}),
   glassEffect: () => ({}),
   background: (color: string) => ({ __bg: color }),

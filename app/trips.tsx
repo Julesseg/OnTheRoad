@@ -17,6 +17,7 @@ import {
   listStyle,
   font,
   foregroundStyle,
+  fixedSize,
   frame,
   aspectRatio,
   resizable,
@@ -170,6 +171,11 @@ export default function TripsSheet() {
                 modifiers={[
                   font({ size: 12, weight: 'semibold' }),
                   foregroundStyle(WHITE),
+                  // Keep the countdown on one line at its intrinsic width — the
+                  // date range beside it (lineLimit 1) truncates first, so the
+                  // pill never wraps to a second line.
+                  lineLimit(1),
+                  fixedSize({ horizontal: true }),
                   padding({ horizontal: 10, vertical: 2 }),
                   glassEffect({ glass: { variant: 'regular', tint: c.accent }, shape: 'capsule' }),
                   clipShape('capsule'),
