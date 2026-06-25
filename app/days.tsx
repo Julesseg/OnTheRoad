@@ -32,7 +32,7 @@ import {
 } from '@/lib/trip-badge';
 import { todayString, formatDateRange } from '@/lib/date-utils';
 import { todayFilterModel } from '@/lib/today-filter';
-import { MIN_SHEET_DETENT_INDEX } from '@/lib/sheet-detents';
+import { MIN_SHEET_DETENT_INDEX, INITIAL_SHEET_DETENT_INDEX } from '@/lib/sheet-detents';
 
 const WHITE = '#ffffff';
 // Height of the progressive-blur layer behind the transparent nav bar — the
@@ -94,6 +94,24 @@ export default function DaysSheet() {
   useEffect(() => {
     if (summary) loadTripById(summary.id);
   }, [summary?.id]);
+
+  // When a Day filter turns on, drop the sheet to its medium (0.5) detent so the
+  // map — now framed on the filtered day — is visible above it. Re-presenting is
+  // the only way to drive the native detent (no imperative setter), mirroring the
+  // pin-selection resize in index.tsx: stage the target detent in the store, then
+  // dismiss so the home screen's focus effect re-presents /days at it. Reacts only
+  // to the filter turning on, so a manual resize while filtered isn't fought.
+  const filterActive =
+    trip && summary
+      ? todayFilterModel(trip.days, tripCountdownBadge(summary, today), todayFilterOverride, today)
+          .active
+      : false;
+  useEffect(() => {
+    if (filterActive && sheetDetentIndex !== INITIAL_SHEET_DETENT_INDEX) {
+      setSheetDetentIndex(INITIAL_SHEET_DETENT_INDEX);
+      router.dismissAll();
+    }
+  }, [filterActive]);
 
   // The large title scrolls away as the List's first row. Rather than tracking the
   // scroll continuously, the inline title is a threshold toggle: once the large

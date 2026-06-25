@@ -84,9 +84,9 @@ export function countdownPill(
 
 /**
  * The countdown pill text shown on the expanded title's `dates · pill` line:
- * "In progress" while the trip is happening, "Starts in N units" before it
- * begins, and "Ended N units ago" after it ends, with the day count coarsened
- * to the most legible unit.
+ * "In progress" while the trip is happening, "in N units" before it begins, and
+ * "N units ago" after it ends, with the day count coarsened to the most legible
+ * unit.
  */
 export function countdownPillLabel(badge: TripBadge, loc: Locale = resolvedLocale): string {
   if (badge.kind === 'now') return t('countdown.inProgress', undefined, loc);
