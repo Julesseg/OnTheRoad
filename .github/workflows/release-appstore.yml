@@ -15,7 +15,13 @@
 #      APP_STORE_CONNECT_ISSUER_ID   the Issuer ID shown above the keys list
 #      APP_STORE_CONNECT_KEY_P8      the full contents of the .p8 file
 #    (APPLE_TEAM_ID and KEYCHAIN_PASSWORD already exist for the ad-hoc pipeline.)
-# 3. The app record must already exist in App Store Connect for bundle id
+# 3. Code signing on the hosted runner: it starts with an empty keychain, so the
+#    Apple Distribution certificate has to be imported at build time. In Keychain
+#    Access, export your "Apple Distribution" cert WITH its private key as a .p12,
+#    then add these secrets (shared with release.yml):
+#      APPLE_CERTIFICATE_P12         `base64 -i dist.p12 | pbcopy` of that .p12
+#      APPLE_CERTIFICATE_PASSWORD    the password you set when exporting it
+# 4. The app record must already exist in App Store Connect for bundle id
 #    com.julesseguin.ontheroad (see store/README.md checklist).
 #
 # Then: `git tag v1.0.0 && git push origin v1.0.0` builds 1.0.0, signs it for the
@@ -45,9 +51,10 @@ concurrency:
 jobs:
   release:
     name: Build & upload to App Store Connect
-    runs-on: self-hosted
-    env:
-      PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    # GitHub-hosted macOS runner (free for this public repo). Ephemeral, so the
+    # Apple Distribution cert is imported into a throwaway keychain at build time;
+    # automatic signing then resolves the App Store profiles via the ASC API key.
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -101,19 +108,7 @@ jobs:
       - name: Expo prebuild
         run: npx expo prebuild --platform ios --clean --no-install
 
-      - name: Setup Ruby via Homebrew
-        run: |
-          brew list ruby >/dev/null 2>&1 || brew install ruby
-          echo "$(brew --prefix ruby)/bin" >> $GITHUB_PATH
-
-      - name: Install CocoaPods
-        run: |
-          export GEM_HOME="$HOME/.gem"
-          export PATH="$GEM_HOME/bin:$PATH"
-          echo "GEM_HOME=$HOME/.gem" >> $GITHUB_ENV
-          echo "$HOME/.gem/bin" >> $GITHUB_PATH
-          gem list -i cocoapods >/dev/null 2>&1 || gem install cocoapods --no-document
-
+      # Ruby and CocoaPods ship preinstalled on the hosted macOS image.
       - name: Pod install
         run: pod install
         working-directory: ios
@@ -130,17 +125,29 @@ jobs:
           printf '%s' "$ASC_KEY_P8" > "$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"
           echo "ASC_KEY_PATH=$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
 
-      # Unlock the login keychain so the Apple Distribution certificate + key are
-      # available; automatic signing uses that cert while the API key resolves the
-      # App Store provisioning profiles.
-      - name: Unlock keychain
+      # Create a throwaway keychain and import the Apple Distribution cert + key
+      # from secrets. Automatic signing uses that cert while the API key resolves
+      # the App Store provisioning profiles. KEYCHAIN_PASSWORD is reused here
+      # purely as this temp keychain's password.
+      - name: Create keychain and import signing certificate
         env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
-          security set-keychain-settings -t 3600 "$HOME/Library/Keychains/login.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "$APPLE_CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
-            -k "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" \
+            $(security list-keychains -d user | sed s/\"//g)
+          rm -f "$CERT_PATH"
 
       - name: Archive
         env:

@@ -23,9 +23,11 @@ concurrency:
 jobs:
   build:
     name: Build
-    runs-on: self-hosted
-    env:
-      PATH: /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    # GitHub-hosted macOS runner. OnTheRoad is a public repo, so macOS minutes
+    # are free (no 10x multiplier that applies to private repos). The runner is
+    # ephemeral with an empty keychain, so unlike the old self-hosted Mac we
+    # import the signing certificate into a throwaway keychain at build time.
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -57,19 +59,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: node ci/set-release-signing.js
 
-      - name: Setup Ruby via Homebrew
-        run: |
-          brew list ruby >/dev/null 2>&1 || brew install ruby
-          echo "$(brew --prefix ruby)/bin" >> $GITHUB_PATH
-
-      - name: Install CocoaPods
-        run: |
-          export GEM_HOME="$HOME/.gem"
-          export PATH="$GEM_HOME/bin:$PATH"
-          echo "GEM_HOME=$HOME/.gem" >> $GITHUB_ENV
-          echo "$HOME/.gem/bin" >> $GITHUB_PATH
-          gem list -i cocoapods >/dev/null 2>&1 || gem install cocoapods --no-document
-
+      # Ruby and CocoaPods ship preinstalled on the hosted macOS image, so we no
+      # longer install them via Homebrew (that was only needed on the bare Mac).
       - name: Pod install
         run: pod install
         working-directory: ios
@@ -84,14 +75,31 @@ jobs:
           echo "$APPLE_PROVISIONING_PROFILE" | base64 --decode -o "$PP_DIR/ontheroad_adhoc.mobileprovision"
           echo "$APPLE_PROVISIONING_PROFILE_SHARE" | base64 --decode -o "$PP_DIR/ontheroad_share_adhoc.mobileprovision"
 
-      - name: Unlock keychain
+      # The self-hosted Mac had the Apple Distribution cert + private key sitting
+      # in its login keychain; we only unlocked it. A hosted runner starts empty,
+      # so create a throwaway keychain and import the cert from secrets. The .p12
+      # is an Apple Distribution certificate exported WITH its private key.
+      # KEYCHAIN_PASSWORD is reused here purely as this temp keychain's password.
+      - name: Create keychain and import signing certificate
         env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
-          security set-keychain-settings -t 3600 "$HOME/Library/Keychains/login.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "$APPLE_CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
-            -k "$KEYCHAIN_PASSWORD" "$HOME/Library/Keychains/login.keychain-db"
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # Make the temp keychain visible to xcodebuild's identity lookup.
+          security list-keychains -d user -s "$KEYCHAIN_PATH" \
+            $(security list-keychains -d user | sed s/\"//g)
+          rm -f "$CERT_PATH"
 
       - name: Archive
         env:
