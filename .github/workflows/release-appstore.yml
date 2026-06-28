@@ -159,6 +159,7 @@ jobs:
             -workspace ios/ontheroad.xcworkspace \
             -scheme ontheroad \
             -configuration Release \
+            -destination 'generic/platform=iOS' \
             -archivePath /tmp/ontheroad.xcarchive \
             -derivedDataPath "$HOME/Library/Developer/Xcode/DerivedData/ontheroad-runner" \
             -allowProvisioningUpdates \
