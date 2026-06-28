@@ -3,8 +3,11 @@
 // Given the current PR's freshly-built .ipa, this upserts that PR's slot into a
 // `builds.json` manifest (one slot per PR, keyed by PR number), prunes to the N
 // most-recently-built PRs, copies the .ipa into builds/pr-<n>/, and regenerates
-// every HTML page and OTA manifest. It mutates SITE_DIR in place; the caller
-// force-pushes the result to the build-history branch and serves it via Pages.
+// every HTML page and OTA manifest. It also mirrors the repo's static policy
+// pages (site/, e.g. privacy.html) into the published site so they resolve at
+// PAGES_BASE_URL — the App Store privacy link depends on it. It mutates SITE_DIR
+// in place; the caller force-pushes the result to the build-history branch and
+// serves it via Pages.
 //
 // Inputs come from the environment (see release.yml > deploy job):
 //   SITE_DIR        directory holding the published site (may be empty on first run)
@@ -18,6 +21,12 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// The repo's static policy site (privacy policy, etc.), mirrored into the
+// published site so pages like privacy.html resolve at PAGES_BASE_URL. Resolved
+// relative to this script so it works regardless of the caller's cwd.
+const SITE_SOURCE = fileURLToPath(new URL("../site", import.meta.url));
 
 const env = (name, fallback) => {
   const v = process.env[name];
@@ -247,6 +256,27 @@ async function readManifest() {
   }
 }
 
+// Mirror the repo's static policy pages into the published site. index.html is
+// skipped at the top level — the build-history root page (rootPage) owns it, so
+// the builds list stays the Pages landing page. Everything else (privacy.html,
+// any future static assets) is copied verbatim so it's reachable at the base URL.
+async function mirrorStaticSite() {
+  let names;
+  try {
+    names = await fs.readdir(SITE_SOURCE);
+  } catch {
+    console.log("No site/ directory to mirror — skipping static pages.");
+    return;
+  }
+  const copied = [];
+  for (const name of names) {
+    if (name === "index.html") continue; // the builds root page owns index.html
+    await fs.cp(path.join(SITE_SOURCE, name), path.join(SITE_DIR, name), { recursive: true });
+    copied.push(name);
+  }
+  if (copied.length) console.log(`Mirrored static site files: ${copied.join(", ")}`);
+}
+
 async function main() {
   const existing = await readManifest();
 
@@ -289,6 +319,9 @@ async function main() {
 
   await fs.writeFile(path.join(SITE_DIR, "index.html"), rootPage(kept));
   await fs.writeFile(path.join(SITE_DIR, "builds.json"), JSON.stringify(kept, null, 2) + "\n");
+
+  // Mirror the static policy pages (privacy.html, …) alongside the build list.
+  await mirrorStaticSite();
 
   console.log(
     `Published PR #${PR_NUMBER} (${SHORT_SHA}). Retained slots: ${kept.map((s) => `pr-${s.pr}`).join(", ")}`,
