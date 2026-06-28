@@ -3,7 +3,10 @@ import { Stack } from 'expo-router';
 import { Host, Form, Section, Picker, Text } from '@expo/ui/swift-ui';
 import {
   background,
+  foregroundStyle,
+  frame,
   listRowBackground,
+  multilineTextAlignment,
   pickerStyle,
   scrollContentBackground,
   tag,
@@ -67,7 +70,22 @@ export default function SettingsSheet() {
             </Picker>
           </Section>
 
-          <Section title={t('settings.appearance')} modifiers={[listRowBackground(c.surface)]}>
+          <Section
+            title={t('settings.appearance')}
+            modifiers={[listRowBackground(c.surface)]}
+            // A quiet credit, centered under the last section like a native footer.
+            footer={
+              <Text
+                modifiers={[
+                  frame({ maxWidth: 9999, alignment: 'center' }),
+                  multilineTextAlignment('center'),
+                  foregroundStyle(c.textSubtle),
+                ]}
+              >
+                {t('settings.signature')}
+              </Text>
+            }
+          >
             <Picker
               label={t('settings.appearance')}
               selection={appearance}

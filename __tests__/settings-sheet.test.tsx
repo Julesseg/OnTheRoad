@@ -27,6 +27,9 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   background: () => ({}),
   listRowBackground: () => ({}),
   scrollContentBackground: () => ({}),
+  foregroundStyle: () => ({}),
+  frame: () => ({}),
+  multilineTextAlignment: () => ({}),
 }));
 
 // @expo/ui renders native SwiftUI views that can't mount under jsdom. Stand the
@@ -39,6 +42,9 @@ vi.mock('@expo/ui/swift-ui', async () => {
     (t: string) =>
     ({ children }: { children?: React.ReactNode }) =>
       React.createElement(t, null, children);
+  // Section renders its footer (where the signature lives) alongside its children.
+  const Section = ({ children, footer }: { children?: React.ReactNode; footer?: React.ReactNode }) =>
+    React.createElement('div', null, children, footer);
   const Picker = ({
     selection,
     onSelectionChange,
@@ -69,7 +75,7 @@ vi.mock('@expo/ui/swift-ui', async () => {
   return {
     Host: pass('div'),
     Form: pass('div'),
-    Section: pass('div'),
+    Section,
     Picker,
     Button,
     Text: pass('span'),
@@ -153,5 +159,13 @@ describe('SettingsSheet', () => {
     render(<SettingsSheet />);
 
     expect(screen.queryByRole('button', { name: /archived/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the made-in-France signature', async () => {
+    storeWith({});
+    const { default: SettingsSheet } = await import('@/app/settings');
+    render(<SettingsSheet />);
+
+    expect(screen.getByText(/made in france with/i)).toBeInTheDocument();
   });
 });

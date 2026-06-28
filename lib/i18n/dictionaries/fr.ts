@@ -93,6 +93,7 @@ export const fr: Messages = {
     appearanceSystem: 'Système',
     appearanceLight: 'Clair',
     appearanceDark: 'Sombre',
+    signature: 'Fait en France avec 🧡',
   },
 
   map: {
