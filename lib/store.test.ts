@@ -19,9 +19,13 @@ vi.mock('./maps', () => ({
 vi.mock('./appearance', () => ({
   applyAppearance: vi.fn(),
 }));
+vi.mock('./haptics', () => ({
+  haptics: { notification: vi.fn(), impact: vi.fn(), selection: vi.fn() },
+}));
 
 import * as storage from './storage';
 import { applyAppearance } from './appearance';
+import { haptics } from './haptics';
 import { useTripStore } from './store';
 import type { Trip, TripSummary } from './schema';
 
@@ -254,5 +258,111 @@ describe('removeTrip — Displayed Trip & favorite', () => {
     await useTripStore.getState().removeTrip('c');
     expect(useTripStore.getState().displayedTripId).toBe('b');
     expect(useTripStore.getState().activeTripId).toBe('a');
+  });
+});
+
+describe('haptic feedback', () => {
+  function tripWithItems(): Trip {
+    return tripFixture({
+      days: [
+        {
+          id: 'd1',
+          date: '2026-07-01',
+          items: [
+            { id: 'i1', name: 'Museum', category: 'activity' },
+            { id: 'i2', name: 'Lunch', category: 'meal' },
+            {
+              id: 'i3',
+              name: 'Pack',
+              category: 'activity',
+              checklist: [{ id: 'c1', label: 'Passport', checked: false }],
+            },
+          ],
+        },
+        { id: 'd2', date: '2026-07-02', items: [] },
+      ],
+    });
+  }
+
+  it('fires a success notification when a trip is added', async () => {
+    await useTripStore.getState().addTrip(tripFixture());
+    expect(haptics.notification).toHaveBeenCalledWith('success');
+  });
+
+  it('fires a success notification on a successful text import', async () => {
+    vi.mocked(storage.importTripFromText).mockReturnValue(tripFixture());
+    await useTripStore.getState().importTripText('{}');
+    expect(haptics.notification).toHaveBeenCalledWith('success');
+  });
+
+  it('fires an error notification when a text import fails', async () => {
+    vi.mocked(storage.importTripFromText).mockImplementation(() => {
+      throw new Error('File is not valid JSON.');
+    });
+    await expect(useTripStore.getState().importTripText('nonsense')).rejects.toThrow();
+    expect(haptics.notification).toHaveBeenCalledWith('error');
+  });
+
+  it('fires an error notification when a file import fails', async () => {
+    vi.mocked(storage.importTripFromFile).mockRejectedValue(new Error('bad file'));
+    await expect(useTripStore.getState().importTrip('file://x.json')).rejects.toThrow();
+    expect(haptics.notification).toHaveBeenCalledWith('error');
+  });
+
+  it('fires a light impact when a trip is removed', async () => {
+    useTripStore.setState({ trips: [trip('a')] });
+    await useTripStore.getState().removeTrip('a');
+    expect(haptics.impact).toHaveBeenCalledWith('light');
+  });
+
+  it('fires a light impact when an item is deleted', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithItems() } });
+    useTripStore.getState().deleteItem('trip-1', 'd1', 'i1');
+    expect(haptics.impact).toHaveBeenCalledWith('light');
+  });
+
+  it('fires a light impact when an item is moved to another day', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithItems() } });
+    useTripStore.getState().moveItem('trip-1', 'd1', 'd2', 'i1');
+    expect(haptics.impact).toHaveBeenCalledWith('light');
+  });
+
+  it('fires a light impact when items are reordered', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithItems() } });
+    useTripStore.getState().reorderItem('trip-1', 'd1', [0], 2);
+    expect(haptics.impact).toHaveBeenCalledWith('light');
+  });
+
+  it('does not fire when a reorder is a no-op', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithItems() } });
+    useTripStore.getState().reorderItem('trip-1', 'd1', [0], 0);
+    expect(haptics.impact).not.toHaveBeenCalled();
+  });
+
+  it('fires a selection tick when a checklist entry is toggled', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithItems() } });
+    useTripStore.getState().toggleChecklistEntry('trip-1', 'd1', 'i3', 'c1');
+    expect(haptics.selection).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire when a checklist toggle is a no-op', () => {
+    useTripStore.setState({ loadedTrips: { 'trip-1': tripWithItems() } });
+    useTripStore.getState().toggleChecklistEntry('trip-1', 'd1', 'i3', 'missing');
+    expect(haptics.selection).not.toHaveBeenCalled();
+  });
+
+  it('fires a light impact when a trip is favorited', () => {
+    useTripStore.getState().setFavorite('trip-1');
+    expect(haptics.impact).toHaveBeenCalledWith('light');
+  });
+
+  it('fires a selection tick when a pin is selected', () => {
+    useTripStore.getState().setSelectedPin('i1');
+    expect(haptics.selection).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire when the pin selection is cleared', () => {
+    useTripStore.getState().setSelectedPin(null);
+    expect(haptics.selection).not.toHaveBeenCalled();
   });
 });
