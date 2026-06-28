@@ -97,6 +97,7 @@ export const en = {
     appearanceSystem: 'System',
     appearanceLight: 'Light',
     appearanceDark: 'Dark',
+    signature: 'Made in France with 🧡',
   },
 
   map: {
