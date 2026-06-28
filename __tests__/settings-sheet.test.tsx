@@ -30,6 +30,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   foregroundStyle: () => ({}),
   frame: () => ({}),
   multilineTextAlignment: () => ({}),
+  padding: () => ({}),
 }));
 
 // @expo/ui renders native SwiftUI views that can't mount under jsdom. Stand the

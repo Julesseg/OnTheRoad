@@ -7,6 +7,7 @@ import {
   frame,
   listRowBackground,
   multilineTextAlignment,
+  padding,
   pickerStyle,
   scrollContentBackground,
   tag,
@@ -77,6 +78,7 @@ export default function SettingsSheet() {
             footer={
               <Text
                 modifiers={[
+                  padding({ top: 8 }),
                   frame({ maxWidth: 9999, alignment: 'center' }),
                   multilineTextAlignment('center'),
                   foregroundStyle(c.textSubtle),
