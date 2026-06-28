@@ -20,6 +20,7 @@ import {
   toggleChecklistEntryInTrip,
 } from './trip-mutations';
 import { resolveActiveTrip } from './active-trip';
+import { haptics } from './haptics';
 import type { DayFilterOverride } from './today-filter';
 import { INITIAL_SHEET_DETENT_INDEX } from './sheet-detents';
 import { todayString } from './date-utils';
@@ -177,6 +178,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const updatedTrips = get().trips.concat(summary);
     set((s) => ({ trips: updatedTrips, loadedTrips: { ...s.loadedTrips, [trip.id]: trip } }));
     scheduleSave(() => snapshotOf(get));
+    haptics.notification('success');
   },
 
   updateTrip(trip: Trip) {
@@ -190,19 +192,30 @@ export const useTripStore = create<TripStore>((set, get) => ({
   },
 
   async importTrip(uri: string) {
-    const trip = await importTripFromFile(uri);
-    // Imported trips (Schema Prompt JSON, ADR-0012) carry addresses but no
-    // coordinates, so they'd land with no pins. Resolve address-only items
-    // through Photon before saving; failures stay address-only (geocode-import).
-    const enriched = await geocodeTripLocations(trip);
-    await get().addTrip(enriched);
-    return enriched;
+    try {
+      const trip = await importTripFromFile(uri);
+      // Imported trips (Schema Prompt JSON, ADR-0012) carry addresses but no
+      // coordinates, so they'd land with no pins. Resolve address-only items
+      // through Photon before saving; failures stay address-only (geocode-import).
+      const enriched = await geocodeTripLocations(trip);
+      // Success feedback is fired by addTrip; only the failure path needs its own.
+      await get().addTrip(enriched);
+      return enriched;
+    } catch (e) {
+      haptics.notification('error');
+      throw e;
+    }
   },
 
   async importTripText(raw: string) {
-    const trip = importTripFromText(raw);
-    await get().addTrip(trip);
-    return trip;
+    try {
+      const trip = importTripFromText(raw);
+      await get().addTrip(trip);
+      return trip;
+    } catch (e) {
+      haptics.notification('error');
+      throw e;
+    }
   },
 
   async loadTripById(id: string) {
@@ -226,6 +239,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const next = deleteItemFromTrip(trip, dayId, itemId, new Date().toISOString());
     saveTrip(next);
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+    haptics.impact('light');
   },
 
   moveItem(tripId: string, fromDayId: string, toDayId: string, itemId: string) {
@@ -234,6 +248,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     const next = moveItemToDay(trip, fromDayId, toDayId, itemId, new Date().toISOString());
     saveTrip(next);
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+    haptics.impact('light');
   },
 
   reorderItem(tripId: string, dayId: string, sourceIndices: number[], destination: number) {
@@ -243,6 +258,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     if (next === trip) return;
     saveTrip(next);
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+    haptics.impact('light');
   },
 
   // Ticking is autosaved: the flipped trip hits storage synchronously, with no
@@ -254,6 +270,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
     if (next === trip) return;
     saveTrip(next);
     set((s) => ({ loadedTrips: { ...s.loadedTrips, [tripId]: next } }));
+    haptics.selection();
   },
 
   async removeTrip(id: string) {
@@ -272,6 +289,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
       };
     });
     scheduleSave(() => snapshotOf(get));
+    haptics.impact('light');
   },
 
   setPreferredMapsApp(app: MapsApp) {
@@ -288,6 +306,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   setFavorite(id: string) {
     set({ activeTripId: id });
     writeState(snapshotOf(get));
+    haptics.impact('light');
   },
 
   clearFavorite() {
@@ -321,5 +340,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
   // tap or when the day sheet is expanded past the XS detent. In-memory only.
   setSelectedPin(id: string | null) {
     set({ selectedPinId: id });
+    // Picking a pin is a selection; clearing it (empty-map tap, sheet expand) is not.
+    if (id !== null) haptics.selection();
   },
 }));
