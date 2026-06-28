@@ -31,10 +31,9 @@ const ALL_MAPS_APPS: MapsApp[] = ['apple', 'google', 'waze'];
 // (ci/assemble-build-history.mjs), so it resolves at this URL.
 const SUPPORT_EMAIL = 'jsnull.dev+ontheroad@gmail.com';
 const PRIVACY_URL = 'https://julesseg.github.io/OnTheRoad/privacy.html';
-// TODO: replace with the real numeric App Store ID once the app is published.
-// App Store review deep links key off the numeric id, not the bundle id
-// (com.julesseguin.ontheroad) — so this URL is a placeholder until then.
-const APP_STORE_ID = '0000000000';
+// The app's numeric App Store ID (distinct from the bundle id). Review deep
+// links key off this id; the link resolves once the app is live on the store.
+const APP_STORE_ID = '6785257224';
 const APP_STORE_REVIEW_URL = `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`;
 
 // Read-only version string from the build: "1.0.0 (3)" when a build number is
