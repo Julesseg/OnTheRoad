@@ -27,7 +27,7 @@ jobs:
     # are free (no 10x multiplier that applies to private repos). The runner is
     # ephemeral with an empty keychain, so unlike the old self-hosted Mac we
     # import the signing certificate into a throwaway keychain at build time.
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - name: Checkout

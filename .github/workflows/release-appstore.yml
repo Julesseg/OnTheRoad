@@ -54,7 +54,7 @@ jobs:
     # GitHub-hosted macOS runner (free for this public repo). Ephemeral, so the
     # Apple Distribution cert is imported into a throwaway keychain at build time;
     # automatic signing then resolves the App Store profiles via the ASC API key.
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - name: Checkout
