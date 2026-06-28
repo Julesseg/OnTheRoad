@@ -25,15 +25,10 @@ import type { AppearanceMode, MapsApp } from '@/lib/schema';
 
 const ALL_MAPS_APPS: MapsApp[] = ['apple', 'google', 'waze'];
 
-// The maintainer's published support address (site/privacy.html) and the
-// privacy policy's intended public URL. Both open out of the app — mailto /
-// in-app browser.
-//
-// NOTE: privacy.html is NOT live at this URL yet — the active Pages deploy
-// (release.yml) publishes the build-history site, which doesn't include it; the
-// site/ Pages workflow (store/github-pages-workflow.yml) is parked, not active.
-// This is the documented target URL; it must be made to resolve before the App
-// Store submission relies on it.
+// The maintainer's published support address and the deployed privacy policy.
+// Both open out of the app — mailto / in-app browser. privacy.html ships from
+// the repo's site/ dir, mirrored onto GitHub Pages by the build-history deploy
+// (ci/assemble-build-history.mjs), so it resolves at this URL.
 const SUPPORT_EMAIL = 'julessseguin@gmail.com';
 const PRIVACY_URL = 'https://julesseg.github.io/OnTheRoad/privacy.html';
 // TODO: replace with the real numeric App Store ID once the app is published.
