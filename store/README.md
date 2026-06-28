@@ -24,17 +24,19 @@ These are **two independent fields**, which is what lets the listing read longer
 than the icon label:
 
 - **Home-screen name** (`CFBundleDisplayName` in `app.json`): **`OnTheRoad`** —
-  already set; this is the label under the icon.
-- **App Store name** (`metadata/*/name.txt`): **`OnTheRoad`** — capped at 30
-  characters by Apple.
+  already set; this is the label under the icon. No uniqueness rule applies here.
+- **App Store name** (`metadata/*/name.txt`): **`OnTheRoad: Road Trips`** (en) /
+  **`OnTheRoad : Road trips`** (fr) — capped at 30 characters by Apple, and must
+  be **globally unique** across the App Store. The bare `OnTheRoad` was already
+  taken, so a `brand: descriptor` name is used; the home-screen label is
+  unaffected.
 - **App Store subtitle** (`metadata/*/subtitle.txt`): **`Road trip planner &
   companion`** — capped at 30 characters; renders directly beneath the name on the
   product page.
 
-The desired "OnTheRoad: road trip planner and companion" presentation (42 chars)
-can't fit in the single 30-char name field, so it's split across name + subtitle —
-which is exactly how Apple intends those two fields to work, and reads as
-"OnTheRoad / Road trip planner & companion" on the listing.
+Name + subtitle read together as "OnTheRoad: Road Trips / Road trip planner &
+companion" on the listing — which is exactly how Apple intends those two fields
+to work — while the icon stays the short `OnTheRoad`.
 
 ## Field reference & limits
 
@@ -58,11 +60,12 @@ All current values are within limits (verified at authoring time).
   [`site/privacy.html`](../site/privacy.html) is the styled page published to
   GitHub Pages.
 - **Public URL (required by Apple):** `https://julesseg.github.io/OnTheRoad/privacy.html`
-  To make it live: (1) copy [`github-pages-workflow.yml`](github-pages-workflow.yml)
-  to `.github/workflows/pages.yml` on `main` (do this in the GitHub web UI — the
-  automated push lacks `workflow` scope), then (2) in the repo **Settings →
-  Pages**, set the source to **GitHub Actions**. The workflow publishes only the
-  `site/` directory (internal `docs/` are never exposed).
+  This is **live**: the release Pages deploy (`ci/assemble-build-history.mjs`)
+  mirrors the `site/` directory — `privacy.html` and the marketing `index.html`
+  — onto the published site, so it resolves without any extra workflow. (The
+  parked [`github-pages-workflow.yml`](github-pages-workflow.yml) is an alternate
+  `site/`-only deploy, kept for reference but not needed.) Internal `docs/` are
+  never published.
 - **App Privacy "nutrition label":** **Data Not Collected.** The app has no
   account, no server, no analytics, and no tracking; everything stays on-device.
   Full answers and the network-touchpoint reasoning are in

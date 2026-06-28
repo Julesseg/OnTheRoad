@@ -17,6 +17,7 @@ export const fr: Messages = {
     end: 'Fin',
     deleteItemTitle: 'Supprimer l’élément',
     deleteItemConfirm: 'Supprimer « {name} » ? Cette action est irréversible.',
+    openSettings: 'Ouvrir Réglages',
   },
 
   status: {
@@ -94,11 +95,19 @@ export const fr: Messages = {
     appearanceLight: 'Clair',
     appearanceDark: 'Sombre',
     signature: 'Fait en France avec 🧡',
+    about: 'À propos',
+    version: 'Version',
+    privacyPolicy: 'Politique de confidentialité',
+    contactSupport: 'Contact et assistance',
+    rateApp: 'Noter sur l’App Store',
   },
 
   map: {
     recenter: 'Recentrer',
     centerOnLocation: 'Centrer sur ma position',
+    locationDeniedTitle: 'Localisation désactivée',
+    locationDeniedMessage:
+      'Autorisez l’accès à la localisation dans Réglages pour centrer la carte sur votre position.',
   },
 
   importPaste: {
@@ -125,6 +134,9 @@ export const fr: Messages = {
     failedBody: 'Impossible d’importer ce voyage.',
     copyFailedTitle: 'Échec de la copie',
     copyFailedBody: 'Une erreur s’est produite lors de la copie de l’instruction. Veuillez réessayer.',
+    errorEmpty: 'Il n’y a rien à importer — choisissez un fichier ou collez le JSON de votre voyage.',
+    errorNotJson: 'Cela ne ressemble pas à un JSON de voyage. Vérifiez que vous avez copié tout le fichier.',
+    errorInvalidTrip: 'Ce fichier de voyage n’est pas valide ({detail}).',
   },
 
   share: {
@@ -192,6 +204,7 @@ export const fr: Messages = {
     dayHeader: 'Jour {n}',
     edit: 'Modifier',
     navigate: 'Itinéraire',
+    addItem: 'Ajouter un élément',
   },
 
   companion: {

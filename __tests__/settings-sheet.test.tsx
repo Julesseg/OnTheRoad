@@ -18,6 +18,14 @@ vi.mock('@/lib/store', () => ({ useTripStore: vi.fn() }));
 // can't mount under jsdom; stub it out.
 vi.mock('@/components/progressive-blur', () => ({ ProgressiveBlurView: () => null }));
 
+// expo-constants supplies the read-only version/build for the About section.
+vi.mock('expo-constants', () => ({
+  default: { expoConfig: { version: '1.2.3', ios: { buildNumber: '7' } }, nativeBuildVersion: '7' },
+}));
+// The privacy link opens in the in-app browser; the others go through Linking.
+const webBrowserMock = vi.hoisted(() => ({ openBrowserAsync: vi.fn() }));
+vi.mock('expo-web-browser', () => webBrowserMock);
+
 // Modifiers are opaque native config; tag() must round-trip its value so the
 // Picker mock can map each option child back to the value it selects.
 vi.mock('@expo/ui/swift-ui/modifiers', () => ({
@@ -80,6 +88,8 @@ vi.mock('@expo/ui/swift-ui', async () => {
     Picker,
     Button,
     Text: pass('span'),
+    HStack: pass('div'),
+    Spacer: () => null,
   };
 });
 
@@ -168,5 +178,48 @@ describe('SettingsSheet', () => {
     render(<SettingsSheet />);
 
     expect(screen.getByText(/made in france with/i)).toBeInTheDocument();
+  });
+
+  describe('About section', () => {
+    it('shows the read-only version and build from expo-constants', async () => {
+      storeWith({});
+      const { default: SettingsSheet } = await import('@/app/settings');
+      render(<SettingsSheet />);
+
+      expect(screen.getByText('Version')).toBeInTheDocument();
+      expect(screen.getByText('1.2.3 (7)')).toBeInTheDocument();
+    });
+
+    it('renders the privacy, support, and rate links', async () => {
+      storeWith({});
+      const { default: SettingsSheet } = await import('@/app/settings');
+      render(<SettingsSheet />);
+
+      expect(screen.getByRole('button', { name: /privacy policy/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /contact & support/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /rate on the app store/i })).toBeInTheDocument();
+    });
+
+    it('opens the privacy policy in the in-app browser', async () => {
+      storeWith({});
+      const { default: SettingsSheet } = await import('@/app/settings');
+      render(<SettingsSheet />);
+
+      fireEvent.click(screen.getByRole('button', { name: /privacy policy/i }));
+      expect(webBrowserMock.openBrowserAsync).toHaveBeenCalledWith(
+        expect.stringContaining('privacy.html'),
+      );
+    });
+
+    it('opens a mailto link for contact & support', async () => {
+      const { Linking } = await import('react-native');
+      const openURL = vi.spyOn(Linking, 'openURL').mockResolvedValue(true);
+      storeWith({});
+      const { default: SettingsSheet } = await import('@/app/settings');
+      render(<SettingsSheet />);
+
+      fireEvent.click(screen.getByRole('button', { name: /contact & support/i }));
+      expect(openURL).toHaveBeenCalledWith(expect.stringMatching(/^mailto:/));
+    });
   });
 });

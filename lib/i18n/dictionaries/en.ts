@@ -18,6 +18,7 @@ export const en = {
     end: 'End',
     deleteItemTitle: 'Delete item',
     deleteItemConfirm: 'Delete "{name}"? This can\'t be undone.',
+    openSettings: 'Open Settings',
   },
 
   status: {
@@ -98,11 +99,19 @@ export const en = {
     appearanceLight: 'Light',
     appearanceDark: 'Dark',
     signature: 'Made in France with 🧡',
+    about: 'About',
+    version: 'Version',
+    privacyPolicy: 'Privacy Policy',
+    contactSupport: 'Contact & Support',
+    rateApp: 'Rate on the App Store',
   },
 
   map: {
     recenter: 'Recenter',
     centerOnLocation: 'Center on my location',
+    locationDeniedTitle: 'Location access is off',
+    locationDeniedMessage:
+      'Allow location access in Settings to center the map on where you are.',
   },
 
   importPaste: {
@@ -128,6 +137,10 @@ export const en = {
     failedBody: 'Could not import this trip.',
     copyFailedTitle: 'Couldn’t copy',
     copyFailedBody: 'Something went wrong copying the prompt. Please try again.',
+    // Friendly, localized messages for the resilient import paths (trip-io).
+    errorEmpty: 'There’s nothing to import yet — choose a file or paste your trip JSON.',
+    errorNotJson: 'This doesn’t look like trip JSON. Check that you copied the whole file.',
+    errorInvalidTrip: 'This isn’t a valid trip file ({detail}).',
   },
 
   share: {
@@ -197,6 +210,7 @@ export const en = {
     dayHeader: 'Day {n}',
     edit: 'Edit',
     navigate: 'Navigate',
+    addItem: 'Add item',
   },
 
   // The today companion card (today-companion.tsx).

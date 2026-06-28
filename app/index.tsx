@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, Linking, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -55,10 +55,12 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Center-on-user: animate to the user's position when permitted, otherwise route
-  // to Settings rather than dead-ending. Distinct from the scope button, which
-  // reframes the trip route. Lifts the dot into the area above the sheet, matching
-  // the route framing at the current detent.
+  // Center-on-user: animate to the user's position when permitted. When location
+  // is denied or restricted, don't dead-end — explain why nothing happened and
+  // offer a route to iOS Settings (the only place the user can grant it once the
+  // system prompt is spent). Distinct from the scope button, which reframes the
+  // trip route. Lifts the dot into the area above the sheet, matching the route
+  // framing at the current detent.
   const onCenterOnUser = useCallback(async () => {
     const result = await centerOnUser(Location);
     if (result.kind === 'located') {
@@ -66,7 +68,10 @@ export default function HomeScreen() {
         panelFraction: panelFractionForDetent(sheetDetentIndex),
       });
     } else {
-      Linking.openSettings?.();
+      Alert.alert(t('map.locationDeniedTitle'), t('map.locationDeniedMessage'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.openSettings'), onPress: () => Linking.openSettings?.() },
+      ]);
     }
   }, [sheetDetentIndex]);
 

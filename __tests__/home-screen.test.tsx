@@ -191,6 +191,28 @@ describe('HomeScreen', () => {
     expect(getPosition).not.toHaveBeenCalled();
   });
 
+  it('explains and offers Settings when centering on the user is denied', async () => {
+    // The expo-location mock defaults to denied + canAskAgain false (a fresh
+    // Simulator with location off), so centerOnUser resolves to { kind: 'denied' }.
+    const { Alert } = await import('react-native');
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(() => {});
+    storeWith({});
+    const { default: HomeScreen } = await import('@/app/index');
+    await act(async () => {
+      render(<HomeScreen />);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Center on my location'));
+    });
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    const [title, , buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]];
+    expect(title).toMatch(/location/i);
+    // Not a dead-end: one of the buttons routes the traveller to iOS Settings.
+    expect(buttons.some((b) => /settings/i.test(b.text))).toBe(true);
+  });
+
   it('shows the info card for the selected pin', async () => {
     const trip = makeTrip('trip-1', TRIP_ITEMS);
     const summary = makeSummary(trip);

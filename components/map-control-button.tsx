@@ -28,6 +28,7 @@ export function MapControlButton({
 
   return (
     <Pressable
+      accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       onPressIn={() => springTo(0.86)}

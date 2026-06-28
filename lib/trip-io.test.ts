@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importTripFromJson, normalizePastedJson, serializeTrip } from './trip-io';
+import { importTripFromJson, importErrorMessage, normalizePastedJson, serializeTrip } from './trip-io';
 
 const FRESH_ID = '019fffff-ffff-7fff-8fff-ffffffffffff';
 
@@ -49,29 +49,58 @@ describe('serializeTrip', () => {
 });
 
 describe('importTripFromJson — errors', () => {
-  it('returns an error (not a throw) for text that is not valid JSON', () => {
+  it('returns an invalid-json error (not a throw) for text that is not valid JSON', () => {
     const res = importTripFromJson('this is not json', FRESH_ID);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toMatch(/json/i);
+    if (!res.ok) expect(res.error.kind).toBe('invalid-json');
   });
 
-  it('labels an absent required field with the "Missing required field:" prefix', () => {
+  it('returns an empty error (not a throw) for blank input', () => {
+    for (const blank of ['', '   ', '\n\t ']) {
+      const res = importTripFromJson(blank, FRESH_ID);
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error.kind).toBe('empty');
+    }
+  });
+
+  it('returns an invalid-json error for a truncated / corrupt blob', () => {
+    // A file cut off mid-object — valid JSON until the truncation point.
+    const truncated = JSON.stringify(VALID_TRIP).slice(0, 80);
+    const res = importTripFromJson(truncated, FRESH_ID);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.kind).toBe('invalid-json');
+  });
+
+  it('returns an invalid-trip error (not a throw) for valid JSON that is not a trip', () => {
+    for (const notATrip of ['42', '"hello"', 'null', '[1,2,3]', '{}']) {
+      const res = importTripFromJson(notATrip, FRESH_ID);
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error.kind).toBe('invalid-trip');
+    }
+  });
+
+  it('labels an absent required field with the "Missing required field:" prefix in the detail', () => {
     const { startDate: _omit, ...noStartDate } = VALID_TRIP;
     const res = importTripFromJson(JSON.stringify(noStartDate), FRESH_ID);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toContain('Missing required field: startDate');
+    if (!res.ok) {
+      expect(res.error.kind).toBe('invalid-trip');
+      if (res.error.kind === 'invalid-trip') {
+        expect(res.error.detail).toContain('Missing required field: startDate');
+      }
+    }
   });
 
   it('does not label a present-but-wrong-type field as missing', () => {
     const res = importTripFromJson(JSON.stringify({ ...VALID_TRIP, title: 123 }), FRESH_ID);
     expect(res.ok).toBe(false);
-    if (!res.ok) {
-      expect(res.error).toContain('title');
-      expect(res.error).not.toContain('Missing required field');
+    if (!res.ok && res.error.kind === 'invalid-trip') {
+      expect(res.error.detail).toContain('title');
+      expect(res.error.detail).not.toContain('Missing required field');
     }
   });
 
-  it('returns an error naming the nested path for an invalid item category', () => {
+  it('names the nested path in the detail for an invalid item category', () => {
     // Use schemaVersion: 3 so migration passes through, then schema rejects the invalid category.
     const bad = {
       ...VALID_TRIP,
@@ -86,7 +115,17 @@ describe('importTripFromJson — errors', () => {
     };
     const res = importTripFromJson(JSON.stringify(bad), FRESH_ID);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toContain('days.0.items.0');
+    if (!res.ok && res.error.kind === 'invalid-trip') expect(res.error.detail).toContain('days.0.items.0');
+  });
+});
+
+describe('importErrorMessage', () => {
+  it('renders a non-empty, friendly message for every error kind', () => {
+    expect(importErrorMessage({ kind: 'empty' })).toBeTruthy();
+    expect(importErrorMessage({ kind: 'invalid-json' })).toBeTruthy();
+    const withDetail = importErrorMessage({ kind: 'invalid-trip', detail: 'days.0.items.0' });
+    // The friendly lead-in carries the technical detail for the curious.
+    expect(withDetail).toContain('days.0.items.0');
   });
 });
 

@@ -3,8 +3,19 @@
 // Given the current PR's freshly-built .ipa, this upserts that PR's slot into a
 // `builds.json` manifest (one slot per PR, keyed by PR number), prunes to the N
 // most-recently-built PRs, copies the .ipa into builds/pr-<n>/, and regenerates
-// every HTML page and OTA manifest. It mutates SITE_DIR in place; the caller
-// force-pushes the result to the build-history branch and serves it via Pages.
+// every HTML page and OTA manifest. The build list is published at /builds/.
+//
+// The published root is the repo's static site (site/): the marketing
+// index.html is the Pages landing page and privacy.html sits beside it, so they
+// resolve at PAGES_BASE_URL — the App Store privacy link depends on it. Layout:
+//   /                 marketing landing page   (site/index.html)
+//   /privacy.html     privacy policy           (site/privacy.html)
+//   /builds/          the build list           (rootPage)
+//   /builds/pr-<n>/   per-build install page + .ipa + manifest
+//   /builds.json      the slot manifest (internal state, seeded across runs)
+//
+// It mutates SITE_DIR in place; the caller force-pushes the result to the
+// build-history branch and serves it via Pages.
 //
 // Inputs come from the environment (see release.yml > deploy job):
 //   SITE_DIR        directory holding the published site (may be empty on first run)
@@ -18,6 +29,12 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// The repo's static policy site (privacy policy, etc.), mirrored into the
+// published site so pages like privacy.html resolve at PAGES_BASE_URL. Resolved
+// relative to this script so it works regardless of the caller's cwd.
+const SITE_SOURCE = fileURLToPath(new URL("../site", import.meta.url));
 
 const env = (name, fallback) => {
   const v = process.env[name];
@@ -203,7 +220,7 @@ const pageHead = (title) => `<!DOCTYPE html>
 <body>`;
 
 const slotPage = (slot, isLatest) => `${pageHead(slot.title)}
-  <a class="back" href="${BASE}/">← All builds</a>
+  <a class="back" href="${BASE}/builds/">← All builds</a>
   <main data-build-id="${buildId(slot)}">
     <h1>${escapeHtml(slot.title)}${isLatest ? '<span class="badge">latest</span>' : ""}<span class="new-badge">NEW</span><span class="time-pill" data-time="${slot.time}"></span><span class="seen-tag">✓ installed</span></h1>
     <p class="sub">PR #${slot.pr} · ${escapeHtml(slot.sha)} · ${escapeHtml(formatTime(slot.time))}</p>
@@ -247,6 +264,26 @@ async function readManifest() {
   }
 }
 
+// Mirror the repo's static site onto the published root: the marketing
+// index.html becomes the Pages landing page, privacy.html (and any future static
+// assets) sit beside it, all reachable at the base URL. The build list is written
+// to /builds/ instead, so it no longer competes for the root.
+async function mirrorStaticSite() {
+  let names;
+  try {
+    names = await fs.readdir(SITE_SOURCE);
+  } catch {
+    console.log("No site/ directory to mirror — skipping static pages.");
+    return;
+  }
+  const copied = [];
+  for (const name of names) {
+    await fs.cp(path.join(SITE_SOURCE, name), path.join(SITE_DIR, name), { recursive: true });
+    copied.push(name);
+  }
+  if (copied.length) console.log(`Mirrored static site files: ${copied.join(", ")}`);
+}
+
 async function main() {
   const existing = await readManifest();
 
@@ -287,8 +324,15 @@ async function main() {
     );
   }
 
-  await fs.writeFile(path.join(SITE_DIR, "index.html"), rootPage(kept));
+  // The build list lives at /builds/ (not the site root): the public marketing
+  // page (site/index.html) owns the root, mirrored in below. builds.json stays at
+  // the root — it's the manifest seeded from the build-history branch and read by
+  // readManifest(); keeping its path stable preserves history across this move.
+  await fs.writeFile(path.join(buildsDir, "index.html"), rootPage(kept));
   await fs.writeFile(path.join(SITE_DIR, "builds.json"), JSON.stringify(kept, null, 2) + "\n");
+
+  // Mirror the static site (marketing index.html, privacy.html, …) onto the root.
+  await mirrorStaticSite();
 
   console.log(
     `Published PR #${PR_NUMBER} (${SHORT_SHA}). Retained slots: ${kept.map((s) => `pr-${s.pr}`).join(", ")}`,
