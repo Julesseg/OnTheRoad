@@ -29,7 +29,7 @@ const ALL_MAPS_APPS: MapsApp[] = ['apple', 'google', 'waze'];
 // Both open out of the app — mailto / in-app browser. privacy.html ships from
 // the repo's site/ dir, mirrored onto GitHub Pages by the build-history deploy
 // (ci/assemble-build-history.mjs), so it resolves at this URL.
-const SUPPORT_EMAIL = 'julessseguin@gmail.com';
+const SUPPORT_EMAIL = 'jsnull.dev+ontheroad@gmail.com';
 const PRIVACY_URL = 'https://julesseg.github.io/OnTheRoad/privacy.html';
 // TODO: replace with the real numeric App Store ID once the app is published.
 // App Store review deep links key off the numeric id, not the bundle id

@@ -84,4 +84,4 @@ effective date.
 
 ## Contact
 
-Questions about this policy can be sent to **julessseguin@gmail.com**.
+Questions about this policy can be sent to **jsnull.dev+ontheroad@gmail.com**.
