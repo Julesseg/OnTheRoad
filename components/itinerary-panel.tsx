@@ -350,10 +350,13 @@ export function ItineraryPanel({
                       {formatDayLabel(day.date)}
                     </Text>
                     <Spacer />
+                    {/* Icon-only by design (empty label), so it carries an
+                        explicit accessibilityLabel for VoiceOver. */}
                     <Button
                       systemImage="plus"
                       label=""
                       onPress={() => addItemToDay(day.id)}
+                      modifiers={[accessibilityLabel(t('itinerary.addItem'))]}
                     />
                   </HStack>
                 </VStack>

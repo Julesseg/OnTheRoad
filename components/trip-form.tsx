@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, useColorScheme } from 'react-native';
+import { Alert, Linking, useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, useWatch } from 'react-hook-form';
@@ -153,10 +153,13 @@ export function TripForm({
   async function pickCover() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(
-        t('tripForm.permissionTitle'),
-        t('tripForm.permissionMessage'),
-      );
+      // Don't fail silently: explain why the picker won't open and offer a route
+      // to iOS Settings, where access can be granted once the system prompt is
+      // spent (canAskAgain false). Cancel leaves the form untouched.
+      Alert.alert(t('tripForm.permissionTitle'), t('tripForm.permissionMessage'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.openSettings'), onPress: () => Linking.openSettings?.() },
+      ]);
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'] });

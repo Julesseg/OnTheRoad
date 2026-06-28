@@ -1,6 +1,6 @@
 import { File, Directory, Paths } from 'expo-file-system';
 import { AppState, AppStateSchema, Trip, TripSchema } from './schema';
-import { importTripFromJson, normalizePastedJson, serializeTrip } from './trip-io';
+import { importTripFromJson, importErrorMessage, normalizePastedJson, serializeTrip } from './trip-io';
 import { migrateTripData } from './trip-migrate';
 import { wallpaperRelativePath } from './wallpaper';
 import { RouteCacheData, RouteCacheSchema } from './route-cache';
@@ -126,9 +126,17 @@ function exportFileName(trip: Trip): string {
 export async function importTripFromFile(uri: string): Promise<Trip> {
   const file = new File(uri);
   if (!file.exists) throw new Error('File not found.');
-  const raw = await file.text();
+  // Reading the file can itself fail (deleted between pick and read, unreadable
+  // bytes); treat that like any other corrupt input rather than letting it throw
+  // raw — the import path must never crash on malformed input (CONTEXT.md#import).
+  let raw: string;
+  try {
+    raw = await file.text();
+  } catch {
+    throw new Error(importErrorMessage({ kind: 'invalid-json' }));
+  }
   const result = importTripFromJson(raw, newId());
-  if (!result.ok) throw new Error(result.error);
+  if (!result.ok) throw new Error(importErrorMessage(result.error));
   return result.trip;
 }
 
@@ -143,7 +151,7 @@ export async function importTripFromFile(uri: string): Promise<Trip> {
  */
 export function importTripFromText(raw: string): Trip {
   const result = importTripFromJson(normalizePastedJson(raw), newId());
-  if (!result.ok) throw new Error(result.error);
+  if (!result.ok) throw new Error(importErrorMessage(result.error));
   return result.trip;
 }
 

@@ -225,6 +225,25 @@ describe('TripForm', () => {
     );
   });
 
+  it('explains and offers Settings when photo access is denied', async () => {
+    const { Alert } = await import('react-native');
+    const alertSpy = vi.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const launch = vi.mocked(ImagePicker.launchImageLibraryAsync);
+    launch.mockClear();
+    vi.mocked(ImagePicker.requestMediaLibraryPermissionsAsync).mockResolvedValue({
+      granted: false,
+    } as Awaited<ReturnType<typeof ImagePicker.requestMediaLibraryPermissionsAsync>>);
+    renderForm({ initialTitle: 'Coast' });
+
+    fireEvent.click(screen.getByRole('button', { name: /add cover photo/i }));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    const buttons = alertSpy.mock.calls[0][2] as { text: string }[];
+    // Routes to Settings rather than dead-ending, and never opens the library.
+    expect(buttons.some((b) => /settings/i.test(b.text))).toBe(true);
+    expect(launch).not.toHaveBeenCalled();
+  });
+
   it('does not change the cover when the picker is cancelled', async () => {
     vi.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({
       canceled: true,

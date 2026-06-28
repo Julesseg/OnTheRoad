@@ -1,10 +1,38 @@
 import { z } from 'zod';
 import { Trip, TripSchema } from './schema';
 import { migrateTripData } from './trip-migrate';
+import { t } from './i18n';
+
+/**
+ * A typed import failure — never thrown, always returned, so malformed input can
+ * never crash a caller (CONTEXT.md#import--export). The `kind` drives a friendly,
+ * localized message via {@link importErrorMessage}; `detail` (schema failures
+ * only) names the offending field for the curious, untranslated by design.
+ *
+ *  - `empty` — blank input (nothing pasted, an empty file).
+ *  - `invalid-json` — not parseable as JSON (garbage, a truncated/corrupt file).
+ *  - `invalid-trip` — valid JSON that isn't a trip (fails the schema gate).
+ */
+export type ImportError =
+  | { kind: 'empty' }
+  | { kind: 'invalid-json' }
+  | { kind: 'invalid-trip'; detail: string };
 
 export type ImportResult =
   | { ok: true; trip: Trip }
-  | { ok: false; error: string };
+  | { ok: false; error: ImportError };
+
+/** Render a typed {@link ImportError} as a friendly, localized message for the UI. */
+export function importErrorMessage(error: ImportError): string {
+  switch (error.kind) {
+    case 'empty':
+      return t('import.errorEmpty');
+    case 'invalid-json':
+      return t('import.errorNotJson');
+    case 'invalid-trip':
+      return t('import.errorInvalidTrip', { detail: error.detail });
+  }
+}
 
 // Walk an object along a zod issue path; returns undefined if any hop is absent.
 function valueAtPath(root: unknown, path: PropertyKey[]): unknown {
@@ -66,15 +94,28 @@ export function normalizePastedJson(raw: string): string {
  * error naming the offending field(s) is returned.
  */
 export function importTripFromJson(raw: string, freshId: string): ImportResult {
+  // Blank input is its own case so the message can invite the user to act rather
+  // than read as a parse failure (an empty paste, an empty file).
+  if (raw.trim() === '') return { ok: false, error: { kind: 'empty' } };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Garbage, a truncated paste, or a corrupt file: not parseable as JSON.
+    return { ok: false, error: { kind: 'invalid-json' } };
+  }
+  // Migration walks the parsed shape; guard it so a valid-JSON-but-wrong-shape
+  // value (a bare number, a malformed days array) surfaces as an invalid trip
+  // rather than escaping as an uncaught throw.
   let data: unknown;
   try {
-    data = migrateTripData(JSON.parse(raw));
-  } catch {
-    return { ok: false, error: 'File is not valid JSON.' };
+    data = migrateTripData(parsed);
+  } catch (e) {
+    return { ok: false, error: { kind: 'invalid-trip', detail: e instanceof Error ? e.message : 'unreadable' } };
   }
   const result = TripSchema.safeParse(data);
   if (!result.success) {
-    return { ok: false, error: formatIssues(result.error, data) };
+    return { ok: false, error: { kind: 'invalid-trip', detail: formatIssues(result.error, data) } };
   }
   // Drop wallpaperUri: the image lives on disk under the original trip id and is
   // never part of the JSON export, so the path would dangle after import.
