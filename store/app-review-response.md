@@ -124,8 +124,11 @@ Quick path to exercise every core feature:
 
 **Sample file (optional).** Because Import accepts a standalone trip JSON validated
 against the app's schema, a reviewer can populate a full trip instantly by importing a
-sample `.json` file. One can be attached in App Store Connect on request; it is not
-required to review the app, since trips are easy to create by hand.
+sample `.json` file. A ready-to-import one lives at
+[`store/sample/trip.json`](sample/trip.json) — a three-day "Pacific Coast Weekend" that
+exercises every item category, map pins with a road-following route, an address-only
+stop, and a checklist. It can be attached in App Store Connect; it is not required to
+review the app, since trips are easy to create by hand.
 
 ## 5. External services, tools, and platforms
 

@@ -1,0 +1,145 @@
+{
+  "id": "314972f5-663c-4439-b015-c0e467e20167",
+  "schemaVersion": 3,
+  "title": "Pacific Coast Weekend",
+  "startDate": "2026-07-04",
+  "endDate": "2026-07-06",
+  "days": [
+    {
+      "id": "96e54c27-ebc3-4715-8a1f-f421f28f2fc8",
+      "date": "2026-07-04",
+      "items": [
+        {
+          "id": "e0d9b1b6-d64b-405c-8d86-d623a44a60c8",
+          "name": "Pack the car",
+          "category": "note",
+          "notes": "Leave by 9am to beat the holiday traffic.",
+          "checklist": [
+            {
+              "id": "ef9f4df5-63ff-4e0a-9596-91c6235a6c2c",
+              "label": "Phone charger",
+              "checked": false
+            },
+            {
+              "id": "56284582-8676-44ae-b12e-50d88502be19",
+              "label": "Sunscreen",
+              "checked": false
+            },
+            {
+              "id": "95f5b27e-8e83-41a5-b5e1-aa222d51fd1d",
+              "label": "Reusable water bottles",
+              "checked": false
+            }
+          ]
+        },
+        {
+          "id": "7fb05098-6e25-42a0-97b9-4af5663ae42e",
+          "name": "Golden Gate Bridge",
+          "category": "location",
+          "time": "09:30",
+          "location": {
+            "address": "Golden Gate Bridge, San Francisco, CA",
+            "lat": 37.8199,
+            "lng": -122.4783
+          }
+        },
+        {
+          "id": "8e1e68aa-7a92-442c-99c2-da06b304e6c6",
+          "name": "Lunch in Santa Cruz",
+          "category": "meal",
+          "time": "13:00",
+          "location": {
+            "address": "Santa Cruz Beach Boardwalk, Santa Cruz, CA",
+            "lat": 36.9641,
+            "lng": -122.0177
+          }
+        },
+        {
+          "id": "9be3b49e-3337-4f02-9d11-7f6fdccb92fa",
+          "name": "Check in at Dream Inn",
+          "category": "stay",
+          "time": "16:00",
+          "location": {
+            "address": "175 W Cliff Dr, Santa Cruz, CA 95060",
+            "lat": 36.9626,
+            "lng": -122.0246
+          }
+        }
+      ]
+    },
+    {
+      "id": "2c11483b-bc3c-4331-bdd5-0b862cd659ef",
+      "date": "2026-07-05",
+      "items": [
+        {
+          "id": "739a6a6b-244f-4b69-8aa2-7ab13e5eb9a9",
+          "name": "Monterey Bay Aquarium",
+          "category": "activity",
+          "time": "10:00",
+          "notes": "Tickets booked online — show QR at the door.",
+          "location": {
+            "address": "886 Cannery Row, Monterey, CA 93940",
+            "lat": 36.6182,
+            "lng": -121.9019
+          }
+        },
+        {
+          "id": "dda0b7bb-7192-4e92-8e44-b3823c7603a8",
+          "name": "Bixby Creek Bridge",
+          "category": "location",
+          "time": "14:00",
+          "location": {
+            "address": "Bixby Creek Bridge, Monterey County, CA",
+            "lat": 36.3714,
+            "lng": -121.9015
+          }
+        },
+        {
+          "id": "6663c9a5-dde1-40b7-b307-5e9017fd8873",
+          "name": "Dinner at Big Sur Roadhouse",
+          "category": "meal",
+          "time": "19:00",
+          "location": {
+            "address": "Big Sur, CA 93920"
+          }
+        },
+        {
+          "id": "91d762cf-d996-4c55-8e48-d9c8dffa2a37",
+          "name": "Check in at Big Sur Lodge",
+          "category": "stay",
+          "time": "21:00",
+          "location": {
+            "address": "47225 CA-1, Big Sur, CA 93920",
+            "lat": 36.2483,
+            "lng": -121.782
+          }
+        }
+      ]
+    },
+    {
+      "id": "fd195858-ec2d-4fa1-881e-2281a3d21d68",
+      "date": "2026-07-06",
+      "items": [
+        {
+          "id": "51035f4c-979c-48b3-bf17-b630a729e57e",
+          "name": "McWay Falls overlook",
+          "category": "activity",
+          "time": "09:00",
+          "location": {
+            "address": "McWay Falls, Big Sur, CA",
+            "lat": 36.1573,
+            "lng": -121.6717
+          }
+        },
+        {
+          "id": "e4601509-8f44-4e05-8133-33ab39824d32",
+          "name": "Drive home",
+          "category": "note",
+          "notes": "Fuel up before leaving Big Sur — long stretch with no stations."
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-06-29T12:00:00.000Z",
+  "updatedAt": "2026-06-29T12:00:00.000Z"
+}
