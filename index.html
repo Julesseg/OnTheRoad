@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OnTheRoad — road-trip planner & companion</title>
+    <meta
+      name="description"
+      content="OnTheRoad is a local-first road-trip itinerary app for iOS. Plan a trip day by day, keep it all on your iPhone."
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #e6dac4;
+        --card: #fffdf8;
+        --ink: #2a2722;
+        --muted: #6b6457;
+        --accent: #b5562a;
+        --rule: #e3d9c6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c1b19;
+          --card: #26241f;
+          --ink: #ece6da;
+          --muted: #a7a08f;
+          --accent: #e08a4f;
+          --rule: #3a382f;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 18px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        text-align: center;
+        padding: 24px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--rule);
+        border-radius: 22px;
+        padding: 48px 40px;
+        max-width: 460px;
+      }
+      h1 { font-size: 2.1rem; margin: 0; letter-spacing: -0.02em; }
+      .tag { color: var(--accent); font-weight: 600; margin: 6px 0 18px; }
+      p { color: var(--muted); }
+      a { color: var(--accent); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>OnTheRoad</h1>
+      <p class="tag">Road trip planner &amp; companion</p>
+      <p>
+        A local-first road-trip itinerary app for iOS. Plan a trip day by day and
+        keep everything for the road on your iPhone.
+      </p>
+      <p><a href="./privacy.html">Privacy Policy →</a></p>
+    </div>
+  </body>
+</html>
